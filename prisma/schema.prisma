@@ -1,0 +1,580 @@
+// ════════════════════════════════════════════════════════════════════════
+// Schéma Prisma progitpaie — Suite Complète RH, Paie & Comptabilité SYSCOHADA
+// ════════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════
+// ENUMS (ÉNUMÉRATIONS SYSTÈME)
+// ═══════════════════════════════════════════════
+
+/// Rôle de l'utilisateur dans l'application
+enum UserRole {
+  admin
+  employee
+}
+
+/// Statut quotidien de présence
+enum AttendanceStatus {
+  present
+  absent
+  late
+  half_day   @map("half-day")
+  on_leave   @map("on-leave")
+}
+
+/// Type de congé demandé
+enum LeaveType {
+  sick
+  casual
+  annual
+  unpaid
+}
+
+/// Statut de validation de la demande de congé
+enum LeaveStatus {
+  pending
+  approved
+  rejected
+}
+
+/// Statut de la fiche de paie mensuelle
+enum PayrollStatus {
+  draft
+  finalized
+}
+
+/// Type de notification émise
+enum NotificationType {
+  info
+  success
+  warning
+  error
+}
+
+/// Type de contrat de travail
+enum ContractType {
+  CDI
+  CDD
+  STAGE
+  FREELANCE
+}
+
+/// Catégorie professionnelle de l'employé (Barème de convention collective)
+enum EmployeeCategory {
+  cadre
+  maitrise
+  employe
+  ouvrier
+}
+
+/// Statut de validation des heures supplémentaires
+enum OvertimeStatus {
+  pending
+  approved
+  rejected
+}
+
+/// Type de prêt ou avance sur salaire
+enum LoanType {
+  PRET
+  AVANCE
+}
+
+/// Statut du dossier de prêt
+enum LoanStatus {
+  active
+  completed
+  cancelled
+}
+
+/// Type de rupture du contrat de travail (Solde de tout compte)
+enum TerminationType {
+  licenciement
+  demission
+  retraite
+  fin_cdd
+  rupture_conventionnelle
+}
+
+/// Type de déclaration fiscale ou sociale
+enum DeclarationType {
+  ITS_MONTHLY
+  CNPS_MONTHLY
+  FDFP_ANNUAL
+  ETAT_301
+  DISA
+}
+
+// ═══════════════════════════════════════════════
+// MODÈLES DE DONNÉES (TABLES)
+// ═══════════════════════════════════════════════
+
+/// Table des Utilisateurs & Employés
+model User {
+  id                 String           @id @default(cuid())
+  name               String           // Nom complet de l'employé
+  email              String           @unique // Adresse email professionnelle
+  password           String           // Mot de passe haché (Bcrypt)
+  role               UserRole         @default(employee) // Rôle (admin / employee)
+  employeeId         String?          @unique // Matricule unique (ex: EMP-001)
+  departmentId       String?          // Département rattaché
+  shiftId            String?          // Horaire de travail (Shift) rattaché
+  salary             Float            @default(0) // Salaire catégoriel de base
+  sursalaire         Float            @default(0) // Sursalaire négocié
+  partsIGR           Float            @default(1.0) // Nombre de parts IGR (Quotient familial)
+  transportAllowance Float            @default(0) // Indemnité de transport (Non imposable jusqu'à 30k FCFA)
+  housingAllowance   Float            @default(0) // Indemnité de logement
+  joiningDate        DateTime         @default(now()) // Date d'embauche
+  isActive           Boolean          @default(true) // Statut d'activité (Soft delete)
+
+  // LOGIPAIE RH 24 — Fiche du Personnel
+  civility           String?          @default("M.") // Civilité (M., Mme, Mlle)
+  gender             String?          @default("M") // Sexe (M / F)
+  birthDate          DateTime?        // Date de naissance
+  birthPlace         String?          // Lieu de naissance
+  idCardType         String?          @default("CNI") // Nature pièce identité (CNI, Passeport...)
+  idCardNumber       String?          // N° pièce identité
+  nationality        String?          @default("IVOIRIENNE") // Nationalité
+  maritalStatus      String?          @default("Célibataire") // Situation matrimoniale
+  childrenCount      Int              @default(0) // Nombre d'enfants à charge
+  address            String?          // Adresse complète
+  phone              String?          // Téléphone
+  contractType       String?          @default("CDI") // Type de contrat (CDI, CDD, Stage)
+  contractSignDate   DateTime?        // Date de signature du contrat
+  cddDurationMonths  Int?             // Durée contrat CDD (mois)
+  exitDate           DateTime?        // Date de sortie
+  direction          String?          // Direction (ex: ADMINISTRATION)
+  service            String?          // Service (ex: SECRETARIAT EXECUTE)
+  jobTitle           String?          // Emploi / Fonction (ex: Comptable)
+  jobCode            String?          // Code Emploi (ex: CM, CS)
+  regime             String?          @default("Général") // Régime (Général / Agricole)
+  paymentType        String?          @default("Mensuel") // Type (Mensuel / Horaire)
+  category           String?          @default("1A") // Catégorie professionnelle (11 à 1A)
+  cnpsExempt         Boolean          @default(false) // Non soumis CNPS
+  cnpsNumber         String?          // N° CNPS
+  paymentMethod      String?          @default("Virement") // Mode de paiement (Virement, Chèque, Espèces)
+  bankAccount        String?          // N° de Compte Bancaire (RIB)
+  bankName           String?          // Nom de la Banque (ex: SOCIETE GENERALE CI)
+
+  // Soldes de congés (en jours)
+  leaveBalanceAnnual Int              @default(20)
+  leaveBalanceSick   Int              @default(10)
+  leaveBalanceCasual Int              @default(5)
+
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  // Relations principales
+  department         Department?      @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
+  shift              Shift?           @relation("ShiftEmployees", fields: [shiftId], references: [id], onDelete: SetNull)
+
+  // Relations inverses
+  attendances        Attendance[]     @relation("UserAttendances")
+  overriddenRecords  Attendance[]     @relation("OverriddenAttendances")
+  leaves             Leave[]          @relation("UserLeaves")
+  approvedLeaves     Leave[]          @relation("ApprovedLeaves")
+  payrolls           Payroll[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  managedDepartments Department[]     @relation("DepartmentManager")
+  contracts          Contract[]
+  overtimes          Overtime[]
+  approvedOvertimes  Overtime[]       @relation("ApprovedOvertimes")
+  loans              Loan[]
+  severances         Severance[]
+
+  @@index([email])
+  @@map("users")
+}
+
+/// Table des Pointages & Présences Quotidiennes
+model Attendance {
+  id              String           @id @default(cuid())
+  userId          String           // ID de l'employé
+  date            String           // Date au format YYYY-MM-DD
+  checkIn         DateTime         // Heure de pointage d'arrivée
+  checkOut        DateTime?        // Heure de pointage de départ
+  status          AttendanceStatus @default(present) // Statut (present, late, absent, half_day, on_leave)
+  hoursWorked     Float            @default(0) // Nombre d'heures travaillées
+  workingMinutes  Int              @default(0) // Nombre de minutes travaillées
+  overtimeMinutes Int              @default(0) // Minutes d'heures supplémentaires
+  overtimeRate    Float            @default(1.15) // Taux de majoration (1.15 = +15%, 1.5 = +50%, 1.75 = +75%, 2.0 = +100%)
+  notes           String           @default("") // Notes ou motifs
+  locationLat     Float?           // Latitude GPS lors du pointage
+  locationLng     Float?           // Longitude GPS lors du pointage
+  overriddenById  String?          // Modifié par (Admin ID)
+  overriddenAt    DateTime?        // Date de modification admin
+  outOfOffice     Boolean          @default(false) // Mission extérieure
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // Relations
+  user            User             @relation("UserAttendances", fields: [userId], references: [id], onDelete: Cascade)
+  overriddenBy    User?            @relation("OverriddenAttendances", fields: [overriddenById], references: [id], onDelete: SetNull)
+  overtimeDetails Overtime[]       @relation("AttendanceOvertimes")
+
+  @@unique([userId, date])
+  @@index([date])
+  @@index([userId])
+  @@index([status])
+  @@map("attendances")
+}
+
+/// Table des Départements
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique // Nom du département (ex: Ressources Humaines, IT, Finance)
+  description String   @default("") // Description
+  managerId   String?  // Responsable du département
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  manager     User?    @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  employees   User[]   @relation("DepartmentEmployees")
+
+  @@index([name])
+  @@index([isActive])
+  @@map("departments")
+}
+
+/// Table des Horaires & Shifts de Travail
+model Shift {
+  id                   String   @id @default(cuid())
+  name                 String   @unique // Nom du shift (ex: Équipe Jour, Équipe Nuit)
+  startTime            String   // Heure de début "09:00"
+  endTime              String   // Heure de fin "17:00"
+  workingHours         Float    // Heures théoriques par jour (ex: 8)
+  lateThresholdMinutes Int      @default(15) // Tolérance de retard (minutes)
+  isActive             Boolean  @default(true)
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  employees            User[]   @relation("ShiftEmployees")
+
+  @@index([name])
+  @@index([isActive])
+  @@map("shifts")
+}
+
+/// Table des Demandes de Congés
+model Leave {
+  id           String      @id @default(cuid())
+  userId       String      // ID de l'employé
+  leaveType    LeaveType   // Type de congé (annual, sick, casual, unpaid)
+  startDate    DateTime    // Date de début
+  endDate      DateTime    // Date de fin
+  totalDays    Int         // Nombre de jours ouvrés
+  reason       String      // Motif de la demande
+  status       LeaveStatus @default(pending) // Statut de validation
+  approvedById String?     // Validé/Rejeté par (Admin ID)
+  adminComment String      @default("") // Commentaire de l'administrateur
+  appliedAt    DateTime    @default(now())
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  user         User        @relation("UserLeaves", fields: [userId], references: [id], onDelete: Cascade)
+  approvedBy   User?       @relation("ApprovedLeaves", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([startDate, endDate])
+  @@index([userId, status])
+  @@map("leaves")
+}
+
+/// Table des Fiches de Paie Mensuelles (Super-calculateur Fiscal & Social)
+model Payroll {
+  id                   String             @id @default(cuid())
+  userId               String             // ID de l'employé
+  month                Int                // Mois (1 - 12)
+  year                 Int                // Année (ex: 2026)
+  basicSalary          Float              // Salaire de base catégoriel
+  sursalaire           Float              @default(0) // Sursalaire
+  transportAllowance   Float              @default(0) // Indemnité de transport
+  housingAllowance     Float              @default(0) // Indemnité de logement
+  presentDays          Int                @default(0) // Jours de présence effective
+  absentDays           Int                @default(0) // Jours d'absence
+  lateDays             Int                @default(0) // Nombre de retards
+  leaveDays            Int                @default(0) // Jours de congés payés
+  unpaidLeaveDays      Int                @default(0) // Jours de congés non payés
+  overtimePay          Float              @default(0) // Montant des heures supplémentaires
+  absentDeduction      Float              @default(0) // Retenue pour absence
+  lateDeduction        Float              @default(0) // Retenue pour retard (3 retards = 1 jour)
+  unpaidLeaveDeduction Float              @default(0) // Retenue pour congés non payés
+  bonuses              Float              @default(0) // Primes exceptionnelles
+  grossSalary          Float              @default(0) // Salaire Brut Total
+  itsTax               Float              @default(0) // Impôt sur Salaire (ITS : IS + CN)
+  igrTax               Float              @default(0) // Impôt Général sur le Revenu (IGR)
+  cnpsEmployee         Float              @default(0) // Cotisation CNPS Salarié (6.3%)
+  cnpsEmployer         Float              @default(0) // Cotisation CNPS Patronale (Retraite + PF + AT)
+  fdfpTax              Float              @default(0) // Taxe FDFP Patronale (TFC + TAP 1.6%)
+  totalDeductions      Float              @default(0) // Total des retenues salariales
+  netSalary            Float              // Salaire Net à payer
+  status               PayrollStatus      @default(draft) // Statut (draft / finalized)
+  generatedAt          DateTime           @default(now())
+  finalizedAt          DateTime?
+
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  // Relations
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loanSchedules        LoanSchedule[]
+  accountingEntries    AccountingEntry[]
+
+  @@unique([userId, month, year])
+  @@index([month, year])
+  @@index([status])
+  @@map("payrolls")
+}
+
+/// Table des Contrats de Travail
+model Contract {
+  id                   String           @id @default(cuid())
+  userId               String           // ID de l'employé
+  type                 ContractType     @default(CDI) // Type (CDI, CDD, STAGE, FREELANCE)
+  category             EmployeeCategory @default(employe) // Catégorie (cadre, maitrise, employe)
+  jobTitle             String           // Intitulé du poste
+  startDate            DateTime         // Date de début de contrat
+  endDate              DateTime?        // Date de fin (si CDD / STAGE)
+  probationPeriodMonths Int             @default(0) // Période d'essai (mois)
+  baseSalary           Float            // Salaire de base contractuel
+  sursalaire           Float            @default(0) // Sursalaire
+  transportAllowance   Float            @default(0) // Indemnité de transport
+  housingAllowance     Float            @default(0) // Indemnité de logement
+  documentUrl          String?          // Lien vers le contrat PDF signé
+  status               String           @default("active") // Statut (active, expired, terminated)
+
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  // Relations
+  user                 User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  severances           Severance[]
+
+  @@index([userId])
+  @@map("contracts")
+}
+
+/// Table des Heures Supplémentaires Détaillées
+model Overtime {
+  id              String         @id @default(cuid())
+  userId          String         // ID de l'employé
+  attendanceId    String?        // ID du pointage rattaché
+  date            DateTime       // Date de réalisation
+  minutes         Int            // Nombre de minutes d'heures supp
+  rate            Float          @default(1.15) // Taux légal (1.15 = +15%, 1.50 = +50%, 1.75 = +75%, 2.00 = +100%)
+  reason          String         // Motif des heures supp
+  status          OvertimeStatus @default(pending) // Statut de validation
+  approvedById    String?        // Validé par (Admin ID)
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvedBy      User?          @relation("ApprovedOvertimes", fields: [approvedById], references: [id], onDelete: SetNull)
+  attendance      Attendance?    @relation("AttendanceOvertimes", fields: [attendanceId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@map("overtimes")
+}
+
+/// Table des Prêts & Avances sur Salaire
+model Loan {
+  id               String         @id @default(cuid())
+  userId           String         // ID de l'employé
+  type             LoanType       @default(PRET) // Type (PRET / AVANCE)
+  amount           Float          // Capital total prêté
+  monthlyDeduction Float          // Retenue mensuelle sur salaire
+  totalRepaid      Float          @default(0) // Montant total déjà remboursé
+  remainingAmount  Float          // Capital restant dû
+  startDate        DateTime       // Date de mise en place
+  status           LoanStatus     @default(active) // Statut (active, completed)
+
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  // Relations
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schedules        LoanSchedule[]
+
+  @@index([userId])
+  @@map("loans")
+}
+
+/// Table des Échéances de Remboursement de Prêts
+model LoanSchedule {
+  id         String   @id @default(cuid())
+  loanId     String   // ID du prêt rattaché
+  payrollId  String?  // Fiche de paie sur laquelle la retenue a été effectuée
+  month      Int      // Mois de remboursement
+  year       Int      // Année de remboursement
+  amountPaid Float    // Montant prélevé
+  paidAt     DateTime @default(now())
+
+  // Relations
+  loan       Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  payroll    Payroll? @relation(fields: [payrollId], references: [id], onDelete: SetNull)
+
+  @@index([loanId])
+  @@map("loan_schedules")
+}
+
+/// Table des Imputations Comptables (Journal de Paie SYSCOHADA)
+model AccountingEntry {
+  id            String   @id @default(cuid())
+  payrollId     String   // Fiche de paie rattachée
+  journalDate   DateTime @default(now()) // Date de l'écriture
+  pieceNumber   String   // N° de pièce comptable
+  accountNumber String   // N° de compte SYSCOHADA (ex: 661100, 447200, 431310, 422000)
+  accountName   String   // Intitulé du compte (ex: Appointements & Salaires, Impôts sur Salaires)
+  debit         Float    @default(0) // Montant au Débit
+  credit        Float    @default(0) // Montant au Crédit
+  period        String   // Période "YYYY-MM"
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  payroll       Payroll  @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+
+  @@index([payrollId])
+  @@index([period])
+  @@map("accounting_entries")
+}
+
+/// Table des Indemnités de Rupture & Solde de Tout Compte
+model Severance {
+  id                 String          @id @default(cuid())
+  userId             String          // ID de l'employé
+  contractId         String?         // ID du contrat rompu
+  terminationType    TerminationType // Motif (licenciement, demission, retraite, fin_cdd)
+  exitDate           DateTime        // Date de départ effectif
+  seniorityYears     Float           // Ancienneté calculée (années)
+  noticeIndemnity    Float           @default(0) // Indemnité de préavis
+  severanceIndemnity Float           @default(0) // Indemnité de licenciement / départ
+  leaveCompensation  Float           @default(0) // Indemnité compensatrice de congés payés
+  gratification13th  Float           @default(0) // Prorata de gratification (13ème mois)
+  totalNetExit       Float           // Total Net du solde de tout compte
+
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  // Relations
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contract           Contract?       @relation(fields: [contractId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("severances")
+}
+
+/// Table des Barèmes & Taux Fiscaux/Sociaux Dynamiques
+model TaxRate {
+  id                  String   @id @default(cuid())
+  year                Int      @unique // Année d'application (ex: 2026)
+  cnpsEmployeeRate    Float    @default(0.063) // Retraite salarié 6.3%
+  cnpsEmployerRate    Float    @default(0.077) // Retraite patronale 7.7%
+  cnpsRetraiteCeiling Float    @default(3375000) // Plafond CNPS Retraite (3 375 000 FCFA)
+  cnpsPfCeiling       Float    @default(75000) // Plafond CNPS PF & AT (75 000 FCFA)
+  itsRate             Float    @default(0.012) // Taux Impôt sur Salaire IS 1.2%
+  fdfpTfcRate         Float    @default(0.012) // Taxe Formation Continue 1.2%
+  fdfpTapRate         Float    @default(0.004) // Taxe d'Apprentissage 0.4%
+  isActive            Boolean  @default(true)
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("tax_rates")
+}
+
+/// Table des Déclarations Fiscales & Sociales Réglementaires (DISA, État 301, FDFP)
+model TaxDeclaration {
+  id          String          @id @default(cuid())
+  period      String          // Période "YYYY-MM" ou "YYYY"
+  type        DeclarationType // Type (ITS_MONTHLY, CNPS_MONTHLY, FDFP_ANNUAL, ETAT_301, DISA)
+  totalGross  Float           // Masse salariale brute déclarée
+  totalTax    Float           // Total impôts dus (ITS / IGR)
+  totalSocial Float           // Total cotisations CNPS dues
+  fileUrl     String?         // Document récapitulatif généré (PDF / Excel)
+  status      String          @default("draft") // Statut (draft, submitted)
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([period, type])
+  @@map("tax_declarations")
+}
+
+/// Table des Notifications Système
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           // ID de l'employé destinataire
+  title     String           // Titre de la notification
+  message   String           // Contenu du message
+  type      NotificationType @default(info) // Type (info, success, warning, error)
+  isRead    Boolean          @default(false) // Statut de lecture
+  link      String?          // Lien de redirection
+
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  // Relations
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+/// Table des Journaux d'Audit & Sécurité
+model AuditLog {
+  id            String   @id @default(cuid())
+  performedById String   // ID de l'utilisateur ayant exécuté l'action
+  action        String   // Action (ex: CREATE_EMPLOYEE, OVERRIDE_ATTENDANCE)
+  targetModel   String   // Modèle ciblé (ex: User, Attendance, Payroll)
+  targetId      String?  // ID de la ressource ciblée
+  oldValues     Json?    // Valeurs avant modification
+  newValues     Json?    // Valeurs après modification
+  ipAddress     String?  // Adresse IP de l'utilisateur
+  userAgent     String?  // Navigateur / Device
+  timestamp     DateTime @default(now())
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  performedBy   User     @relation(fields: [performedById], references: [id], onDelete: Cascade)
+
+  @@index([timestamp(sort: Desc)])
+  @@index([performedById])
+  @@index([targetModel, targetId])
+  @@map("audit_logs")
+}
+
+/// Table des Paramètres Globaux de l'Application
+model Settings {
+  id        String   @id @default(cuid())
+  key       String   @unique // Clé unique (ex: location, company_info)
+  value     Json     // Données JSON
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}

@@ -1,0 +1,124 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/middleware-helpers";
+import { Prisma } from "@prisma/client";
+import { ApiResponse } from "@/types";
+
+interface AttendanceRecord {
+  _id: string;
+  id: string;
+  userId: {
+    _id: string;
+    id: string;
+    name: string;
+    email: string;
+    department: string | null;
+  };
+  date: string;
+  checkIn: Date;
+  checkOut: Date | null;
+  status: string;
+  hoursWorked: number;
+  notes: string;
+}
+
+interface AttendanceResponse {
+  records: AttendanceRecord[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export async function GET(
+  request: NextRequest
+): Promise<NextResponse<ApiResponse<AttendanceResponse>>> {
+  try {
+    const user = await requireAuth(request);
+    if (user instanceof NextResponse) {
+      return user;
+    }
+
+    const { searchParams } = new URL(request.url);
+    const month = searchParams.get("month");
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "30", 10);
+
+    const where: Prisma.AttendanceWhereInput = {};
+
+    if (user.role === "employee") {
+      where.userId = user.userId;
+    }
+
+    if (month) {
+      const startDate = `${month}-01`;
+      const [year, monthNum] = month.split("-").map(Number);
+      const lastDay = new Date(year, monthNum, 0).getDate();
+      const endDate = `${month}-${lastDay.toString().padStart(2, "0")}`;
+      where.date = { gte: startDate, lte: endDate };
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [records, total] = await Promise.all([
+      prisma.attendance.findMany({
+        where,
+        orderBy: { date: "desc" },
+        skip,
+        take: limit,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              department: { select: { name: true } },
+            },
+          },
+        },
+      }),
+      prisma.attendance.count({ where }),
+    ]);
+
+    const formattedRecords: AttendanceRecord[] = records.map((r) => ({
+      _id: r.id,
+      id: r.id,
+      userId: {
+        _id: r.user.id,
+        id: r.user.id,
+        name: r.user.name,
+        email: r.user.email,
+        department: r.user.department?.name || null,
+      },
+      date: r.date,
+      checkIn: r.checkIn,
+      checkOut: r.checkOut,
+      status: r.status,
+      hoursWorked: r.hoursWorked,
+      notes: r.notes,
+    }));
+
+    const totalPages = Math.ceil(total / limit);
+
+    return NextResponse.json<ApiResponse<AttendanceResponse>>(
+      {
+        success: true,
+        data: {
+          records: formattedRecords,
+          total,
+          page,
+          totalPages,
+        },
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Fetch attendance error:", error);
+    return NextResponse.json<ApiResponse<never>>(
+      {
+        success: false,
+        error: "Internal server error",
+      },
+      { status: 500 }
+    );
+  }
+}

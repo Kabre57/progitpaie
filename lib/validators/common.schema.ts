@@ -1,0 +1,15 @@
+import { z } from "zod";
+
+export const paginationSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(500).default(50),
+  search: z.string().optional(),
+});
+
+export type PaginationInput = z.infer<typeof paginationSchema>;
+
+export const idParamSchema = z.object({
+  id: z.string({ message: "L'identifiant est requis" }).min(1),
+});
+
+export type IdParamInput = z.infer<typeof idParamSchema>;
