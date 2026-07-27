@@ -203,7 +203,7 @@ export default function EmployeeManagementPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[var(--neu-text)] flex items-center gap-2">
-            <Users className="w-6 h-6 text-[var(--neu-accent)]" /> Registre du Personnel (LOGIPAIE RH 24)
+            <Users className="w-6 h-6 text-[var(--neu-accent)]" /> Registre du Personnel
           </h1>
           <p className="text-[var(--neu-text-secondary)] text-sm">
             Gestion complète des fiches d'état civil, des contrats, de la CNPS et des RIB bancaires des salariés.

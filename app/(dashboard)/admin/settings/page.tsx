@@ -2,14 +2,20 @@
 
 import { useState, useEffect } from "react";
 import { 
-  Settings, Building2, Calculator, Grid, Sliders, Landmark, MapPin, Mail, Save, Loader2, CheckCircle, AlertCircle, Plus, Trash2 
+  Building2, Calculator, Grid, Sliders, Landmark, MapPin, Save, Plus, Trash2 
 } from "lucide-react";
 import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuInput } from "@/components/ui/neu-input";
 import { NeuSelect } from "@/components/ui/neu-select";
-import { NeuBadge } from "@/components/ui/neu-badge";
 import { NeuToast } from "@/components/ui/neu-toast";
+import { Spinner } from "@/components/ui/spinner";
+
+interface CustomPrimeItem {
+  name: string;
+  fiscalNature: string;
+  socialNature: string;
+}
 
 export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<
@@ -20,125 +26,101 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
-  // 1. Identification de l'entreprise
+  // 1. Identification de l'entreprise (0 valeur en dur)
   const [company, setCompany] = useState({
-    name: "PROGI  PAIE ",
-    sigle: "PROGI  PAIE ",
-    activity: "Logiciel de paie",
+    name: "",
+    sigle: "",
+    activity: "",
     legalForm: "SARL",
-    address: "01 BP 1115 ABIDJAN 01",
-    phone: "0709470671",
-    email: "erickourai17@gmail.com",
-    commune: "ABIDJAN",
-    quartier: "COCODY",
+    address: "",
+    phone: "",
+    email: "",
+    commune: "",
+    quartier: "",
     rue: "",
     lot: "",
-    taxCenter: "Abidjan 3",
-    taxNumber: "1234567 A",
-    rccm: "CI-ABJ-2000-A-451",
-    cnpsNumber: "123456",
+    taxCenter: "",
+    taxNumber: "",
+    rccm: "",
+    cnpsNumber: "",
     establishmentCode: "",
     activityCode: "",
-    bankName: "SOCIETE GENERALE CI",
+    bankName: "",
     bankAgency: "",
     bankAccount: "",
-    accountManagerCivility: "M.",
+    accountManagerCivility: "",
     accountManagerName: "",
   });
 
-  // 2. Taux des cotisations
+  // 2. Taux des cotisations (0 valeur en dur)
   const [rates, setRates] = useState({
-    itsGeneral: 1.2,
-    itsAgricole: 2.0,
-    itsExpat: 10.4,
-    itsFormage: 35.0,
-    cnpsEmployeeRetraite: 6.3,
-    cnpsEmployerRetraite: 7.7,
-    cnpsEmployerAT: 3.0,
-    cnpsEmployerAM: 0.75,
-    cnpsEmployerPF: 5.0,
-    fdfpTA: 0.4,
-    fdfpFPC: 0.6,
+    itsGeneral: 0,
+    itsAgricole: 0,
+    itsExpat: 0,
+    itsFormage: 0,
+    cnpsEmployeeRetraite: 0,
+    cnpsEmployerRetraite: 0,
+    cnpsEmployerAT: 0,
+    cnpsEmployerAM: 0,
+    cnpsEmployerPF: 0,
+    fdfpTA: 0,
+    fdfpFPC: 0,
   });
 
-  // 3. Grille des salaires
-  const [salaryGrid, setSalaryGrid] = useState([
-    { category: "11", amount: 208034 },
-    { category: "10C", amount: 187229 },
-    { category: "10B", amount: 168426 },
-    { category: "10A", amount: 151593 },
-    { category: "9B", amount: 141550 },
-    { category: "9A", amount: 135820 },
-    { category: "8C", amount: 124284 },
-    { category: "8B", amount: 124284 },
-    { category: "8A", amount: 122470 },
-    { category: "7B", amount: 122470 },
-    { category: "7A", amount: 116418 },
-    { category: "6", amount: 116132 },
-    { category: "5", amount: 101347 },
-    { category: "4", amount: 89681 },
-    { category: "3", amount: 82959 },
-    { category: "2", amount: 80518 },
-    { category: "1B", amount: 75000 },
-    { category: "1A", amount: 75000 },
-  ]);
+  // 3. Grille des salaires (0 valeur en dur)
+  const [salaryGrid, setSalaryGrid] = useState<Array<{ category: string; amount: number }>>([]);
 
-  // 4. Autres paramètres
-  const [otherParams, setOtherParams] = useState({
-    transportExemptAmount: 30000,
-    seniorityBonusActive: true,
-    roundNetSalary: "5", // 0, 5, 10, 100
-    leaveDaysPerMonth: 2.7,
-    signatoryName: "M. KOUASSI",
-    signatoryRole: "Directeur Général",
+  // 4. Autres paramètres (0 valeur en dur)
+  const [otherParams, setOtherParams] = useState<{
+    transportExemptAmount: number;
+    seniorityBonusActive: boolean;
+    roundNetSalary: string;
+    leaveDaysPerMonth: number;
+    signatoryName: string;
+    signatoryRole: string;
+    primes: CustomPrimeItem[];
+    deductions: string[];
+  }>({
+    transportExemptAmount: 0,
+    seniorityBonusActive: false,
+    roundNetSalary: "0",
+    leaveDaysPerMonth: 0,
+    signatoryName: "",
+    signatoryRole: "",
+    primes: [],
+    deductions: []
   });
 
-  // 5. Liste des banques
-  const [banks, setBanks] = useState([
-    "SOCIETE GENERALE CI",
-    "BICICI",
-    "NSIA BANQUE",
-    "SIB",
-    "BACI",
-    "ECOBANK",
-    "BDA",
-    "UBA",
-    "BNI",
-    "DIAMOND BANK",
-    "CNCE",
-    "AFRILAND FIRST BANK",
-  ]);
+  // 5. Liste des banques (0 valeur en dur)
+  const [banks, setBanks] = useState<string[]>([]);
 
-  // 6. Géolocalisation
+  // 6. Géolocalisation (0 valeur en dur)
   const [location, setLocation] = useState({
-    officeLat: 5.3484,
-    officeLng: -4.0305,
-    radiusMeters: 150,
+    officeLat: 0,
+    officeLng: 0,
+    radiusMeters: 0,
     strictGeofence: false,
   });
 
-  // Fetch settings on load
+  // Chargement 100% Dynamique depuis l'API et la Base de Données PostgreSQL
   useEffect(() => {
     async function loadAllSettings() {
       setLoading(true);
       try {
-        const [resCompany, resRates, resGrid, resOther, resBanks, resLoc] = await Promise.all([
-          fetch("/api/settings/company_info").then((r) => r.json()),
-          fetch("/api/settings/tax_rates").then((r) => r.json()),
-          fetch("/api/settings/salary_grid").then((r) => r.json()),
-          fetch("/api/settings/other_params").then((r) => r.json()),
-          fetch("/api/settings/bank_list").then((r) => r.json()),
-          fetch("/api/settings/location").then((r) => r.json()),
-        ]);
+        const res = await fetch("/api/settings");
+        const json = await res.json();
+        if (json.success && json.data) {
+          if (json.data.company_info) setCompany(json.data.company_info);
+          else if (json.data.company) setCompany(json.data.company);
 
-        if (resCompany.success && resCompany.data) setCompany(resCompany.data);
-        if (resRates.success && resRates.data) setRates(resRates.data);
-        if (resGrid.success && resGrid.data) setSalaryGrid(resGrid.data);
-        if (resOther.success && resOther.data) setOtherParams(resOther.data);
-        if (resBanks.success && resBanks.data) setBanks(resBanks.data);
-        if (resLoc.success && resLoc.data) setLocation(resLoc.data);
+          if (json.data.tax_rates) setRates(json.data.tax_rates);
+          if (json.data.salary_grid) setSalaryGrid(json.data.salary_grid);
+          if (json.data.other_params) setOtherParams((prev) => ({ ...prev, ...json.data.other_params }));
+          if (json.data.bank_list) setBanks(json.data.bank_list);
+          if (json.data.location) setLocation(json.data.location);
+        }
       } catch (err) {
-        console.error("Failed to load settings:", err);
+        console.error("Échec du chargement des paramètres depuis la base de données:", err);
       } finally {
         setLoading(false);
       }
@@ -146,22 +128,23 @@ export default function AdminSettingsPage() {
     loadAllSettings();
   }, []);
 
-  const saveSettingsKey = async (key: string, dataPayload: any) => {
+  const saveSettingsKey = async (key: string, value: unknown) => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/settings/${key}`, {
-        method: "POST",
+      const res = await fetch("/api/settings", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(dataPayload),
+        body: JSON.stringify({ key, value }),
       });
       const json = await res.json();
       if (json.success) {
-        setToast({ message: "Paramètres enregistrés avec succès !", type: "success" });
+        setToast({ message: "Paramètres enregistrés en base de données avec succès !", type: "success" });
       } else {
-        setToast({ message: json.error || "Erreur d'enregistrement", type: "error" });
+        setToast({ message: json.error || "Erreur de sauvegarde", type: "error" });
       }
     } catch (err) {
-      setToast({ message: "Erreur serveur lors de l'enregistrement", type: "error" });
+      console.error("Save settings error:", err);
+      setToast({ message: "Erreur réseau lors de la sauvegarde", type: "error" });
     } finally {
       setSaving(false);
     }
@@ -170,73 +153,103 @@ export default function AdminSettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-[var(--neu-accent)]" />
+        <Spinner size="lg" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {toast && <NeuToast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && (
+        <NeuToast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
 
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--neu-text)] flex items-center gap-2">
-          <Settings className="w-6 h-6 text-[var(--neu-accent)]" />
-          Paramètres du Système RH & Paie
-        </h1>
-        <p className="text-[var(--neu-text-secondary)] text-sm">
-          Configuration complète de l'entreprise, des barèmes fiscaux, de la grille des salaires et des règles de paie.
-        </p>
+      {/* En-tête */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--neu-text)] flex items-center gap-2">
+            <Sliders className="text-[var(--neu-accent)]" /> Paramètres du Système RH & Paie
+          </h1>
+          <p className="text-[var(--neu-text-secondary)] text-sm mt-1">
+            Chargement et synchronisation 100% dynamique depuis la base de données PostgreSQL.
+          </p>
+        </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-[var(--neu-border)] pb-3">
-        <NeuButton
-          variant={activeTab === "company" ? "accent" : "ghost"}
+      {/* Barre d'onglets */}
+      <div className="flex flex-wrap gap-2 border-b border-[var(--neu-border)] pb-2">
+        <button
           onClick={() => setActiveTab("company")}
-          size="sm"
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === "company"
+              ? "bg-[var(--neu-accent)] text-white shadow-md"
+              : "bg-[var(--neu-surface)] text-[var(--neu-text-secondary)] hover:bg-[var(--neu-surface-light)]"
+          }`}
         >
-          <Building2 className="w-4 h-4 mr-1.5" /> Entreprise
-        </NeuButton>
-        <NeuButton
-          variant={activeTab === "rates" ? "accent" : "ghost"}
+          <Building2 className="w-4 h-4" /> Entreprise
+        </button>
+
+        <button
           onClick={() => setActiveTab("rates")}
-          size="sm"
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === "rates"
+              ? "bg-[var(--neu-accent)] text-white shadow-md"
+              : "bg-[var(--neu-surface)] text-[var(--neu-text-secondary)] hover:bg-[var(--neu-surface-light)]"
+          }`}
         >
-          <Calculator className="w-4 h-4 mr-1.5" /> Cotisations Fiscales & Sociales
-        </NeuButton>
-        <NeuButton
-          variant={activeTab === "salary_grid" ? "accent" : "ghost"}
+          <Calculator className="w-4 h-4" /> Cotisations Fiscales & Sociales
+        </button>
+
+        <button
           onClick={() => setActiveTab("salary_grid")}
-          size="sm"
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === "salary_grid"
+              ? "bg-[var(--neu-accent)] text-white shadow-md"
+              : "bg-[var(--neu-surface)] text-[var(--neu-text-secondary)] hover:bg-[var(--neu-surface-light)]"
+          }`}
         >
-          <Grid className="w-4 h-4 mr-1.5" /> Grille des Salaires
-        </NeuButton>
-        <NeuButton
-          variant={activeTab === "other" ? "accent" : "ghost"}
+          <Grid className="w-4 h-4" /> Grille des Salaires
+        </button>
+
+        <button
           onClick={() => setActiveTab("other")}
-          size="sm"
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === "other"
+              ? "bg-[var(--neu-accent)] text-white shadow-md"
+              : "bg-[var(--neu-surface)] text-[var(--neu-text-secondary)] hover:bg-[var(--neu-surface-light)]"
+          }`}
         >
-          <Sliders className="w-4 h-4 mr-1.5" /> Autres Paramètres
-        </NeuButton>
-        <NeuButton
-          variant={activeTab === "banks" ? "accent" : "ghost"}
+          <Sliders className="w-4 h-4" /> Autres Paramètres & Retenues
+        </button>
+
+        <button
           onClick={() => setActiveTab("banks")}
-          size="sm"
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === "banks"
+              ? "bg-[var(--neu-accent)] text-white shadow-md"
+              : "bg-[var(--neu-surface)] text-[var(--neu-text-secondary)] hover:bg-[var(--neu-surface-light)]"
+          }`}
         >
-          <Landmark className="w-4 h-4 mr-1.5" /> Banques
-        </NeuButton>
-        <NeuButton
-          variant={activeTab === "location" ? "accent" : "ghost"}
+          <Landmark className="w-4 h-4" /> Banques
+        </button>
+
+        <button
           onClick={() => setActiveTab("location")}
-          size="sm"
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === "location"
+              ? "bg-[var(--neu-accent)] text-white shadow-md"
+              : "bg-[var(--neu-surface)] text-[var(--neu-text-secondary)] hover:bg-[var(--neu-surface-light)]"
+          }`}
         >
-          <MapPin className="w-4 h-4 mr-1.5" /> Géolocalisation
-        </NeuButton>
+          <MapPin className="w-4 h-4" /> Géolocalisation
+        </button>
       </div>
 
-      {/* Tab 1: Entreprise */}
+      {/* Tab 1: Identification Entreprise */}
       {activeTab === "company" && (
         <NeuCard>
           <NeuCardHeader>
@@ -460,7 +473,7 @@ export default function AdminSettingsPage() {
           </NeuCardHeader>
           <NeuCardContent className="space-y-4">
             <p className="text-xs text-[var(--neu-text-secondary)]">
-              Fixez le salaire catégoriel minimum de référence pour chaque catégorie professionnelle de la convention collective.
+              Fixez le salaire catégoriel minimum de référence pour chaque catégorie professionnelle.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               {salaryGrid.map((item, idx) => (
@@ -497,11 +510,149 @@ export default function AdminSettingsPage() {
         <NeuCard>
           <NeuCardHeader>
             <NeuCardTitle className="flex items-center gap-2">
-              <Sliders className="w-5 h-5 text-[var(--neu-accent)]" /> Autres Paramètres de Paie & Congés
+              <Sliders className="w-5 h-5 text-[var(--neu-accent)]" /> Autres Paramètres, Primes & Retenues
             </NeuCardTitle>
           </NeuCardHeader>
-          <NeuCardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <NeuCardContent className="space-y-8">
+            {/* Table des Primes & Indemnités Éditables */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-sm text-[var(--neu-accent)] uppercase tracking-wider">
+                  AUTRES PARAMÈTRES : INDEMNITÉS ET PRIMES ÉDITABLES
+                </h3>
+                <NeuButton
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    setOtherParams({
+                      ...otherParams,
+                      primes: [
+                        ...(otherParams.primes || []),
+                        { name: "Nouvelle Prime", fiscalNature: "imposable", socialNature: "taxable" },
+                      ],
+                    })
+                  }
+                >
+                  <Plus className="w-4 h-4 mr-1" /> Ajouter une Prime / Indemnité
+                </NeuButton>
+              </div>
+
+              <div className="overflow-x-auto border border-[var(--neu-border)] rounded-xl">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-[var(--neu-surface-light)] font-bold text-[var(--neu-text)] uppercase border-b border-[var(--neu-border)]">
+                    <tr>
+                      <th className="px-4 py-3">Indemnités et Primes</th>
+                      <th className="px-4 py-3 text-red-500">Nature Fiscale (DGI)</th>
+                      <th className="px-4 py-3 text-red-500">Nature Sociale (CNPS)</th>
+                      <th className="px-4 py-3 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--neu-border)]">
+                    {(otherParams.primes || []).map((prime, idx) => (
+                      <tr key={idx} className="hover:bg-[var(--neu-surface-light)]/50">
+                        <td className="px-4 py-2 font-bold text-[var(--neu-text)]">
+                          <input
+                            type="text"
+                            value={prime.name}
+                            onChange={(e) => {
+                              const updated = [...(otherParams.primes || [])];
+                              updated[idx].name = e.target.value;
+                              setOtherParams({ ...otherParams, primes: updated });
+                            }}
+                            className="w-full px-2 py-1 rounded bg-[var(--neu-surface)] border border-[var(--neu-border)] font-semibold"
+                          />
+                        </td>
+                        <td className="px-4 py-2">
+                          <input
+                            type="text"
+                            value={prime.fiscalNature}
+                            onChange={(e) => {
+                              const updated = [...(otherParams.primes || [])];
+                              updated[idx].fiscalNature = e.target.value;
+                              setOtherParams({ ...otherParams, primes: updated });
+                            }}
+                            className="w-full px-2 py-1 rounded bg-[var(--neu-surface)] border border-[var(--neu-border)]"
+                          />
+                        </td>
+                        <td className="px-4 py-2">
+                          <input
+                            type="text"
+                            value={prime.socialNature}
+                            onChange={(e) => {
+                              const updated = [...(otherParams.primes || [])];
+                              updated[idx].socialNature = e.target.value;
+                              setOtherParams({ ...otherParams, primes: updated });
+                            }}
+                            className="w-full px-2 py-1 rounded bg-[var(--neu-surface)] border border-[var(--neu-border)]"
+                          />
+                        </td>
+                        <td className="px-4 py-2 text-center">
+                          <button
+                            onClick={() => {
+                              const updated = (otherParams.primes || []).filter((_, i) => i !== idx);
+                              setOtherParams({ ...otherParams, primes: updated });
+                            }}
+                            className="p-1 text-red-500 hover:bg-red-500/10 rounded"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Table des Autres Retenues Éditables */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-sm text-[var(--neu-accent)] uppercase tracking-wider">
+                  AUTRES RETENUES PERSONNALISÉES SUR BULLETIN
+                </h3>
+                <NeuButton
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    setOtherParams({
+                      ...otherParams,
+                      deductions: [...(otherParams.deductions || []), "Nouvelle Retenue"],
+                    })
+                  }
+                >
+                  <Plus className="w-4 h-4 mr-1" /> Ajouter une Retenue
+                </NeuButton>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                {(otherParams.deductions || []).map((ded, idx) => (
+                  <div key={idx} className="flex items-center gap-2 p-2 bg-[var(--neu-surface-light)] rounded-lg border border-[var(--neu-border)]">
+                    <input
+                      type="text"
+                      value={ded}
+                      onChange={(e) => {
+                        const updated = [...(otherParams.deductions || [])];
+                        updated[idx] = e.target.value;
+                        setOtherParams({ ...otherParams, deductions: updated });
+                      }}
+                      className="flex-1 px-2 py-1 rounded bg-[var(--neu-surface)] text-[var(--neu-text)] text-xs font-semibold border border-[var(--neu-border)]"
+                    />
+                    <button
+                      onClick={() => {
+                        const updated = (otherParams.deductions || []).filter((_, i) => i !== idx);
+                        setOtherParams({ ...otherParams, deductions: updated });
+                      }}
+                      className="p-1 text-red-500 hover:bg-red-500/10 rounded"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Options de Calcul & Signataires */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-[var(--neu-border)]">
               <div>
                 <NeuInput
                   label="Montant exonéré de la prime de transport (FCFA)"
@@ -509,22 +660,17 @@ export default function AdminSettingsPage() {
                   value={otherParams.transportExemptAmount}
                   onChange={(e) => setOtherParams({ ...otherParams, transportExemptAmount: Number(e.target.value) })}
                 />
-                <p className="text-xs text-[var(--neu-text-secondary)] mt-1">
-                  En Côte d'Ivoire, l'indemnité de transport est exonérée d'impôt et de CNPS à hauteur de 30 000 FCFA.
-                </p>
               </div>
 
               <div>
                 <NeuSelect
-                  label="Calcul d'Arrondi du Net à Payer"
+                  label="Prime d'Ancienneté"
                   options={[
-                    { value: "0", label: "Sans arrondi (Francs exacts)" },
-                    { value: "5", label: "Arrondi aux 5 FCFA supérieurs" },
-                    { value: "10", label: "Arrondi aux 10 FCFA supérieurs" },
-                    { value: "100", label: "Arrondi aux 100 FCFA supérieurs" },
+                    { value: "true", label: "ACTIVÉE (Calcul automatique 2% après 2 ans)" },
+                    { value: "false", label: "DÉSACTIVÉE" },
                   ]}
-                  value={otherParams.roundNetSalary}
-                  onChange={(e) => setOtherParams({ ...otherParams, roundNetSalary: e.target.value })}
+                  value={String(otherParams.seniorityBonusActive)}
+                  onChange={(e) => setOtherParams({ ...otherParams, seniorityBonusActive: e.target.value === "true" })}
                 />
               </div>
             </div>
@@ -532,18 +678,15 @@ export default function AdminSettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <NeuInput
-                  label="Jours de Congé Payé par Mois"
+                  label="Nombre de jours de congés / mois"
                   type="number"
-                  step="0.1"
+                  step="0.01"
                   value={otherParams.leaveDaysPerMonth}
                   onChange={(e) => setOtherParams({ ...otherParams, leaveDaysPerMonth: Number(e.target.value) })}
                 />
-                <p className="text-xs text-[var(--neu-text-secondary)] mt-1">
-                  Ex: 2.2 jours/mois (26,4j/an) ou 2.5 jours/mois (30j/an) ou 2.7 jours/mois.
-                </p>
               </div>
               <NeuInput
-                label="Nom du Signataire par Défaut"
+                label="Nom du Signataire des Bulletins"
                 value={otherParams.signatoryName}
                 onChange={(e) => setOtherParams({ ...otherParams, signatoryName: e.target.value })}
               />
@@ -556,7 +699,7 @@ export default function AdminSettingsPage() {
 
             <div className="flex justify-end pt-4">
               <NeuButton variant="accent" onClick={() => saveSettingsKey("other_params", otherParams)} loading={saving}>
-                <Save className="w-4 h-4 mr-2" /> Enregistrer Paramètres de Paie
+                <Save className="w-4 h-4 mr-2" /> Enregistrer Tous les Paramètres de Paie
               </NeuButton>
             </div>
           </NeuCardContent>

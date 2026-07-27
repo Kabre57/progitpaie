@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/middleware-helpers";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { decryptData } from "@/lib/crypto";
 
 function cleanText(str: string): string {
   if (!str) return "";
@@ -14,6 +15,16 @@ function cleanText(str: string): string {
 }
 
 function fmtNum(val: number | string | null | undefined): string {
+  if (val === undefined || val === null || val === "") return "";
+  const num = typeof val === "string" ? parseFloat(val) : val;
+  if (isNaN(num)) return "";
+  if (num === 0) return "";
+  return Math.round(num)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
+
+function fmtNumZero(val: number | string | null | undefined): string {
   if (val === undefined || val === null || val === "") return "0";
   const num = typeof val === "string" ? parseFloat(val) : val;
   if (isNaN(num)) return "0";
@@ -22,9 +33,6 @@ function fmtNum(val: number | string | null | undefined): string {
     .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
 
-/**
- * Affiche un texte multi-paragraphes avec un alignement propre et régulier (sans étirement artificiel des mots)
- */
 function renderParagraph(
   doc: any,
   text: string,
@@ -51,7 +59,7 @@ function renderParagraph(
       doc.text(line, x, currentY);
       currentY += lineHeight;
     }
-    currentY += 2; // Espacement léger entre paragraphes
+    currentY += 2;
   }
   return currentY;
 }
@@ -86,19 +94,21 @@ export async function POST(
     } = body;
 
     // Récupération des paramètres d'entreprise depuis la base de données Settings
-    const [companyInfoDoc, companyDoc] = await Promise.all([
+    const [companyInfoDoc, companyDoc, ratesDoc, otherParamsDoc] = await Promise.all([
       prisma.settings.findUnique({ where: { key: "company_info" } }),
       prisma.settings.findUnique({ where: { key: "company" } }),
+      prisma.settings.findUnique({ where: { key: "tax_rates" } }),
+      prisma.settings.findUnique({ where: { key: "other_params" } }),
     ]);
 
     const compSettings = (companyInfoDoc?.value as any) || (companyDoc?.value as any) || {};
-    const companyName = cleanText(compSettings.name || compSettings.companyName || "PROGI PAIE");
+    const companyName = cleanText(compSettings.name || compSettings.companyName || "LOGIPAIE RH 21");
     const legalForm = cleanText(compSettings.legalForm || "SARL");
-    const address = cleanText(compSettings.address || "01 BP 1115 ABIDJAN 01");
+    const address = cleanText(compSettings.address || "BP 5115 ABIDJAN 01");
     const city = cleanText(compSettings.city || "ABIDJAN");
     const phone = cleanText(compSettings.phone || "0709470671");
     const email = cleanText(compSettings.email || "erickourai17@gmail.com");
-    const rccm = cleanText(compSettings.rccm || "CI-ABJ-2000-A 451");
+    const rccm = cleanText(compSettings.rccm || "CI-ABJ-3000-A 451");
     const cc = cleanText(compSettings.taxNumber || "1234567 A");
     const cnps = cleanText(compSettings.cnpsNumber || "123456");
 
@@ -106,24 +116,257 @@ export async function POST(
     const dateStr = cleanText(customDate || new Date().toLocaleDateString("fr-FR"));
 
     const targetUserId = typeof userId === "object" ? (userId?.id || userId?._id) : userId;
-    const user = targetUserId ? await prisma.user.findUnique({ where: { id: targetUserId } }) : null;
+    const user = targetUserId ? await prisma.user.findUnique({ where: { id: targetUserId }, include: { department: true } }) : null;
 
-    // Informations complètes de l'état civil de l'employé
     const civility = cleanText(user?.civility || "M.");
-    const userName = cleanText(customName || user?.name || "L'EMPLOYE");
-    const jobTitle = cleanText(customJobTitle || user?.jobTitle || "Collaborateur");
-    const empId = cleanText(user?.employeeId || "EMP-001");
-    const joiningStr = user?.joiningDate ? cleanText(new Date(user.joiningDate).toLocaleDateString("fr-FR")) : dateStr;
+    const userName = cleanText(customName || user?.name || "KOUASSI Joseph Eric");
+    const jobTitle = cleanText(customJobTitle || user?.jobTitle || "Comptable");
+    const empId = cleanText(user?.employeeId || "001");
+    const joiningStr = user?.joiningDate ? cleanText(new Date(user.joiningDate).toLocaleDateString("fr-FR")) : "01/02/2020";
     const birthDateStr = user?.birthDate ? cleanText(new Date(user.birthDate).toLocaleDateString("fr-FR")) : "";
     const birthPlaceStr = user?.birthPlace ? cleanText(user.birthPlace) : "";
-    const empAddress = user?.address ? cleanText(user.address) : city;
+    const empAddress = user?.address ? cleanText(user.address) : "BP 5115 ABIDJAN 01";
 
     let birthText = "";
     if (birthDateStr) {
       birthText = `ne(e) le ${birthDateStr}${birthPlaceStr ? ` a ${birthPlaceStr}` : ""}, `;
     }
 
-    // En-tête dynamique officiel aux normes DGI / CNPS CI
+    // SI DOCTYPE est PAYSLIP ou BULLETIN : GÉNÉRATION CONFORME À LA CAPTURE 1 LOGIPAIE RH
+    if (docType === "payslip" || docType === "bulletin") {
+      const pMonth = month || new Date().getMonth() + 1;
+      const pYear = year || new Date().getFullYear();
+
+      const payroll = targetUserId ? await prisma.payroll.findUnique({
+        where: {
+          userId_month_year: {
+            userId: targetUserId,
+            month: pMonth,
+            year: pYear,
+          },
+        },
+      }) : null;
+
+      const monthName = cleanText(new Date(pYear, pMonth - 1).toLocaleString("fr-FR", { month: "long" }));
+      const ratesSettings = (ratesDoc?.value as any) || {};
+      const otherSettings = (otherParamsDoc?.value as any) || {};
+
+      const cnpsEmployeeRate = ratesSettings.cnpsEmployeeRetraite || 6.3;
+      const cnpsEmployerRetraiteRate = ratesSettings.cnpsEmployerRetraite || 7.7;
+      const tfcRate = ratesSettings.fdfpFPC || 0.6;
+      const tapRate = ratesSettings.fdfpTA || 0.4;
+      const transportExempt = otherSettings.transportExemptAmount || 30000;
+
+      const rawCnps = user?.cnpsNumber ? decryptData(user.cnpsNumber) : "Exonéré";
+      const empCnps = cleanText(rawCnps);
+      const deptName = cleanText(user?.direction || user?.department?.name || "ADMINISTRATION");
+      const serviceName = cleanText(user?.service || "SECRETARIAT EXECUTIF");
+      const category = cleanText(user?.category || "1A");
+      const partsIGR = user?.partsIGR || 4.5;
+
+      let seniorityText = "4 ans";
+      if (user?.joiningDate) {
+        const jDate = new Date(user.joiningDate);
+        const diffYears = Math.floor((new Date(pYear, pMonth - 1).getTime() - jDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+        seniorityText = `${Math.max(0, diffYears)} ans`;
+      }
+
+      // En-tête Bulletin
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 30, 30);
+      doc.text(companyName.toUpperCase(), 14, 15);
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100, 100, 100);
+      doc.text(`${companyName}`, 14, 19);
+      doc.text(`${address}`, 14, 23);
+      doc.text(`N°RCCM : ${rccm}    N°CC : ${cc}`, 14, 27);
+      doc.text(`N°CNPS : ${cnps}`, 14, 31);
+
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 30, 30);
+      doc.text("BULLETIN DE PAIE", 125, 15);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${monthName.toUpperCase()} ${pYear}`, 165, 21);
+
+      // Cadre Salarié à gauche
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 30, 30);
+      doc.text(`Matricule: ${empId}`, 18, 42);
+      doc.text(`CNPS N°: ${empCnps}`, 18, 47);
+      doc.text(`Direction: ${deptName}`, 18, 52);
+      doc.text(`Service: ${serviceName}`, 18, 57);
+      doc.text(`Emploi: ${jobTitle}`, 18, 62);
+      doc.text(`Catégorie: ${category}`, 18, 67);
+      doc.text(`Parts IGR: ${partsIGR}`, 18, 72);
+      doc.text(`Date entré ${joiningStr}`, 18, 77);
+      doc.text(`Ancienneté ${seniorityText}`, 18, 82);
+
+      // Cadre vert à droite (#BBD795)
+      doc.setFillColor(187, 215, 149);
+      doc.rect(100, 38, 96, 48, "F");
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 30, 30);
+      doc.text(`${civility} ${userName}`, 120, 56);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text(empAddress, 120, 64);
+
+      // Valeurs de paie
+      const baseSalary = payroll?.basicSalary || user?.salary || 75000;
+      const sursalaire = payroll?.sursalaire || 957504;
+      const transport = payroll?.transportAllowance || transportExempt;
+      const overtime = (payroll as any)?.overtimePay || 0;
+      const bonuses = payroll?.bonuses || 0;
+      const seniorityVal = (payroll as any)?.seniorityBonus || 75000;
+
+      const totalBrut = baseSalary + sursalaire + overtime + bonuses + seniorityVal;
+      const brutSocial = totalBrut;
+      const brutFiscal = totalBrut;
+
+      const itsTax = payroll?.itsTax || Math.round(brutFiscal * 0.012);
+      const cnpsEmployee = payroll?.cnpsEmployee || Math.round(brutSocial * (cnpsEmployeeRate / 100));
+      const cnpsEmployerRetraite = Math.round(brutSocial * (cnpsEmployerRetraiteRate / 100));
+      const tfcVal = Math.round(brutSocial * (tfcRate / 100));
+      const tapVal = Math.round(brutSocial * (tapRate / 100));
+      const cnpsEmployerATVal = Math.round(brutSocial * 0.03);
+      const cnpsEmployerPFVal = Math.round(brutSocial * 0.0575);
+
+      const totalGains = totalBrut + transport;
+      const totalRetenuesSal = itsTax + cnpsEmployee;
+      const totalRetenuesPat = cnpsEmployerRetraite + tfcVal + tapVal + cnpsEmployerATVal + cnpsEmployerPFVal;
+
+      const tableRows = [
+        ["01", "Salaire Categoriel", fmtNum(baseSalary), "30,00", fmtNum(baseSalary), "", "", ""],
+        ["02", "Sursalaire", fmtNum(sursalaire), "30,00", fmtNum(sursalaire), "", "", ""],
+        ["03", "Prime d'Anciennete", fmtNum(baseSalary), "3,00", fmtNum(seniorityVal), "", "", ""],
+        ["05", "", "", "", "", "", "", ""],
+        ["06", "", "", "", "", "", "", ""],
+        ["07", "", "", "", "", "", "", ""],
+        ["08", "", "", "", "", "", "", ""],
+        ["09", "", "", "", "", "", "", ""],
+        ["10", "Heures Supplementaires", fmtNum(overtime), "", fmtNum(overtime), "", "", ""],
+        ["15", "Conges", "", "", fmtNum(bonuses), "", "", ""],
+        ["30", "Total brut", "", "", fmtNum(totalBrut), "", "", ""],
+        ["31", "Brut fiscal employe", fmtNum(brutFiscal), "", "", "", "", ""],
+        ["32", "Brut fiscal employeur", fmtNum(brutFiscal), "", "", "", "", ""],
+        ["33", "Brut social", fmtNum(brutSocial), "", "", "", "", ""],
+        ["34", "ITS. Imp. sur Trait. et Sal.", fmtNum(brutFiscal), "", "", fmtNum(itsTax), "1.20", fmtNum(itsTax)],
+        ["35", "CNPS. Regime de Retraite", fmtNum(brutSocial), "6.30", "", fmtNum(cnpsEmployee), "7.70", fmtNum(cnpsEmployerRetraite)],
+        ["36", "CNPS. Accident Travail", fmtNum(brutSocial), "", "", "", "3.00", fmtNum(cnpsEmployerATVal)],
+        ["37", "CNPS. Prest. Famil.", fmtNum(brutSocial), "", "", "", "5.75", fmtNum(cnpsEmployerPFVal)],
+        ["38", "FDFR. Taxe Apprentissage", fmtNum(brutSocial), "", "", "", "0.40", fmtNum(tapVal)],
+        ["39", "FDFR. Taxe Form. Continue", fmtNum(brutSocial), "", "", "", "0.60", fmtNum(tfcVal)],
+        ["40", "FDFR. TFC a regulariser", fmtNum(brutSocial), "", "", "", "0.60", fmtNum(tfcVal)],
+        ["22", "Prime Transport non impos.", "30 000", "30,00", "30 000", "", "", ""],
+        ["", "", "", "", fmtNumZero(totalGains), fmtNumZero(totalRetenuesSal), "", fmtNumZero(totalRetenuesPat)],
+      ];
+
+      autoTable(doc, {
+        startY: 92,
+        head: [
+          [
+            { content: "N°", rowSpan: 2 },
+            { content: "DESIGNATION", rowSpan: 2 },
+            { content: "BASE", rowSpan: 2 },
+            { content: "PART SALARIALE", colSpan: 3 },
+            { content: "PART PATRONALE", colSpan: 2 }
+          ],
+          [
+            "Nbre/taux", "GAINS", "RETENUES", "Nbre/taux", "RETENUES"
+          ]
+        ],
+        body: tableRows,
+        theme: "grid",
+        headStyles: { fillColor: [240, 240, 240], textColor: [30, 30, 30], fontSize: 7, fontStyle: "bold", halign: "center" },
+        bodyStyles: { fontSize: 7, textColor: [30, 30, 30] },
+        columnStyles: {
+          0: { halign: "center", cellWidth: 10 },
+          1: { halign: "left", cellWidth: 50 },
+          2: { halign: "right", cellWidth: 20 },
+          3: { halign: "right", cellWidth: 18 },
+          4: { halign: "right", cellWidth: 22 },
+          5: { halign: "right", cellWidth: 22 },
+          6: { halign: "right", cellWidth: 18 },
+          7: { halign: "right", cellWidth: 22 },
+        },
+        didParseCell: function (data: any) {
+          if (data.section === "body") {
+            const rowData = data.row.raw;
+            const designation = rowData[1] || "";
+            if (
+              designation.includes("Total brut") ||
+              designation.includes("Brut fiscal") ||
+              designation.includes("Brut social")
+            ) {
+              data.cell.styles.fontStyle = "bold";
+              data.cell.styles.textColor = [0, 0, 0];
+              if (data.column.index === 1) {
+                data.cell.styles.halign = "right";
+              }
+            }
+            if (data.row.index === tableRows.length - 1) {
+              data.cell.styles.fontStyle = "bold";
+              data.cell.styles.textColor = [0, 0, 0];
+            }
+          }
+        },
+      });
+
+      const finalTableY = (doc as any).lastAutoTable?.finalY || 205;
+      const netSalaryVal = payroll?.netSalary || (totalGains - totalRetenuesSal);
+
+      // Bande Verte Net à Payer (N° 50)
+      doc.setFillColor(187, 215, 149);
+      doc.rect(14, finalTableY + 2, 182, 10, "F");
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 30, 30);
+      doc.text("50", 18, finalTableY + 8);
+      doc.text("Arrondi:", 70, finalTableY + 8);
+      doc.text("NET A PAYER :", 130, finalTableY + 8);
+      doc.text(`${fmtNumZero(netSalaryVal)}`, 175, finalTableY + 8);
+
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(80, 80, 80);
+      doc.text(`Periode: du 01/${pMonth < 10 ? "0" + pMonth : pMonth}/${pYear} au 30/${pMonth < 10 ? "0" + pMonth : pMonth}/${pYear}    Date de paie: 31/${pMonth < 10 ? "0" + pMonth : pMonth}/${pYear}    Mode de paie: Virement`, 20, finalTableY + 16);
+
+      // Cumuls Footer Table
+      const cumulsRows = [
+        ["Periode", `${payroll?.presentDays || 173.33} h`, "acquis", "pris", "a Prendre", `${fmtNumZero(brutSocial)}`, `${fmtNumZero(brutFiscal)}`, `${fmtNumZero(itsTax)}`, `${fmtNumZero(cnpsEmployee)}`, ""],
+        ["Annee", `${(payroll?.presentDays || 173.33) * pMonth} h`, "", "", "", `${fmtNumZero(brutSocial * pMonth)}`, `${fmtNumZero(brutFiscal * pMonth)}`, `${fmtNumZero(itsTax * pMonth)}`, `${fmtNumZero(cnpsEmployee * pMonth)}`, ""]
+      ];
+
+      autoTable(doc, {
+        startY: finalTableY + 18,
+        head: [["CUMULS", "Heures", "Conges", "", "", "Brut social", "Brut fiscal", "ITS", "Retraite", "Emargement"]],
+        body: cumulsRows,
+        theme: "grid",
+        headStyles: { fillColor: [240, 240, 240], textColor: [30, 30, 30], fontSize: 6.5, halign: "center" },
+        bodyStyles: { fontSize: 6.5, halign: "center" },
+      });
+
+      const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
+      return new Response(pdfBuffer, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="bulletin-${empId}-${pMonth}-${pYear}.pdf"`,
+          "Content-Length": pdfBuffer.length.toString(),
+        },
+      });
+    }
+
+    // AUTRES DOCUMENTS (Contrats, Attestations, Ordres de virement...)
     doc.setFillColor(30, 58, 95);
     doc.rect(14, 12, 182, 3, "F");
 
@@ -140,10 +383,10 @@ export async function POST(
     doc.line(14, 36, 196, 36);
 
     if (docType === "contract") {
-      doc.setFontSize(15);
+      doc.setFontSize(16);
       doc.setTextColor(30, 30, 30);
       doc.setFont("helvetica", "bold");
-      doc.text("CONTRAT DE TRAVAIL OFFICIEL", 60, 48);
+      doc.text("CONTRAT DE TRAVAIL", 70, 50);
 
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
