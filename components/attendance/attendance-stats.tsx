@@ -22,10 +22,19 @@ interface AttendanceStatsProps {
   isLoading?: boolean;
 }
 
-export function AttendanceStats({ stats, isLoading }: AttendanceStatsProps) {
-  if (isLoading || !stats) {
-    return <ChipLoader size="md" />;
-  }
+export function AttendanceStats({ stats }: AttendanceStatsProps) {
+  const safeStats = stats || {
+    totalEmployees: 0,
+    presentToday: 0,
+    absentToday: 0,
+    lateToday: 0,
+    avgHoursThisMonth: 0,
+    attendanceRate: 0,
+    totalLateThisMonth: 0,
+    presentTrend: 0,
+    lateTrend: 0,
+    month: "",
+  };
 
   const getTrend = (value: number): "up" | "down" | "neutral" => {
     if (value > 0) return "up";
@@ -43,56 +52,56 @@ export function AttendanceStats({ stats, isLoading }: AttendanceStatsProps) {
       {/* First Row - 4 cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <NeuStatCard
-          title="Present Today"
-          value={stats.presentToday}
+          title="Présents Aujourd'hui"
+          value={safeStats.presentToday}
           icon={<UserCheck className="w-6 h-6" />}
           gradient="success"
-          trend={getTrend(stats.presentTrend)}
-          trendValue={stats.presentTrend !== 0 ? formatTrendValue(stats.presentTrend) : undefined}
-          subtitle="vs yesterday"
+          trend={getTrend(safeStats.presentTrend)}
+          trendValue={safeStats.presentTrend !== 0 ? formatTrendValue(safeStats.presentTrend) : undefined}
+          subtitle="par rapport à hier"
         />
         <NeuStatCard
-          title="Absent Today"
-          value={stats.absentToday}
+          title="Absents Aujourd'hui"
+          value={safeStats.absentToday}
           icon={<UserX className="w-6 h-6" />}
           gradient="danger"
           trend="down"
-          subtitle="employees"
+          subtitle="salariés"
         />
         <NeuStatCard
-          title="Late Today"
-          value={stats.lateToday}
+          title="En Retard Aujourd'hui"
+          value={safeStats.lateToday}
           icon={<Clock className="w-6 h-6" />}
           gradient="warning"
-          trend={getTrend(stats.lateTrend)}
-          trendValue={stats.lateTrend !== 0 ? formatTrendValue(stats.lateTrend) : undefined}
-          subtitle="vs yesterday"
+          trend={getTrend(safeStats.lateTrend)}
+          trendValue={safeStats.lateTrend !== 0 ? formatTrendValue(safeStats.lateTrend) : undefined}
+          subtitle="par rapport à hier"
         />
         <NeuStatCard
-          title="Attendance Rate"
-          value={`${stats.attendanceRate}%`}
+          title="Taux de Présence"
+          value={`${safeStats.attendanceRate}%`}
           icon={<TrendingUp className="w-6 h-6" />}
           gradient="cyan"
-          trend={stats.attendanceRate >= 90 ? "up" : stats.attendanceRate >= 75 ? "neutral" : "down"}
-          subtitle="this month"
+          trend={safeStats.attendanceRate >= 90 ? "up" : safeStats.attendanceRate >= 75 ? "neutral" : "down"}
+          subtitle="ce mois-ci"
         />
       </div>
 
       {/* Second Row - 2 cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <NeuStatCard
-          title="Avg Hours/Day"
-          value={`${stats.avgHoursThisMonth}h`}
+          title="Moyenne Heures / Jour"
+          value={`${safeStats.avgHoursThisMonth}h`}
           icon={<Timer className="w-6 h-6" />}
           gradient="primary"
-          subtitle="this month"
+          subtitle="ce mois-ci"
         />
         <NeuStatCard
-          title="Total Employees"
-          value={stats.totalEmployees}
+          title="Effectif Total Salariés"
+          value={safeStats.totalEmployees}
           icon={<Users className="w-6 h-6" />}
           gradient="primary"
-          subtitle="active workforce"
+          subtitle="salariés inscrits"
         />
       </div>
     </div>

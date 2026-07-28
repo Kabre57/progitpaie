@@ -51,21 +51,23 @@ interface TodaySummary {
 }
 
 const statusOptions = [
-  { value: "", label: "All Statuses" },
-  { value: "present", label: "Present" },
+  { value: "", label: "Tous les statuts" },
+  { value: "present", label: "Présent" },
   { value: "absent", label: "Absent" },
-  { value: "late", label: "Late" },
-  { value: "half-day", label: "Half Day" },
-  { value: "on-leave", label: "On Leave" },
+  { value: "late", label: "En retard" },
+  { value: "half-day", label: "Demi-journée" },
+  { value: "on-leave", label: "En congé" },
 ];
 
 const overrideStatusOptions = [
-  { value: "present", label: "Present" },
+  { value: "present", label: "Présent" },
   { value: "absent", label: "Absent" },
-  { value: "late", label: "Late" },
-  { value: "half-day", label: "Half Day" },
-  { value: "on-leave", label: "On Leave" },
+  { value: "late", label: "En retard" },
+  { value: "half-day", label: "Demi-journée" },
+  { value: "on-leave", label: "En congé" },
 ];
+
+import { NeuPagination } from "@/components/ui/neu-pagination";
 
 export default function AdminAttendancePage() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
@@ -74,6 +76,8 @@ export default function AdminAttendancePage() {
   const [error, setError] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState<string>("");
   const [filters, setFilters] = useState({ status: "", search: "" });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Override dialog state
   const [isOverrideDialogOpen, setIsOverrideDialogOpen] = useState(false);
@@ -183,6 +187,10 @@ export default function AdminAttendancePage() {
     return matchesStatus && matchesSearch;
   });
 
+  // Pagination
+  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
+  const paginatedRecords = filteredRecords.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   // Open override dialog
   const openOverrideDialog = (record: AttendanceRecord) => {
     setSelectedRecord(record);
@@ -247,16 +255,16 @@ export default function AdminAttendancePage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-[var(--neu-text)] flex items-center gap-3">
             <ClipboardCheck className="w-6 h-6 md:w-8 md:h-8 text-[var(--neu-accent)]" />
-            Attendance
+            Pointages & Présences Quotidiennes
           </h1>
           <p className="text-xs md:text-sm text-[var(--neu-text-secondary)] mt-1">
-            Manage employee attendance records
+            Suivi en temps réel des arrivées, retards, absences et géolocalisation des salariés.
           </p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <NeuButton variant="ghost" onClick={() => setIsImportDialogOpen(true)} className="flex-1 sm:flex-none">
             <Upload className="w-4 h-4" />
-            Import CSV
+            Importer Fichier CSV
           </NeuButton>
         </div>
       </div>
@@ -266,31 +274,31 @@ export default function AdminAttendancePage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
           <NeuCard>
             <NeuCardContent className="p-4">
-              <p className="text-sm text-[var(--neu-text-secondary)]">Total Employees</p>
+              <p className="text-sm text-[var(--neu-text-secondary)]">Total Salariés</p>
               <p className="text-2xl font-bold">{summary.totalEmployees}</p>
             </NeuCardContent>
           </NeuCard>
           <NeuCard>
             <NeuCardContent className="p-4">
-              <p className="text-sm text-[var(--neu-text-secondary)]">Present</p>
+              <p className="text-sm text-[var(--neu-text-secondary)]">Présents</p>
               <p className="text-2xl font-bold text-[var(--neu-success)]">{summary.presentToday}</p>
             </NeuCardContent>
           </NeuCard>
           <NeuCard>
             <NeuCardContent className="p-4">
-              <p className="text-sm text-[var(--neu-text-secondary)]">Absent</p>
+              <p className="text-sm text-[var(--neu-text-secondary)]">Absents</p>
               <p className="text-2xl font-bold text-[var(--neu-danger)]">{summary.absentToday}</p>
             </NeuCardContent>
           </NeuCard>
           <NeuCard>
             <NeuCardContent className="p-4">
-              <p className="text-sm text-[var(--neu-text-secondary)]">Late</p>
+              <p className="text-sm text-[var(--neu-text-secondary)]">En Retard</p>
               <p className="text-2xl font-bold text-[var(--neu-warning)]">{summary.lateToday}</p>
             </NeuCardContent>
           </NeuCard>
           <NeuCard>
             <NeuCardContent className="p-4">
-              <p className="text-sm text-[var(--neu-text-secondary)]">On Leave</p>
+              <p className="text-sm text-[var(--neu-text-secondary)]">En Congé</p>
               <p className="text-2xl font-bold">{summary.onLeaveToday}</p>
             </NeuCardContent>
           </NeuCard>
@@ -328,12 +336,12 @@ export default function AdminAttendancePage() {
               value={filters.status}
               onChange={(e) => setFilters({ ...filters, status: e.target.value })}
               className="w-full h-11"
-              placeholder="All Statuses"
+              placeholder="Tous les statuts"
             />
           </div>
           <div className="flex-[2]">
             <NeuInput
-              placeholder="Search by name, email or ID..."
+              placeholder="Rechercher par nom, email ou matricule..."
               value={filters.search}
               onChange={(e) => setFilters({ ...filters, search: e.target.value })}
               icon={<Filter className="w-4 h-4" />}
@@ -360,7 +368,7 @@ export default function AdminAttendancePage() {
             </div>
           ) : (
             <List2 
-              items={filteredRecords.map((record) => ({
+              items={paginatedRecords.map((record) => ({
                 icon: <UserIcon className="w-5 h-5" />,
                 title: record.userId.name,
                 category: record.userId.employeeId || "No ID",
@@ -397,6 +405,13 @@ export default function AdminAttendancePage() {
             />
           )}
         </NeuCardContent>
+        <NeuPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredRecords.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       </NeuCard>
 
       {/* Override Dialog */}

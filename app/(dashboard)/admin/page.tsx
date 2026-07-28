@@ -30,10 +30,13 @@ export default function AdminDashboardPage() {
 
   // React Query Hooks (remplace tous les useEffect et fetch manuels)
   const { data: stats, isLoading: isLoadingStats, isError: isErrorStats, error: errorStats } = useAttendanceStats(filters.month);
-  const { data: recordsData, isLoading: isLoadingRecords, isError: isErrorRecords, error: errorRecords } = useAttendance(undefined, monthNum, yearNum);
+  const { data: recordsData, isLoading: isLoadingRecords, isError: isErrorRecords, error: errorRecords } = useAttendance(undefined, filters.month);
 
   const rawRecords = useMemo(() => {
-    return Array.isArray(recordsData) ? recordsData : [];
+    if (!recordsData) return [];
+    if (Array.isArray(recordsData)) return recordsData;
+    if (Array.isArray((recordsData as any).records)) return (recordsData as any).records;
+    return [];
   }, [recordsData]);
 
   // Filtrage côté mémoire ultra-rapide
@@ -113,10 +116,6 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="relative space-y-8" style={{ minHeight: "400px" }}>
-      {/* Overlay loader React Query */}
-      {isLoading && (
-        <ChipLoader overlay size="md" label="Chargement en cours" />
-      )}
 
       {/* En-tête avec sélecteur de mois */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

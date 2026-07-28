@@ -10,6 +10,7 @@ import { NeuDialog } from "@/components/ui/neu-dialog";
 import { NeuBadge } from "@/components/ui/neu-badge";
 import { useEmployees, useCreateEmployee, useUpdateEmployee } from "@/lib/hooks/useEmployees";
 import { useToast } from "@/components/ui/neu-toast";
+import { NeuPagination } from "@/components/ui/neu-pagination";
 
 interface Employee {
   _id: string;
@@ -94,6 +95,8 @@ const emptyFormData = {
 export default function EmployeeManagementPage() {
   const toast = useToast();
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState(emptyFormData);
@@ -197,6 +200,12 @@ export default function EmployeeManagementPage() {
     );
   }, [employees, searchQuery]);
 
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedEmployees = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filtered.slice(start, start + itemsPerPage);
+  }, [filtered, currentPage, itemsPerPage]);
+
   return (
     <div className="space-y-6">
       {/* En-tête */}
@@ -266,7 +275,7 @@ export default function EmployeeManagementPage() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((emp) => (
+                  paginatedEmployees.map((emp) => (
                     <tr key={emp.id || emp._id} className="hover:bg-[var(--neu-surface-light)] transition-colors">
                       <td className="px-3 py-3 font-mono font-bold text-[var(--neu-accent)]">
                         {emp.employeeId || "EMP-000"}
@@ -335,6 +344,13 @@ export default function EmployeeManagementPage() {
             </table>
           )}
         </NeuCardContent>
+        <NeuPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filtered.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       </NeuCard>
 
       {/* Modal Ajout / Édition Fiche du Personnel */}

@@ -30,7 +30,7 @@ import {
   Send,
   PieChart,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSidebar } from "@/lib/SidebarContext";
 
 const navItems = [
@@ -60,7 +60,12 @@ const navItems = [
 export function AdminSidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const { isAdminCollapsed: isCollapsed, setIsAdminCollapsed: setIsCollapsed } = useSidebar();
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
 
   return (
     <>
@@ -84,7 +89,7 @@ export function AdminSidebar() {
       <aside
         className={cn(
           "fixed left-0 top-0 h-screen bg-[var(--neu-surface)] text-[var(--neu-text)] border-r border-[var(--neu-border)] z-40 transition-all duration-300 shadow-sm flex flex-col",
-          isCollapsed ? "w-20" : "w-64",
+          isCollapsed ? "w-20" : "w-72",
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
@@ -115,28 +120,32 @@ export function AdminSidebar() {
         </div>
 
         {/* Nav items */}
-        <nav className="p-4 space-y-1.5 overflow-y-auto flex-1 pb-12">
+        <nav className="p-3 space-y-1 overflow-y-auto flex-1 pb-12">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(`${item.href}`));
+            const isActualActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(`${item.href}`));
+            const isActive = pendingHref ? pendingHref === item.href : isActualActive;
 
             return (
               <Link
                 key={item.name}
                 href={item.href}
                 prefetch={false}
-                onClick={() => setIsOpen(false)}
-                title={isCollapsed ? item.name : undefined}
+                onClick={() => {
+                  setPendingHref(item.href);
+                  setIsOpen(false);
+                }}
+                title={item.name}
                 className={cn(
-                  "flex items-center gap-3 px-3.5 py-2.5 rounded-[0.5rem] transition-all text-sm font-medium border border-transparent",
+                  "flex items-center gap-3 px-3 py-2 rounded-[0.5rem] transition-all text-[13px] font-medium border border-transparent leading-tight",
                   isActive
-                    ? "bg-[#666cff] text-white shadow-[0px_4px_14px_0px_rgba(102,108,255,0.4)]"
+                    ? "bg-[#666cff] text-white shadow-[0px_4px_14px_0px_rgba(102,108,255,0.4)] scale-[1.01]"
                     : "text-[var(--neu-text-secondary)] hover:bg-[var(--neu-surface-light)] hover:text-[var(--neu-text)]",
                   isCollapsed && "justify-center px-0"
                 )}
               >
                 <Icon size={18} className="shrink-0" />
-                {!isCollapsed && <span className="truncate">{item.name}</span>}
+                {!isCollapsed && <span className="whitespace-normal leading-snug">{item.name}</span>}
               </Link>
             );
           })}

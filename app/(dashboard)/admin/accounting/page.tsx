@@ -50,7 +50,7 @@ export default function AccountingPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[var(--neu-text)] flex items-center gap-2">
-            <BookOpen className="text-[var(--neu-accent)]" /> Journal des Imputations Comptables SYSCOHADA (LOGIPAIE 28)
+            <BookOpen className="text-[var(--neu-accent)]" /> Journal des Imputations Comptables SYSCOHADA 
           </h1>
           <p className="text-[var(--neu-text-secondary)] text-sm mt-1">
             Génération automatique des pièces comptables de paie conformes au plan comptable SYSCOHADA.

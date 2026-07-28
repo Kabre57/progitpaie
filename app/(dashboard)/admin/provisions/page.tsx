@@ -26,6 +26,8 @@ interface RetirementProvision {
   provisionAmount: number;
 }
 
+import { NeuPagination } from "@/components/ui/neu-pagination";
+
 export default function ProvisionsPage() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [activeTab, setActiveTab] = useState<"leaves" | "retirement">("leaves");
@@ -34,6 +36,9 @@ export default function ProvisionsPage() {
   const [retirementProvisions, setRetirementProvisions] = useState<RetirementProvision[]>([]);
   const [totalRetirement, setTotalRetirement] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [currentPageLeaves, setCurrentPageLeaves] = useState(1);
+  const [currentPageRetirement, setCurrentPageRetirement] = useState(1);
+  const itemsPerPage = 10;
 
   const fetchProvisions = useCallback(async () => {
     setLoading(true);
@@ -57,13 +62,25 @@ export default function ProvisionsPage() {
     fetchProvisions();
   }, [fetchProvisions]);
 
+  const totalLeavePages = Math.ceil(leaveProvisions.length / itemsPerPage);
+  const paginatedLeaveProvisions = leaveProvisions.slice(
+    (currentPageLeaves - 1) * itemsPerPage,
+    currentPageLeaves * itemsPerPage
+  );
+
+  const totalRetirementPages = Math.ceil(retirementProvisions.length / itemsPerPage);
+  const paginatedRetirementProvisions = retirementProvisions.slice(
+    (currentPageRetirement - 1) * itemsPerPage,
+    currentPageRetirement * itemsPerPage
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[var(--neu-text)] flex items-center gap-2">
-            <Calculator className="text-[var(--neu-accent)]" /> Provisions pour Congés & Fin de Carrière (LOGIPAIE 37 & 38)
+            <Calculator className="text-[var(--neu-accent)]" /> Provisions pour Congés & Fin de Carrière  
           </h1>
           <p className="text-[var(--neu-text-secondary)] text-sm mt-1">
             Calcul des engagements sociaux de l'entreprise (Provisions Congés Payés & Indemnités de Retraite).
@@ -161,7 +178,7 @@ export default function ProvisionsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--neu-border)] text-xs">
-                {leaveProvisions.map((row) => (
+                {paginatedLeaveProvisions.map((row) => (
                   <tr key={row.userId} className="hover:bg-[var(--neu-surface-light)] transition-colors">
                     <td className="px-4 py-3 font-mono font-bold text-[var(--neu-accent)]">{row.employeeId}</td>
                     <td className="px-4 py-3 font-bold text-[var(--neu-text)]">{row.name}</td>
@@ -180,6 +197,13 @@ export default function ProvisionsPage() {
               </tbody>
             </table>
           </NeuCardContent>
+          <NeuPagination
+            currentPage={currentPageLeaves}
+            totalPages={totalLeavePages}
+            totalItems={leaveProvisions.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPageLeaves}
+          />
         </NeuCard>
       ) : (
         <NeuCard>
@@ -199,7 +223,7 @@ export default function ProvisionsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--neu-border)] text-xs">
-                {retirementProvisions.map((row) => (
+                {paginatedRetirementProvisions.map((row) => (
                   <tr key={row.userId} className="hover:bg-[var(--neu-surface-light)] transition-colors">
                     <td className="px-4 py-3 font-mono font-bold text-[var(--neu-accent)]">{row.employeeId}</td>
                     <td className="px-4 py-3 font-bold text-[var(--neu-text)]">{row.name}</td>
@@ -218,6 +242,13 @@ export default function ProvisionsPage() {
               </tbody>
             </table>
           </NeuCardContent>
+          <NeuPagination
+            currentPage={currentPageRetirement}
+            totalPages={totalRetirementPages}
+            totalItems={retirementProvisions.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPageRetirement}
+          />
         </NeuCard>
       )}
     </div>

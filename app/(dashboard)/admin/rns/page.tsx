@@ -6,6 +6,8 @@ import { NeuButton } from "@/components/ui/neu-button";
 import { NeuBadge } from "@/components/ui/neu-badge";
 import { FileSpreadsheet, Download, Search, Loader2, ShieldCheck, Printer } from "lucide-react";
 
+import { NeuPagination } from "@/components/ui/neu-pagination";
+
 interface RnsEmployee {
   userId: string;
   name: string;
@@ -22,6 +24,8 @@ export default function RnsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const fetchRnsData = useCallback(async () => {
     setLoading(true);
@@ -83,6 +87,9 @@ export default function RnsPage() {
     e.cnpsNumber.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -141,7 +148,7 @@ export default function RnsPage() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((emp) => {
+                  paginated.map((emp) => {
                     const yearList = Object.values(emp.years).sort((a, b) => b.year - a.year);
                     return (
                       <tr key={emp.userId} className="hover:bg-[var(--neu-surface-light)] transition-colors">
@@ -183,6 +190,13 @@ export default function RnsPage() {
             </table>
           )}
         </NeuCardContent>
+        <NeuPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filtered.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       </NeuCard>
     </div>
   );

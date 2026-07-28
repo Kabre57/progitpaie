@@ -8,11 +8,15 @@ import { NeuSelect } from "@/components/ui/neu-select";
 import { NeuBadge } from "@/components/ui/neu-badge";
 import { CreditCard, Plus, RefreshCw, CheckCircle2 } from "lucide-react";
 
+import { NeuPagination } from "@/components/ui/neu-pagination";
+
 export default function LoansPage() {
   const [loans, setLoans] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Form State
   const [userId, setUserId] = useState("");
@@ -26,6 +30,9 @@ export default function LoansPage() {
     fetchLoans();
     fetchEmployees();
   }, []);
+
+  const totalPages = Math.ceil(loans.length / itemsPerPage);
+  const paginatedLoans = loans.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const fetchLoans = async () => {
     setLoading(true);
@@ -129,7 +136,7 @@ export default function LoansPage() {
                   </td>
                 </tr>
               ) : (
-                loans.map((l) => {
+                paginatedLoans.map((l) => {
                   const progress = Math.min(100, Math.round(((l.totalRepaid || 0) / l.amount) * 100));
 
                   return (
@@ -158,7 +165,7 @@ export default function LoansPage() {
                       </td>
                       <td className="px-6 py-4">
                         <NeuBadge variant={l.status === "active" ? "success" : "ghost"}>
-                          {l.status}
+                          {l.status === "active" ? "En cours" : "Soldé"}
                         </NeuBadge>
                       </td>
                     </tr>
@@ -168,6 +175,13 @@ export default function LoansPage() {
             </tbody>
           </table>
         </div>
+        <NeuPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={loans.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       </NeuCard>
 
       {/* Modal Création Prêt */}

@@ -19,6 +19,8 @@ interface BankGroup {
   }>;
 }
 
+import { NeuPagination } from "@/components/ui/neu-pagination";
+
 export default function BankTransfersPage() {
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -28,6 +30,8 @@ export default function BankTransfersPage() {
   const [loading, setLoading] = useState(true);
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
   const [downloadingBank, setDownloadingBank] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const fetchBankTransfers = useCallback(async () => {
     setLoading(true);
@@ -88,6 +92,10 @@ export default function BankTransfersPage() {
   };
 
   const currentGroup = bankSummaries.find((b) => b.bankName === selectedBank) || bankSummaries[0];
+  const totalPages = currentGroup ? Math.ceil(currentGroup.employees.length / itemsPerPage) : 0;
+  const paginatedEmployees = currentGroup
+    ? currentGroup.employees.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+    : [];
 
   return (
     <div className="space-y-6">
@@ -95,7 +103,7 @@ export default function BankTransfersPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[var(--neu-text)] flex items-center gap-2">
-            <Building2 className="text-[var(--neu-accent)]" /> Ordres de Virement & Bordereaux Bancaires (LOGIPAIE)
+            <Building2 className="text-[var(--neu-accent)]" /> Ordres de Virement & Bordereaux Bancaires  
           </h1>
           <p className="text-[var(--neu-text-secondary)] text-sm mt-1">
             Édition des ordres de virement officiels et bordereaux nominatifs ventilés par établissement bancaire.
@@ -216,7 +224,7 @@ export default function BankTransfersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--neu-border)] text-xs">
-                {currentGroup.employees.map((emp) => (
+                {paginatedEmployees.map((emp) => (
                   <tr key={emp.userId} className="hover:bg-[var(--neu-surface-light)] transition-colors">
                     <td className="px-4 py-3 font-mono font-bold text-[var(--neu-accent)]">{emp.employeeId}</td>
                     <td className="px-4 py-3 font-bold text-[var(--neu-text)]">{emp.name}</td>
@@ -229,6 +237,15 @@ export default function BankTransfersPage() {
               </tbody>
             </table>
           </NeuCardContent>
+          {currentGroup && (
+            <NeuPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={currentGroup.employees.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+            />
+          )}
         </NeuCard>
       )}
     </div>

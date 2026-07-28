@@ -18,6 +18,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { List2, ListItem } from "@/components/ui/list-2";
 import { User as UserIcon, Calendar as CalendarIcon, Activity, Eye } from "lucide-react";
+import { NeuPagination } from "@/components/ui/neu-pagination";
 
 interface AuditLog {
   _id: string;
@@ -334,34 +335,13 @@ export default function AdminAuditLogsPage() {
 
               {/* Pagination */}
               {pagination && pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6 pt-6 border-t border-[var(--neu-border)]">
-                  <p className="text-sm text-[var(--neu-text-secondary)]">
-                    Showing {((pagination.page - 1) * pagination.limit) + 1} to{" "}
-                    {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-                    {pagination.total} entries
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <NeuButton
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(pagination.page - 1)}
-                      disabled={pagination.page === 1}
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </NeuButton>
-                    <span className="text-sm text-[var(--neu-text)]">
-                      Page {pagination.page} of {pagination.totalPages}
-                    </span>
-                    <NeuButton
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(pagination.page + 1)}
-                      disabled={pagination.page === pagination.totalPages}
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </NeuButton>
-                  </div>
-                </div>
+                <NeuPagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={handlePageChange}
+                />
               )}
             </>
           )}

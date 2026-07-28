@@ -1,15 +1,22 @@
 "use client";
 
-// Spinner is now an alias for ChipLoader — all existing usages automatically get the new animation
-import { ChipLoader } from "@/components/ui/chip-loader";
+import { Loader2 } from "lucide-react";
 
 interface SpinnerProps {
   size?: "sm" | "md" | "lg";
   className?: string;
 }
 
-export function Spinner({ size = "md" }: SpinnerProps) {
-  return <ChipLoader size={size} />;
+export function Spinner({ size = "md", className = "" }: SpinnerProps) {
+  const sizeMap = {
+    sm: "w-4 h-4",
+    md: "w-6 h-6",
+    lg: "w-8 h-8",
+  };
+
+  return (
+    <Loader2 className={`animate-spin text-[var(--neu-accent)] ${sizeMap[size] || "w-6 h-6"} ${className}`} />
+  );
 }
 
 Spinner.displayName = "Spinner";

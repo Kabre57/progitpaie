@@ -39,9 +39,10 @@ export async function GET(
     }
 
     const { searchParams } = new URL(request.url);
-    const month = searchParams.get("month");
+    const monthParam = searchParams.get("month");
+    const yearParam = searchParams.get("year");
     const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = parseInt(searchParams.get("limit") || "30", 10);
+    const limit = parseInt(searchParams.get("limit") || "1000", 10);
 
     const where: Prisma.AttendanceWhereInput = {};
 
@@ -49,12 +50,22 @@ export async function GET(
       where.userId = user.userId;
     }
 
-    if (month) {
-      const startDate = `${month}-01`;
-      const [year, monthNum] = month.split("-").map(Number);
-      const lastDay = new Date(year, monthNum, 0).getDate();
-      const endDate = `${month}-${lastDay.toString().padStart(2, "0")}`;
-      where.date = { gte: startDate, lte: endDate };
+    if (monthParam) {
+      if (monthParam.includes("-")) {
+        const startDate = `${monthParam}-01`;
+        const [year, monthNum] = monthParam.split("-").map(Number);
+        const lastDay = new Date(year, monthNum, 0).getDate();
+        const endDate = `${monthParam}-${lastDay.toString().padStart(2, "0")}`;
+        where.date = { gte: startDate, lte: endDate };
+      } else {
+        const mNum = parseInt(monthParam, 10);
+        const yNum = yearParam ? parseInt(yearParam, 10) : new Date().getFullYear();
+        const mStr = String(mNum).padStart(2, "0");
+        const startDate = `${yNum}-${mStr}-01`;
+        const lastDay = new Date(yNum, mNum, 0).getDate();
+        const endDate = `${yNum}-${mStr}-${lastDay.toString().padStart(2, "0")}`;
+        where.date = { gte: startDate, lte: endDate };
+      }
     }
 
     const skip = (page - 1) * limit;

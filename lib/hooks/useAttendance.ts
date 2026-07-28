@@ -4,8 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckInInput, CheckOutInput } from "@/lib/validators/attendance.schema";
 import { IAttendance } from "@/types";
 
-// 1. Hook pour l'historique de pointage
-export function useAttendance(employeeId?: string, month?: number, year?: number) {
+export function useAttendance(employeeId?: string, month?: number | string, year?: number) {
   const queryParams = new URLSearchParams();
   if (employeeId) queryParams.set("employeeId", employeeId);
   if (month) queryParams.set("month", String(month));
@@ -17,7 +16,9 @@ export function useAttendance(employeeId?: string, month?: number, year?: number
       const res = await fetch(`/api/attendance?${queryParams.toString()}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Échec du chargement des pointages");
-      return json.data;
+      if (Array.isArray(json.data?.records)) return json.data.records;
+      if (Array.isArray(json.data)) return json.data;
+      return [];
     },
   });
 }

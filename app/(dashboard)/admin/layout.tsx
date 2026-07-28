@@ -19,7 +19,7 @@ export default function AdminLayout({
         className={cn(
           "flex-1 transition-all duration-300 min-w-0",
           "ml-0",
-          isCollapsed ? "lg:ml-20" : "lg:ml-64"
+          isCollapsed ? "lg:ml-20" : "lg:ml-72"
         )}
       >
         <Header />

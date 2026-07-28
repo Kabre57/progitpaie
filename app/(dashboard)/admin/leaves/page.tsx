@@ -23,10 +23,14 @@ interface LeaveRequest {
   status: "pending" | "approved" | "rejected";
 }
 
+import { NeuPagination } from "@/components/ui/neu-pagination";
+
 export default function AdminLeavesPage() {
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [activeEditDoc, setActiveEditDoc] = useState<{
     userId: string;
@@ -42,6 +46,9 @@ export default function AdminLeavesPage() {
   useEffect(() => {
     fetchLeaves();
   }, [filter]);
+
+  const totalPages = Math.ceil(leaves.length / itemsPerPage);
+  const paginatedLeaves = leaves.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const fetchLeaves = async () => {
     setLoading(true);
@@ -116,8 +123,7 @@ export default function AdminLeavesPage() {
   };
 
   return (
-    <div className="relative space-y-6" style={{ minHeight: "400px" }}>
-      {loading && <ChipLoader overlay size="md" label="Chargement des demandes..." />}
+    <div className="space-y-6 relative" style={{ minHeight: "400px" }}>
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -157,7 +163,7 @@ export default function AdminLeavesPage() {
             />
           ) : (
             <List2 
-              items={leaves.map((leave) => {
+              items={paginatedLeaves.map((leave) => {
                 const sDate = new Date(leave.startDate);
                 const eDate = new Date(leave.endDate);
                 const rDate = new Date(eDate);
@@ -229,6 +235,13 @@ export default function AdminLeavesPage() {
             />
           )}
         </NeuCardContent>
+        <NeuPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={leaves.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       </NeuCard>
 
       {/* Modal Édition & Génération Attestation de Congé */}

@@ -25,9 +25,9 @@ interface AttendanceFiltersProps {
 }
 
 const statusOptions = [
-  { value: "", label: "All Status" },
-  { value: "present", label: "Present" },
-  { value: "late", label: "Late" },
+  { value: "", label: "Tous les statuts" },
+  { value: "present", label: "Présent" },
+  { value: "late", label: "En retard" },
   { value: "absent", label: "Absent" },
 ];
 
@@ -67,7 +67,7 @@ export function AttendanceFilters({ onFilter, initialFilters }: AttendanceFilter
   }, []);
 
   const employeeOptions = [
-    { value: "", label: "All Employees" },
+    { value: "", label: "Tous les salariés" },
     ...employees.map((emp) => ({
       value: emp._id,
       label: emp.name,
@@ -95,7 +95,7 @@ export function AttendanceFilters({ onFilter, initialFilters }: AttendanceFilter
         {/* Month Picker */}
         <NeuInput
           type="month"
-          label="Month"
+          label="Mois de Paie"
           value={filters.month}
           onChange={(e) => setFilters({ ...filters, month: e.target.value })}
           className="w-full"
@@ -103,30 +103,30 @@ export function AttendanceFilters({ onFilter, initialFilters }: AttendanceFilter
 
         {/* Employee Dropdown */}
         <NeuSelect
-          label="Employee"
+          label="Salarié"
           options={employeeOptions}
           value={filters.employeeId}
           onChange={(e) => setFilters({ ...filters, employeeId: e.target.value })}
           disabled={isLoadingEmployees}
-          placeholder="Select employee"
+          placeholder="Sélectionner un salarié"
           className="w-full"
         />
 
         {/* Status Dropdown */}
         <NeuSelect
-          label="Status"
+          label="Statut"
           options={statusOptions}
           value={filters.status}
           onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-          placeholder="Select status"
+          placeholder="Sélectionner un statut"
           className="w-full"
         />
 
         {/* Search Input */}
         <NeuInput
           type="text"
-          label="Search"
-          placeholder="Search name..."
+          label="Rechercher"
+          placeholder="Nom du salarié..."
           value={filters.search}
           onChange={(e) => setFilters({ ...filters, search: e.target.value })}
           icon={<Search className="w-4 h-4" />}
@@ -137,10 +137,10 @@ export function AttendanceFilters({ onFilter, initialFilters }: AttendanceFilter
       {/* Action Buttons */}
       <div className="flex gap-2 w-full lg:w-auto">
         <NeuButton variant="accent" onClick={handleApply} className="flex-1 lg:flex-none h-11 px-8 shadow-[0_0_20px_-5px_var(--neu-accent)]">
-          Apply Filters
+          Appliquer les Filtres
         </NeuButton>
         <NeuButton variant="ghost" onClick={handleReset} className="flex-1 lg:flex-none h-11">
-          Reset
+          Réinitialiser
         </NeuButton>
       </div>
     </div>

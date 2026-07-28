@@ -26,11 +26,18 @@ interface ShiftFormData {
   lateThresholdMinutes: number;
 }
 
+import { NeuPagination } from "@/components/ui/neu-pagination";
+
 export default function ShiftsPage() {
   const [shifts, setShifts] = useState<IShift[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const totalPages = Math.ceil(shifts.length / itemsPerPage);
+  const paginatedShifts = shifts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const [editingShift, setEditingShift] = useState<IShift | null>(null);
   const [formData, setFormData] = useState<ShiftFormData>({
     name: "",
@@ -188,7 +195,7 @@ export default function ShiftsPage() {
       {/* Shifts Table */}
       <NeuCard>
         <NeuCardHeader>
-          <NeuCardTitle>All Shifts</NeuCardTitle>
+          <NeuCardTitle>Tous les Plannings de Travail</NeuCardTitle>
         </NeuCardHeader>
         <NeuCardContent>
           {isLoading ? (
@@ -198,23 +205,23 @@ export default function ShiftsPage() {
           ) : shifts.length === 0 ? (
             <div className="text-center py-12 text-[var(--neu-text-secondary)]">
               <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No shifts found</p>
-              <p className="text-sm mt-1">Click &quot;Add Shift&quot; to create one</p>
+              <p>Aucun planning de travail trouvé</p>
+              <p className="text-sm mt-1">Cliquez sur &quot;Ajouter Planning&quot; pour en créer un</p>
             </div>
           ) : (
             <List2 
-              items={shifts.map((shift) => ({
+              items={paginatedShifts.map((shift) => ({
                 icon: <Clock className="w-5 h-5 text-[var(--neu-accent)]" />,
                 title: shift.name,
-                category: "SHIFT",
+                category: "ÉQUIPE / SHIFT",
                 description: (
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-3">
                       <span className="font-bold opacity-80">{shift.startTime} - {shift.endTime}</span>
-                      <span className="text-[var(--neu-accent)] font-black">({shift.workingHours}h Work)</span>
+                      <span className="text-[var(--neu-accent)] font-black">({shift.workingHours}h de Travail)</span>
                     </div>
                     <div className="text-xs opacity-60">
-                      Late Threshold: {shift.lateThresholdMinutes} mins
+                      Tolérance Retard: {shift.lateThresholdMinutes} mins
                     </div>
                   </div>
                 ),
@@ -222,7 +229,7 @@ export default function ShiftsPage() {
                 status: (
                   <div className="flex items-center gap-3">
                     <NeuBadge variant={shift.isActive ? ("success" as const) : ("default" as const)}>
-                      {shift.isActive ? "Active" : "Inactive"}
+                      {shift.isActive ? "Actif" : "Inactif"}
                     </NeuBadge>
                     <NeuButton
                       size="icon"
@@ -241,6 +248,13 @@ export default function ShiftsPage() {
             />
           )}
         </NeuCardContent>
+        <NeuPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={shifts.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       </NeuCard>
 
       {/* Modal */}

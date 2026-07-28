@@ -22,6 +22,8 @@ interface GratificationItem {
   gratificationAmount: number;
 }
 
+import { NeuPagination } from "@/components/ui/neu-pagination";
+
 export default function GratificationsPage() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [gratifications, setGratifications] = useState<GratificationItem[]>([]);
@@ -29,6 +31,8 @@ export default function GratificationsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingItem, setEditingItem] = useState<GratificationItem | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const fetchGratifications = useCallback(async () => {
     setLoading(true);
@@ -61,6 +65,9 @@ export default function GratificationsPage() {
     g.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     g.employeeId.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="space-y-6">
@@ -179,7 +186,7 @@ export default function GratificationsPage() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((g) => (
+                  paginated.map((g) => (
                     <tr key={g.userId} className="hover:bg-[var(--neu-surface-light)] transition-colors">
                       <td className="px-4 py-3 font-mono font-bold text-[var(--neu-accent)]">{g.employeeId}</td>
                       <td className="px-4 py-3">
@@ -218,6 +225,13 @@ export default function GratificationsPage() {
             </table>
           )}
         </NeuCardContent>
+        <NeuPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filtered.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       </NeuCard>
 
       {/* Edit Modal */}

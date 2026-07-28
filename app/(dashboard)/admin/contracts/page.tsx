@@ -9,10 +9,14 @@ import { NeuBadge } from "@/components/ui/neu-badge";
 import { FileText, Plus, Download, Search, CheckCircle, RefreshCw, Edit3 } from "lucide-react";
 import { DocumentEditorModal } from "@/components/documents/document-editor-modal";
 
+import { NeuPagination } from "@/components/ui/neu-pagination";
+
 export default function ContractsPage() {
   const [contracts, setContracts] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [showModal, setShowModal] = useState(false);
   const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
   const [activeEditDoc, setActiveEditDoc] = useState<{
@@ -41,6 +45,14 @@ export default function ContractsPage() {
     fetchContracts();
     fetchEmployees();
   }, []);
+
+  const filteredContracts = contracts.filter((c) =>
+    c.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.jobTitle?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const totalPages = Math.ceil(filteredContracts.length / itemsPerPage);
+  const paginatedContracts = filteredContracts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const fetchContracts = async () => {
     setLoading(true);
@@ -131,11 +143,6 @@ export default function ContractsPage() {
     }
   };
 
-  const filteredContracts = contracts.filter((c) =>
-    c.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.jobTitle?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -199,7 +206,7 @@ export default function ContractsPage() {
                   </td>
                 </tr>
               ) : (
-                filteredContracts.map((c) => (
+                paginatedContracts.map((c) => (
                   <tr key={c.id} className="hover:bg-[var(--neu-surface)]/50 transition-colors">
                     <td className="px-6 py-4 font-medium">
                       <div>{c.user?.name}</div>
@@ -267,7 +274,7 @@ export default function ContractsPage() {
                         })}
                         title="Éditer et Télécharger le Certificat de travail PDF"
                       >
-                        <FileText size={14} className="mr-1" /> Certificat
+                        <Download size={14} className="mr-1" /> Certificat
                       </NeuButton>
                     </td>
                   </tr>
@@ -276,6 +283,13 @@ export default function ContractsPage() {
             </tbody>
           </table>
         </div>
+        <NeuPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredContracts.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       </NeuCard>
 
       {/* Modal Création Contrat */}

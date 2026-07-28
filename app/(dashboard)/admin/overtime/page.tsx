@@ -1,18 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/components/ui/neu-card";
+import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuBadge } from "@/components/ui/neu-badge";
 import { NeuInput } from "@/components/ui/neu-input";
 import { NeuSelect } from "@/components/ui/neu-select";
-import { Timer, CheckCircle, XCircle, Clock, RefreshCw, Plus, DollarSign } from "lucide-react";
+import { Timer, CheckCircle, XCircle, Clock, RefreshCw, Plus } from "lucide-react";
 import { NeuDialog } from "@/components/ui/neu-dialog";
+import { NeuPagination } from "@/components/ui/neu-pagination";
 
 export default function OvertimePage() {
   const [overtimes, setOvertimes] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [showAddModal, setShowAddModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -58,6 +61,9 @@ export default function OvertimePage() {
     }
   };
 
+  const totalPages = Math.ceil(overtimes.length / itemsPerPage);
+  const paginatedOvertimes = overtimes.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   const handleApproveReject = async (id: string, action: "approve" | "reject") => {
     try {
       const res = await fetch(`/api/overtime/${id}/approve`, {
@@ -85,7 +91,6 @@ export default function OvertimePage() {
 
     setSubmitting(true);
     try {
-      // Calculate total weighted minutes
       const h15 = Number(hours15) || 0;
       const h50 = Number(hours50) || 0;
       const h75n = Number(hours75Night) || 0;
@@ -94,7 +99,6 @@ export default function OvertimePage() {
 
       const totalMinutes = Math.round((h15 + h50 + h75n + h75d + h100) * 60);
 
-      // Main tranche rate (highest)
       let rate = 1.15;
       if (h100 > 0) rate = 2.0;
       else if (h75n > 0 || h75d > 0) rate = 1.75;
@@ -132,10 +136,10 @@ export default function OvertimePage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[var(--neu-text)] flex items-center gap-2">
-            <Timer className="text-[var(--neu-accent)]" /> Heures Supplémentaires
+            <Timer className="text-[var(--neu-accent)]" /> Heures Supplémentaires & Majorations
           </h1>
           <p className="text-[var(--neu-text-secondary)] text-sm mt-1">
-            Calcul et majoration des 5 tranches légales (+15%, +50%, +75% Nuit, +75% Dimanche/Férié, +100% Nuit Férié).
+            Calcul et validation des 5 tranches légales de majoration (+15%, +50%, +75% Nuit, +75% Dimanche/Férié, +100% Nuit Férié).
           </p>
         </div>
         <div className="flex gap-2">
@@ -154,7 +158,7 @@ export default function OvertimePage() {
           <table className="w-full text-left text-sm text-[var(--neu-text)]">
             <thead className="bg-[var(--neu-surface-light)] text-[var(--neu-text-secondary)] uppercase text-xs border-b border-[var(--neu-border)]">
               <tr>
-                <th className="px-6 py-4">Employé</th>
+                <th className="px-6 py-4">Salarié</th>
                 <th className="px-6 py-4">Date</th>
                 <th className="px-6 py-4">Durée Travaillée</th>
                 <th className="px-6 py-4">Taux de Majoration</th>
@@ -177,7 +181,7 @@ export default function OvertimePage() {
                   </td>
                 </tr>
               ) : (
-                overtimes.map((o) => {
+                paginatedOvertimes.map((o) => {
                   const hours = (o.minutes / 60).toFixed(1);
                   const ratePercent = Math.round((o.rate - 1) * 100);
 
@@ -207,7 +211,7 @@ export default function OvertimePage() {
                             o.status === "approved" ? "success" : o.status === "rejected" ? "danger" : "warning"
                           }
                         >
-                          {o.status === "approved" ? "VALIDE" : o.status === "rejected" ? "REJETE" : "EN ATTENTE"}
+                          {o.status === "approved" ? "VALIDÉ" : o.status === "rejected" ? "REJETÉ" : "EN ATTENTE"}
                         </NeuBadge>
                       </td>
                       <td className="px-6 py-4 text-right space-x-2">
@@ -238,71 +242,69 @@ export default function OvertimePage() {
             </tbody>
           </table>
         </div>
+        <NeuPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={overtimes.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       </NeuCard>
 
       {/* Modal Saisie Heures Supp LOGIPAIE */}
-      <NeuDialog open={showAddModal} onClose={() => setShowAddModal(false)} title="Saisie des Heures Supplémentaires (5 Tranches Legal)">
+      <NeuDialog open={showAddModal} onClose={() => setShowAddModal(false)} title="Saisie des Heures Supplémentaires (5 Tranches Légales)">
         <form onSubmit={handleCreateOvertime} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <NeuSelect
               label="Sélectionner le Salarié *"
               options={[
                 { value: "", label: "-- Choisir un employé --" },
-                ...employees.map((e) => ({
-                  value: e.id || e._id,
-                  label: `${e.employeeId || "EMP"} - ${e.name}`,
-                })),
+                ...employees.map((e) => ({ value: e.id || e._id, label: `${e.name} (${e.employeeId || "EMP"})` })),
               ]}
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
-              required
             />
             <NeuInput
               label="Date d'exécution *"
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              required
             />
           </div>
 
-          <div className="p-3 bg-[var(--neu-surface-light)] rounded-lg border border-[var(--neu-border)] space-y-3">
-            <h4 className="text-xs font-bold text-[var(--neu-accent)] uppercase">Décomposition par Tranche Légale</h4>
-            
-            <div className="grid grid-cols-2 gap-3">
+          <div className="p-3 bg-[var(--neu-surface-light)] rounded-xl border border-[var(--neu-border)] space-y-3">
+            <h4 className="font-bold text-xs text-[var(--neu-accent)] uppercase">Décompte des 5 Tranches Légales</h4>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
               <NeuInput
-                label="41e à 46e heure (+15%)"
+                label="Heures +15% (41h à 46h)"
                 type="number"
                 step="0.5"
                 value={hours15}
                 onChange={(e) => setHours15(e.target.value)}
               />
               <NeuInput
-                label="Au-delà de 46h (+50%)"
+                label="Heures +50% (>46h)"
                 type="number"
                 step="0.5"
                 value={hours50}
                 onChange={(e) => setHours50(e.target.value)}
               />
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
               <NeuInput
-                label="Nuit semaine (+75%)"
+                label="Heures +75% (Nuit semaine)"
                 type="number"
                 step="0.5"
                 value={hours75Night}
                 onChange={(e) => setHours75Night(e.target.value)}
               />
               <NeuInput
-                label="Dimanche/Férié jour (+75%)"
+                label="Heures +75% (Jour Dimanche)"
                 type="number"
                 step="0.5"
                 value={hours75Sunday}
                 onChange={(e) => setHours75Sunday(e.target.value)}
               />
               <NeuInput
-                label="Dimanche/Férié nuit (+100%)"
+                label="Heures +100% (Nuit Dim/Férié)"
                 type="number"
                 step="0.5"
                 value={hours100SundayNight}
@@ -312,13 +314,13 @@ export default function OvertimePage() {
           </div>
 
           <NeuInput
-            label="Motif du travail supplémentaire"
+            label="Motif du travail supplémentaire *"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
           />
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-[var(--neu-border)]">
-            <NeuButton type="button" variant="ghost" onClick={() => setShowAddModal(false)} disabled={submitting}>
+          <div className="flex justify-end gap-2 pt-2">
+            <NeuButton type="button" variant="ghost" onClick={() => setShowAddModal(false)}>
               Annuler
             </NeuButton>
             <NeuButton type="submit" variant="accent" loading={submitting}>

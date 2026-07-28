@@ -10,6 +10,8 @@ import { List2 } from "@/components/ui/list-2";
 import { NeuBadge } from "@/components/ui/neu-badge";
 import { DocumentEditorModal } from "@/components/documents/document-editor-modal";
 
+import { NeuPagination } from "@/components/ui/neu-pagination";
+
 interface PayrollRecord {
   _id: string;
   userId: { _id: string; id?: string; name: string; employeeId?: string };
@@ -34,6 +36,8 @@ export default function AdminPayrollPage() {
   const [payroll, setPayroll] = useState<PayrollRecord[]>([]);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [downloadingBulk, setDownloadingBulk] = useState(false);
@@ -62,6 +66,9 @@ export default function AdminPayrollPage() {
   useEffect(() => {
     fetchPayroll();
   }, [month, year]);
+
+  const totalPages = Math.ceil(payroll.length / itemsPerPage);
+  const paginatedPayroll = payroll.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -132,7 +139,7 @@ export default function AdminPayrollPage() {
             <DollarSign className="text-[var(--neu-accent)]" /> Livre de Paie Mensuel & Édition de Bulletins
           </h2>
           <p className="text-[var(--neu-text-secondary)] text-sm mt-1">
-            Gestion du Livre de Paie (PROGI  PAIE ) et Édition Groupée des Bulletins de Paie.
+            Gestion du Livre de Paie et Édition Groupée des Bulletins de Paie.
           </p>
         </div>
 
@@ -153,7 +160,7 @@ export default function AdminPayrollPage() {
             onChange={(e) => setYear(parseInt(e.target.value))}
             className="flex-1 sm:flex-none px-3 py-2 rounded-lg bg-[var(--neu-surface)] border border-[var(--neu-border)] text-sm font-semibold outline-none transition-colors hover:border-[var(--neu-accent)]/50 focus:border-[var(--neu-accent)] text-[var(--neu-text)]"
           >
-            {[2024, 2025, 2026].map((y) => (
+            {[2020, 2021, 2022, 2023, 2024, 2025, 2026].map((y) => (
               <option key={y} value={y}>
                 {y}
               </option>
@@ -184,7 +191,7 @@ export default function AdminPayrollPage() {
             />
           ) : (
             <List2 
-              items={payroll.map((record) => {
+              items={paginatedPayroll.map((record) => {
                 const userIdVal = record.userId?.id || record.userId?._id || "";
                 return {
                   icon: <UserIcon className="w-5 h-5 text-[var(--neu-accent)]" />,
@@ -254,6 +261,13 @@ export default function AdminPayrollPage() {
             />
           )}
         </NeuCardContent>
+        <NeuPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={payroll.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       </NeuCard>
 
       {/* Modal Édition & Génération Bulletin de Salaire */}

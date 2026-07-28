@@ -9,11 +9,15 @@ import { NeuBadge } from "@/components/ui/neu-badge";
 import { UserX, Plus, RefreshCw, Calculator, FileText } from "lucide-react";
 import { DocumentEditorModal } from "@/components/documents/document-editor-modal";
 
+import { NeuPagination } from "@/components/ui/neu-pagination";
+
 export default function SeverancePage() {
   const [severances, setSeverances] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Form State
   const [userId, setUserId] = useState("");
@@ -36,6 +40,9 @@ export default function SeverancePage() {
     fetchSeverances();
     fetchEmployees();
   }, []);
+
+  const totalPages = Math.ceil(severances.length / itemsPerPage);
+  const paginatedSeverances = severances.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const fetchSeverances = async () => {
     setLoading(true);
@@ -148,7 +155,7 @@ export default function SeverancePage() {
                   </td>
                 </tr>
               ) : (
-                severances.map((s) => (
+                paginatedSeverances.map((s) => (
                   <tr key={s.id} className="hover:bg-[var(--neu-surface-light)] transition-colors">
                     <td className="px-6 py-4 font-medium">
                       <div className="font-bold">{s.user?.name}</div>
@@ -199,6 +206,13 @@ export default function SeverancePage() {
             </tbody>
           </table>
         </div>
+        <NeuPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={severances.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       </NeuCard>
 
       {/* Modal Calculateur Solde de Tout Compte */}
@@ -206,7 +220,7 @@ export default function SeverancePage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <NeuCard className="w-full max-w-lg p-6 space-y-4">
             <h2 className="text-xl font-bold text-[var(--neu-text)] flex items-center gap-2 border-b border-[var(--neu-border)] pb-3">
-              <Calculator className="text-[var(--neu-accent)]" /> Calculer un Solde Tout Compte (LOGIPAIE)
+              <Calculator className="text-[var(--neu-accent)]" /> Calculer un Solde Tout Compte  
             </h2>
             <form onSubmit={handleCalculateSeverance} className="space-y-4">
               <div>

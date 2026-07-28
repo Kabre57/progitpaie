@@ -7,13 +7,15 @@ import {
 import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuBadge } from "@/components/ui/neu-badge";
-import { ChipLoader } from "@/components/ui/chip-loader";
+import { NeuPagination } from "@/components/ui/neu-pagination";
 
 export default function CumulsPage() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<"monthly" | "employee" | "annual">("monthly");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const fetchCumuls = async () => {
     setLoading(true);
@@ -38,15 +40,20 @@ export default function CumulsPage() {
   const monthlyCumuls = data?.monthlyCumuls || [];
   const employeeCumuls = data?.employeeAnnualCumuls || [];
 
+  const totalPages = Math.ceil(employeeCumuls.length / itemsPerPage);
+  const paginatedEmployeeCumuls = employeeCumuls.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <div className="space-y-6 relative" style={{ minHeight: "400px" }}>
-      {loading && <ChipLoader overlay size="md" label="Calcul des Cumuls en cours..." />}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[var(--neu-text)] flex items-center gap-2">
-            <Calculator className="w-6 h-6 text-[var(--neu-accent)]" /> Cumuls de Paie Mensuels & Annuel (LOGIPAIE)
+            <Calculator className="w-6 h-6 text-[var(--neu-accent)]" /> Cumuls de Paie Mensuels & Annuel  
           </h1>
           <p className="text-[var(--neu-text-secondary)] text-sm">
             Récapitulatif et cumul général de la masse salariale, des retenues fiscales (ITS/IGR) et des cotisations CNPS/FDFP.
@@ -226,7 +233,7 @@ export default function CumulsPage() {
                     </td>
                   </tr>
                 ) : (
-                  employeeCumuls.map((e: any) => (
+                  paginatedEmployeeCumuls.map((e: any) => (
                     <tr key={e.userId} className="hover:bg-[var(--neu-surface-light)] transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
@@ -252,6 +259,13 @@ export default function CumulsPage() {
               </tbody>
             </table>
           </NeuCardContent>
+          <NeuPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={employeeCumuls.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
         </NeuCard>
       )}
 
