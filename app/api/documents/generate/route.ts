@@ -4,6 +4,20 @@ import { requireAdmin } from "@/lib/middleware-helpers";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { decryptData } from "@/lib/crypto";
+import { RateService } from "@/lib/rate-service";
+import { PayslipConfigService } from "@/lib/payslip-config-service";
+import { DEFAULT_PAYSLIP_APPEARANCE, DEFAULT_PAYSLIP_LEGAL } from "@/lib/payslip-config";
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : { r: 187, g: 215, b: 149 }; // fallback vert LOGIPAIE
+}
 
 function cleanText(str: string): string {
   if (!str) return "";
@@ -148,14 +162,36 @@ export async function POST(
       }) : null;
 
       const monthName = cleanText(new Date(pYear, pMonth - 1).toLocaleString("fr-FR", { month: "long" }));
-      const ratesSettings = (ratesDoc?.value as any) || {};
-      const otherSettings = (otherParamsDoc?.value as any) || {};
+      
+      const configService = PayslipConfigService.getInstance();
+      let appearanceConfig = DEFAULT_PAYSLIP_APPEARANCE;
+      let legalConfig = DEFAULT_PAYSLIP_LEGAL;
+      let rates = await RateService.getInstance().getRates();
 
-      const cnpsEmployeeRate = ratesSettings.cnpsEmployeeRetraite || 6.3;
-      const cnpsEmployerRetraiteRate = ratesSettings.cnpsEmployerRetraite || 7.7;
-      const tfcRate = ratesSettings.fdfpFPC || 0.6;
-      const tapRate = ratesSettings.fdfpTA || 0.4;
-      const transportExempt = otherSettings.transportExemptAmount || 30000;
+      if (payroll?.configSnapshotId) {
+        const snapshotData = await configService.getConfigFromSnapshot(payroll.configSnapshotId);
+        if (snapshotData) {
+          appearanceConfig = snapshotData.appearance;
+          legalConfig = snapshotData.legal;
+          rates = snapshotData.rates;
+        }
+      } else {
+        const [appConf, legConf] = await Promise.all([
+          configService.getAppearance(),
+          configService.getLegal(),
+        ]);
+        appearanceConfig = appConf;
+        legalConfig = legConf;
+      }
+
+      const cnpsEmployeeRate = rates.cnpsEmployeeRetraite;
+      const cnpsEmployerRetraiteRate = rates.cnpsEmployerRetraite;
+      const tfcRate = rates.fdfpFPC;
+      const tapRate = rates.fdfpTA;
+      const transportExempt = rates.transportExemptAmount;
+      const cmuTotal = rates.cmuBase;
+      const cmuEmployeeVal = Math.round(cmuTotal * (rates.cmuEmployeeRate / 100));
+      const cmuEmployerVal = Math.round(cmuTotal * (rates.cmuEmployerRate / 100));
 
       const rawCnps = user?.cnpsNumber ? decryptData(user.cnpsNumber) : "Exonéré";
       const empCnps = cleanText(rawCnps);
@@ -171,26 +207,40 @@ export async function POST(
         seniorityText = `${Math.max(0, diffYears)} ans`;
       }
 
+      // Gestion du logo entreprise si défini
+      let headerYOffset = 0;
+      if (appearanceConfig.logoBase64) {
+        try {
+          doc.addImage(appearanceConfig.logoBase64, "PNG", 14, 6, 25, 9);
+          headerYOffset = 5;
+        } catch (err) {
+          console.error("Échec de l'ajout du logo dans le PDF:", err);
+        }
+      }
+
       // En-tête Bulletin
-      doc.setFontSize(14);
+      doc.setFontSize(13);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(30, 30, 30);
-      doc.text(companyName.toUpperCase(), 14, 15);
+      doc.text(companyName.toUpperCase(), 14, 14 + headerYOffset);
 
       doc.setFontSize(7);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(100, 100, 100);
-      doc.text(`${companyName}`, 14, 19);
-      doc.text(`${address}`, 14, 23);
-      doc.text(`N°RCCM : ${rccm}    N°CC : ${cc}`, 14, 27);
-      doc.text(`N°CNPS : ${cnps}`, 14, 31);
+      doc.text(`${companyName}`, 14, 18 + headerYOffset);
+      doc.text(`${address}`, 14, 22 + headerYOffset);
+      doc.text(`N°RCCM : ${rccm}    N°CC : ${cc}`, 14, 26 + headerYOffset);
+      doc.text(`N°CNPS : ${cnps}`, 14, 30 + headerYOffset);
 
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(30, 30, 30);
-      doc.text("BULLETIN DE PAIE", 125, 15);
+      doc.text(cleanText(appearanceConfig.headerTitle || "BULLETIN DE PAIE"), 125, 15);
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
+      if (appearanceConfig.headerSubtitle) {
+        doc.text(cleanText(appearanceConfig.headerSubtitle), 125, 21);
+      }
       doc.text(`${monthName.toUpperCase()} ${pYear}`, 165, 21);
 
       // Cadre Salarié à gauche
@@ -207,8 +257,9 @@ export async function POST(
       doc.text(`Date entré ${joiningStr}`, 18, 77);
       doc.text(`Ancienneté ${seniorityText}`, 18, 82);
 
-      // Cadre vert à droite (#BBD795)
-      doc.setFillColor(187, 215, 149);
+      // Cadre d'apparence à droite
+      const rgbColor = hexToRgb(appearanceConfig.primaryColor || "#BBD795");
+      doc.setFillColor(rgbColor.r, rgbColor.g, rgbColor.b);
       doc.rect(100, 38, 96, 48, "F");
 
       doc.setFontSize(10);
@@ -258,19 +309,23 @@ export async function POST(
         ["31", "Brut fiscal employe", fmtNum(brutFiscal), "", "", "", "", ""],
         ["32", "Brut fiscal employeur", fmtNum(brutFiscal), "", "", "", "", ""],
         ["33", "Brut social", fmtNum(brutSocial), "", "", "", "", ""],
-        ["34", "ITS. Imp. sur Trait. et Sal.", fmtNum(brutFiscal), "", "", fmtNum(itsTax), "1.20", fmtNum(itsTax)],
+        ["34", "ITS. Imp. sur Trait. et Sal.", "", "", "", fmtNum(itsTax), "1.20", fmtNum(itsTax)],
         ["35", "CNPS. Regime de Retraite", fmtNum(brutSocial), "6.30", "", fmtNum(cnpsEmployee), "7.70", fmtNum(cnpsEmployerRetraite)],
-        ["36", "CNPS. Accident Travail", fmtNum(brutSocial), "", "", "", "3.00", fmtNum(cnpsEmployerATVal)],
-        ["37", "CNPS. Prest. Famil.", fmtNum(brutSocial), "", "", "", "5.75", fmtNum(cnpsEmployerPFVal)],
-        ["38", "FDFR. Taxe Apprentissage", fmtNum(brutSocial), "", "", "", "0.40", fmtNum(tapVal)],
-        ["39", "FDFR. Taxe Form. Continue", fmtNum(brutSocial), "", "", "", "0.60", fmtNum(tfcVal)],
-        ["40", "FDFR. TFC a regulariser", fmtNum(brutSocial), "", "", "", "0.60", fmtNum(tfcVal)],
-        ["22", "Prime Transport non impos.", "30 000", "30,00", "30 000", "", "", ""],
-        ["", "", "", "", fmtNumZero(totalGains), fmtNumZero(totalRetenuesSal), "", fmtNumZero(totalRetenuesPat)],
+        ["36", "CNPS. Accident Travail", "", "", "", "", "3.00", fmtNum(cnpsEmployerATVal)],
+        ["37", "CNPS. Prest. Famil.", "", "", "", "", "5.75", fmtNum(cnpsEmployerPFVal)],
+        ...(rates.showCMU !== false ? [
+          ["37b", "CMU. Couverture Maladie Univ.", fmtNumZero(cmuTotal), `${rates.cmuEmployeeRate.toFixed(2)}%`, "", fmtNumZero(cmuEmployeeVal), `${rates.cmuEmployerRate.toFixed(2)}%`, fmtNumZero(cmuEmployerVal)]
+        ] : []),
+        ["38", "FDFR. Taxe Apprentissage", "", "", "", "", tapRate.toFixed(2), fmtNum(tapVal)],
+        ["39", "FDFR. Taxe Form. Continue", "", "", "", "", tfcRate.toFixed(2), fmtNum(tfcVal)],
+        ["40", "FDFR. TFC a regulariser", "", "", "", "", tfcRate.toFixed(2), fmtNum(tfcVal)],
+        ["22", "Prime Transport non impos.", fmtNumZero(transportExempt), "30,00", fmtNumZero(transportExempt), "", "", ""],
+        ["", "", "", "", fmtNumZero(totalGains), fmtNumZero(totalRetenuesSal + (rates.showCMU !== false ? cmuEmployeeVal : 0)), "", fmtNumZero(totalRetenuesPat + (rates.showCMU !== false ? cmuEmployerVal : 0))],
       ];
 
       autoTable(doc, {
-        startY: 92,
+        startY: 88,
+        margin: { left: 14, right: 14 },
         head: [
           [
             { content: "N°", rowSpan: 2 },
@@ -284,18 +339,58 @@ export async function POST(
           ]
         ],
         body: tableRows,
-        theme: "grid",
-        headStyles: { fillColor: [240, 240, 240], textColor: [30, 30, 30], fontSize: 7, fontStyle: "bold", halign: "center" },
-        bodyStyles: { fontSize: 7, textColor: [30, 30, 30] },
+        theme: "plain",
+        styles: { cellPadding: 0.8, fontSize: 6.5, textColor: [30, 30, 30] },
+        headStyles: { fillColor: [255, 255, 255], textColor: [30, 30, 30], fontSize: 6.5, fontStyle: "bold", halign: "center" },
+        bodyStyles: { textColor: [30, 30, 30] },
         columnStyles: {
           0: { halign: "center", cellWidth: 10 },
-          1: { halign: "left", cellWidth: 50 },
+          1: { halign: "left", cellWidth: 54 },
           2: { halign: "right", cellWidth: 20 },
           3: { halign: "right", cellWidth: 18 },
-          4: { halign: "right", cellWidth: 22 },
-          5: { halign: "right", cellWidth: 22 },
+          4: { halign: "right", cellWidth: 20 },
+          5: { halign: "right", cellWidth: 20 },
           6: { halign: "right", cellWidth: 18 },
           7: { halign: "right", cellWidth: 22 },
+        },
+        didDrawPage: function (data: any) {
+          // Dessiner le cadre extérieur global et les lignes de colonnes verticales comme sur la capture 1 LOGIPAIE RH
+          const table = data.table;
+          const startY = table.pageStartY || 88;
+          const finalY = data.cursor?.y || 195;
+          const left = 14;
+          const right = 196;
+
+          doc.setLineWidth(0.3);
+          doc.setDrawColor(100, 100, 100);
+
+          // Cadre extérieur
+          doc.rect(left, startY, right - left, finalY - startY);
+
+          // Ligne sous le header (double niveau)
+          const headerHeight = 8;
+          doc.line(left, startY + headerHeight, right, startY + headerHeight);
+          doc.line(left, startY + 13, right, startY + 13);
+          doc.line(left, finalY - 4.5, right, finalY - 4.5); // Ligne au-dessus des totaux
+
+          // Lignes verticales séparatrices de colonnes d'un seul trait haut en bas
+          const colX = [
+            14, // Gauche N°
+            24, // Séparation N° / DESIGNATION
+            78, // Séparation DESIGNATION / BASE
+            98, // Séparation BASE / PART SALARIALE (Nbre/taux)
+            116, // Séparation Nbre/taux / GAINS
+            136, // Séparation GAINS / RETENUES
+            156, // Séparation PART SALARIALE / PART PATRONALE (Nbre/taux)
+            174, // Séparation Nbre/taux patronal / RETENUES patronal
+            196 // Droite extrême
+          ];
+
+          for (let i = 1; i < colX.length - 1; i++) {
+            const x = colX[i];
+            const topY = (i === 4 || i === 5 || i === 7) ? startY + headerHeight : startY;
+            doc.line(x, topY, x, finalY);
+          }
         },
         didParseCell: function (data: any) {
           if (data.section === "body") {
@@ -320,40 +415,72 @@ export async function POST(
         },
       });
 
-      const finalTableY = (doc as any).lastAutoTable?.finalY || 205;
-      const netSalaryVal = payroll?.netSalary || (totalGains - totalRetenuesSal);
+      const finalTableY = (doc as any).lastAutoTable?.finalY || 195;
+      const netSalaryVal = payroll?.netSalary || (totalGains - totalRetenuesSal - (rates.showCMU !== false ? cmuEmployeeVal : 0));
 
-      // Bande Verte Net à Payer (N° 50)
-      doc.setFillColor(187, 215, 149);
-      doc.rect(14, finalTableY + 2, 182, 10, "F");
+      // Bande Couleur Net à Payer (N° 50)
+      doc.setFillColor(rgbColor.r, rgbColor.g, rgbColor.b);
+      doc.rect(14, finalTableY + 2, 182, 9, "F");
 
-      doc.setFontSize(9);
+      doc.setFontSize(8.5);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(30, 30, 30);
-      doc.text("50", 18, finalTableY + 8);
-      doc.text("Arrondi:", 70, finalTableY + 8);
-      doc.text("NET A PAYER :", 130, finalTableY + 8);
-      doc.text(`${fmtNumZero(netSalaryVal)}`, 175, finalTableY + 8);
+      doc.text("50", 18, finalTableY + 7);
+      doc.text("Arrondi:", 70, finalTableY + 7);
+      doc.text("NET A PAYER :", 130, finalTableY + 7);
+      doc.text(`${fmtNumZero(netSalaryVal)}`, 175, finalTableY + 7);
 
-      doc.setFontSize(7.5);
+      doc.setFontSize(7);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(80, 80, 80);
-      doc.text(`Periode: du 01/${pMonth < 10 ? "0" + pMonth : pMonth}/${pYear} au 30/${pMonth < 10 ? "0" + pMonth : pMonth}/${pYear}    Date de paie: 31/${pMonth < 10 ? "0" + pMonth : pMonth}/${pYear}    Mode de paie: Virement`, 20, finalTableY + 16);
+      doc.text(`Periode: du 01/${pMonth < 10 ? "0" + pMonth : pMonth}/${pYear} au 30/${pMonth < 10 ? "0" + pMonth : pMonth}/${pYear}    Date de paie: 31/${pMonth < 10 ? "0" + pMonth : pMonth}/${pYear}    Mode de paie: Virement`, 20, finalTableY + 14);
 
-      // Cumuls Footer Table
+      // Cumuls Footer Table (Format conforme à la capture Excel LOGIPAIE RH)
+      const hoursPeriode = payroll?.presentDays ? (payroll.presentDays).toFixed(2).replace(".", ",") : "173,33";
+      const hoursAnnee = payroll?.presentDays ? Math.round(payroll.presentDays * pMonth).toString() : "173";
+
       const cumulsRows = [
-        ["Periode", `${payroll?.presentDays || 173.33} h`, "acquis", "pris", "a Prendre", `${fmtNumZero(brutSocial)}`, `${fmtNumZero(brutFiscal)}`, `${fmtNumZero(itsTax)}`, `${fmtNumZero(cnpsEmployee)}`, ""],
-        ["Annee", `${(payroll?.presentDays || 173.33) * pMonth} h`, "", "", "", `${fmtNumZero(brutSocial * pMonth)}`, `${fmtNumZero(brutFiscal * pMonth)}`, `${fmtNumZero(itsTax * pMonth)}`, `${fmtNumZero(cnpsEmployee * pMonth)}`, ""]
+        ["Periode", hoursPeriode, "acquis", "pris", "a Prendre", `${fmtNumZero(brutSocial)}`, `${fmtNumZero(brutFiscal)}`, `${fmtNumZero(itsTax)}`, `${fmtNumZero(cnpsEmployee)}`, ""],
+        ["Annee", hoursAnnee, "", "", "", `${fmtNumZero(brutSocial * pMonth)}`, `${fmtNumZero(brutFiscal * pMonth)}`, `${fmtNumZero(itsTax * pMonth)}`, `${fmtNumZero(cnpsEmployee * pMonth)}`, ""]
       ];
 
       autoTable(doc, {
-        startY: finalTableY + 18,
+        startY: finalTableY + 16,
+        margin: { left: 14, right: 14 },
         head: [["CUMULS", "Heures", "Conges", "", "", "Brut social", "Brut fiscal", "ITS", "Retraite", "Emargement"]],
         body: cumulsRows,
         theme: "grid",
-        headStyles: { fillColor: [240, 240, 240], textColor: [30, 30, 30], fontSize: 6.5, halign: "center" },
-        bodyStyles: { fontSize: 6.5, halign: "center" },
+        styles: { cellPadding: 0.8, fontSize: 6, lineColor: [100, 100, 100], lineWidth: 0.2 },
+        headStyles: { fillColor: [240, 240, 240], textColor: [30, 30, 30], fontSize: 6, halign: "center", lineColor: [100, 100, 100], lineWidth: 0.2 },
+        bodyStyles: { fontSize: 6, halign: "center" },
       });
+
+      const cumulsFinalY = (doc as any).lastAutoTable?.finalY || (finalTableY + 30);
+      let finalFooterY = cumulsFinalY + 8;
+
+      // Cases de signature si configurées
+      if (legalConfig.showEmployerStamp || legalConfig.showEmployeeSignature) {
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(80, 80, 80);
+
+        if (legalConfig.showEmployerStamp) {
+          doc.text("Signature & Tampon Employeur", 14, finalFooterY);
+          doc.rect(14, finalFooterY + 2, 60, 14);
+        }
+
+        if (legalConfig.showEmployeeSignature) {
+          doc.text("Emargement Salarie", 136, finalFooterY);
+          doc.rect(136, finalFooterY + 2, 60, 14);
+        }
+
+        finalFooterY += 20;
+      }
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(80, 80, 80);
+      doc.text(cleanText(legalConfig.legalNotice), 105, finalFooterY, { align: "center" });
 
       const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
       return new Response(pdfBuffer, {

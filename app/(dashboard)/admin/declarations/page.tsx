@@ -5,7 +5,8 @@ import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuSelect } from "@/components/ui/neu-select";
 import { NeuBadge } from "@/components/ui/neu-badge";
-import { FileSpreadsheet, Building, ShieldCheck, RefreshCw, Printer, FileText } from "lucide-react";
+import { FileSpreadsheet, Building, ShieldCheck, RefreshCw, Printer, FileText, Eye } from "lucide-react";
+import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
 
 export default function DeclarationsPage() {
   const [month, setMonth] = useState(new Date().getMonth() + 1);
@@ -14,6 +15,7 @@ export default function DeclarationsPage() {
   const [cnpsData, setCnpsData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<"declaration_its" | "declaration_fdfp" | "declaration_cnps" | null>(null);
 
   useEffect(() => {
     fetchDeclarations();
@@ -146,13 +148,23 @@ export default function DeclarationsPage() {
               </div>
 
               <div className="pt-2 flex flex-col gap-2">
-                <NeuButton
-                  variant="accent"
-                  onClick={() => handlePrintPdf("declaration_its", "declaration-its")}
-                  loading={downloadingDoc === "declaration_its"}
-                >
-                  <Printer className="w-4 h-4 mr-2" /> Imprimer Déclaration DGI ITS PDF
-                </NeuButton>
+                <div className="flex gap-2">
+                  <NeuButton
+                    variant="ghost"
+                    onClick={() => setPreviewDoc("declaration_its")}
+                    className="flex-1"
+                  >
+                    <Eye className="w-4 h-4 mr-2 text-[var(--neu-accent)]" /> Aperçu DGI ITS
+                  </NeuButton>
+                  <NeuButton
+                    variant="accent"
+                    onClick={() => handlePrintPdf("declaration_its", "declaration-its")}
+                    loading={downloadingDoc === "declaration_its"}
+                    className="flex-1"
+                  >
+                    <Printer className="w-4 h-4 mr-2" /> Imprimer DGI ITS PDF
+                  </NeuButton>
+                </div>
                 <NeuButton
                   variant="ghost"
                   onClick={() => handlePrintPdf("etat_301", "etat-301-dgi")}
@@ -194,14 +206,21 @@ export default function DeclarationsPage() {
               <span className="font-mono text-emerald-400">{Math.round((itsData?.totalGrossSalary || 0) * 0.016).toLocaleString()} FCFA</span>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex gap-2">
+              <NeuButton
+                variant="ghost"
+                onClick={() => setPreviewDoc("declaration_fdfp")}
+                className="flex-1"
+              >
+                <Eye className="w-4 h-4 mr-2 text-[var(--neu-accent)]" /> Aperçu FDFP
+              </NeuButton>
               <NeuButton
                 variant="accent"
                 onClick={() => handlePrintPdf("declaration_fdfp", "declaration-fdfp")}
                 loading={downloadingDoc === "declaration_fdfp"}
-                className="w-full"
+                className="flex-1"
               >
-                <Printer className="w-4 h-4 mr-2" /> Imprimer Déclaration FDFP PDF (25/33)
+                <Printer className="w-4 h-4 mr-2" /> Imprimer FDFP PDF
               </NeuButton>
             </div>
           </div>
@@ -248,12 +267,19 @@ export default function DeclarationsPage() {
 
           <div className="pt-2 flex flex-wrap gap-4">
             <NeuButton
+              variant="ghost"
+              onClick={() => setPreviewDoc("declaration_cnps")}
+              className="flex-1"
+            >
+              <Eye className="w-4 h-4 mr-2 text-[var(--neu-accent)]" /> Aperçu Cotisations CNPS
+            </NeuButton>
+            <NeuButton
               variant="accent"
               onClick={() => handlePrintPdf("declaration_cnps", "declaration-cnps")}
               loading={downloadingDoc === "declaration_cnps"}
               className="flex-1"
             >
-              <Printer className="w-4 h-4 mr-2" /> Imprimer Appel de Cotisation CNPS PDF (27)
+              <Printer className="w-4 h-4 mr-2" /> Imprimer CNPS PDF (27)
             </NeuButton>
             <NeuButton
               variant="ghost"
@@ -266,6 +292,19 @@ export default function DeclarationsPage() {
           </div>
         </NeuCard>
       </div>
+
+      {/* Modal Prévisualisation Déclarations */}
+      {previewDoc && (
+        <DocumentPreviewModal
+          isOpen={!!previewDoc}
+          onClose={() => setPreviewDoc(null)}
+          docType={previewDoc}
+          month={month}
+          year={year}
+          itsData={itsData}
+          cnpsData={cnpsData}
+        />
+      )}
     </div>
   );
 }

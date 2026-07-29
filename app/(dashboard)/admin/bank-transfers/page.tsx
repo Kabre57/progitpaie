@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuBadge } from "@/components/ui/neu-badge";
-import { Building2, Download, Printer, Search, Loader2, DollarSign, CheckCircle2 } from "lucide-react";
+import { Building2, Download, Printer, Search, Loader2, DollarSign, CheckCircle2, Eye } from "lucide-react";
+import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
 
 interface BankGroup {
   bankName: string;
@@ -30,6 +31,7 @@ export default function BankTransfersPage() {
   const [loading, setLoading] = useState(true);
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
   const [downloadingBank, setDownloadingBank] = useState<string | null>(null);
+  const [previewBankGroup, setPreviewBankGroup] = useState<BankGroup | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -205,13 +207,21 @@ export default function BankTransfersPage() {
                 {currentGroup.count} virement(s) • Total : {currentGroup.totalAmount.toLocaleString()} FCFA
               </p>
             </div>
-            <NeuButton
-              variant="accent"
-              onClick={() => handlePrintOrdreVirement(currentGroup)}
-              loading={downloadingBank === currentGroup.bankName}
-            >
-              <Printer className="w-4 h-4 mr-2" /> Imprimer Ordre de Virement PDF
-            </NeuButton>
+            <div className="flex gap-2">
+              <NeuButton
+                variant="ghost"
+                onClick={() => setPreviewBankGroup(currentGroup)}
+              >
+                <Eye className="w-4 h-4 mr-2 text-[var(--neu-accent)]" /> Aperçu Ordre Virement
+              </NeuButton>
+              <NeuButton
+                variant="accent"
+                onClick={() => handlePrintOrdreVirement(currentGroup)}
+                loading={downloadingBank === currentGroup.bankName}
+              >
+                <Printer className="w-4 h-4 mr-2" /> Imprimer PDF
+              </NeuButton>
+            </div>
           </NeuCardHeader>
           <NeuCardContent className="p-0 overflow-x-auto">
             <table className="w-full text-left border-collapse text-sm">

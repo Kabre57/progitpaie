@@ -298,6 +298,34 @@ model Leave {
   @@map("leaves")
 }
 
+/// Snapshot immutable de la configuration du bulletin au moment de la génération
+model PayslipConfigSnapshot {
+  id               String    @id @default(cuid())
+
+  // Snapshot de la configuration visuelle
+  appearanceConfig Json      // { primaryColor, headerTitle, headerSubtitle, logoBase64 }
+
+  // Snapshot de la configuration légale
+  legalConfig      Json      // { legalNotice, showEmployerStamp, showEmployeeSignature }
+
+  // Snapshot des taux métier au moment de la génération
+  ratesConfig      Json      // Copie complète de PayrollRatesConfig
+
+  // Préparation Multi-Company (nullable pour compatibilité ascendante)
+  companyId        String?   // Clé étrangère future vers Company
+
+  // Métadonnées
+  createdById      String    // Admin qui a déclenché la génération
+  createdAt        DateTime  @default(now())
+
+  // Relations
+  payrolls         Payroll[] @relation("PayslipConfigPayrolls")
+
+  @@index([companyId])
+  @@index([createdAt(sort: Desc)])
+  @@map("payslip_config_snapshots")
+}
+
 /// Table des Fiches de Paie Mensuelles (Super-calculateur Fiscal & Social)
 model Payroll {
   id                   String             @id @default(cuid())
@@ -333,8 +361,12 @@ model Payroll {
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
+  // Snapshot de la configuration du bulletin utilisée lors de la génération
+  configSnapshotId     String?
+
   // Relations
   user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  configSnapshot       PayslipConfigSnapshot? @relation("PayslipConfigPayrolls", fields: [configSnapshotId], references: [id], onDelete: SetNull)
   loanSchedules        LoanSchedule[]
   accountingEntries    AccountingEntry[]
 

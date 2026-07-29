@@ -40,7 +40,7 @@ export function OtherParamsCard({
     <NeuCard>
       <NeuCardHeader>
         <NeuCardTitle className="flex items-center gap-2">
-          <Sliders className="w-5 h-5 text-[var(--neu-accent)]" /> Autres Paramètres, Primes & Retenues (Excel LOGIPAIE)
+          <Sliders className="w-5 h-5 text-[var(--neu-accent)]" /> Autres Paramètres, Primes & Retenues 
         </NeuCardTitle>
       </NeuCardHeader>
       <NeuCardContent className="space-y-8">

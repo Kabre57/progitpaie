@@ -53,7 +53,7 @@ export function CompanySettingsCard({
       <NeuCard>
         <NeuCardHeader>
           <NeuCardTitle className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-[var(--neu-accent)]" /> Période & Date de Paie (Feuille 3-PARAMÈTRES Excel)
+            <Calendar className="w-5 h-5 text-[var(--neu-accent)]" /> Période & Date de Paie  
           </NeuCardTitle>
         </NeuCardHeader>
         <NeuCardContent>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { 
-  Building2, Calculator, Grid, Sliders, Landmark, MapPin 
+  Building2, Calculator, Grid, Sliders, Landmark, MapPin, FileText 
 } from "lucide-react";
 import { NeuToast } from "@/components/ui/neu-toast";
 import { Spinner } from "@/components/ui/spinner";
@@ -10,12 +10,20 @@ import { CompanySettingsCard, CompanySettingsData } from "@/components/settings/
 import { TaxRatesCard, TaxRatesData } from "@/components/settings/tax-rates-card";
 import { SalaryGridCard } from "@/components/settings/salary-grid-card";
 import { OtherParamsCard, OtherParamsData } from "@/components/settings/other-params-card";
-import { BanksSettingsCard } from "@/components/settings/banks-settings-card";
+import { BanksSettingsCard, BankItem } from "@/components/settings/banks-settings-card";
 import { LocationSettingsCard, LocationData } from "@/components/settings/location-settings-card";
+import { PayslipCustomizerCard } from "@/components/settings/payslip-customizer-card";
+import { DEFAULT_PAYROLL_RATES } from "@/lib/rates-config";
+import {
+  PayslipAppearanceConfig,
+  PayslipLegalConfig,
+  DEFAULT_PAYSLIP_APPEARANCE,
+  DEFAULT_PAYSLIP_LEGAL,
+} from "@/lib/payslip-config";
 
 export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<
-    "company" | "rates" | "salary_grid" | "other" | "banks" | "location"
+    "company" | "rates" | "salary_grid" | "other" | "banks" | "location" | "payslip"
   >("company");
 
   const [loading, setLoading] = useState(true);
@@ -51,34 +59,54 @@ export default function AdminSettingsPage() {
     accountManagerName: "",
   });
 
-  const [rates, setRates] = useState<TaxRatesData>({
-    itsGeneral: 1.2,
-    itsAgricole: 2.0,
-    itsExpat: 10.4,
-    itsFormage: 35.0,
-    cnpsEmployeeRetraite: 6.3,
-    cnpsEmployerRetraite: 7.7,
-    cnpsEmployerAT: 3.0,
-    cnpsEmployerAM: 0.75,
-    cnpsEmployerPF: 5.0,
-    fdfpTA: 0.4,
-    fdfpFPC: 0.6,
-  });
+  const [rates, setRates] = useState<TaxRatesData>(DEFAULT_PAYROLL_RATES);
 
-  const [salaryGrid, setSalaryGrid] = useState<Array<{ category: string; amount: number }>>([]);
+  const DEFAULT_SALARY_GRID = [
+    { category: "1A", amount: 75000 },
+    { category: "1B", amount: 82000 },
+    { category: "2", amount: 90000 },
+    { category: "3", amount: 105000 },
+    { category: "4", amount: 125000 },
+    { category: "5", amount: 150000 },
+    { category: "6", amount: 180000 },
+    { category: "7", amount: 220000 },
+    { category: "8", amount: 280000 },
+    { category: "9", amount: 350000 },
+    { category: "10", amount: 450000 },
+    { category: "Cadre Supérieur", amount: 600000 },
+  ];
 
-  const [otherParams, setOtherParams] = useState<OtherParamsData>({
+  const [salaryGrid, setSalaryGrid] = useState<Array<{ category: string; amount: number }>>(DEFAULT_SALARY_GRID);
+
+  const DEFAULT_BANKS: BankItem[] = [
+    { codeBank: "CI008", name: "SOCIETE GENERALE COTE D'IVOIRE", codeGuichet: "01001", sigle: "SGCI" },
+    { codeBank: "CI034", name: "ECOBANK COTE D'IVOIRE", codeGuichet: "01005", sigle: "ECOBANK" },
+    { codeBank: "CI059", name: "BANQUE ATLANTIQUE CI", codeGuichet: "01010", sigle: "BACI" },
+    { codeBank: "CI012", name: "BICI COTE D'IVOIRE", codeGuichet: "01002", sigle: "BICICI" },
+    { codeBank: "CI092", name: "NSIA BANQUE CI", codeGuichet: "01015", sigle: "NSIA" },
+    { codeBank: "CI154", name: "CORIS BANK INTERNATIONAL CI", codeGuichet: "01020", sigle: "CORIS" },
+    { codeBank: "CI042", name: "SIB (SOCIETE IVOIRIENNE DE BANQUE)", codeGuichet: "01008", sigle: "SIB" },
+  ];
+
+  const DEFAULT_OTHER_PARAMS: OtherParamsData = {
     transportExemptAmount: 30000,
     seniorityBonusActive: true,
     roundNetSalary: "5",
     leaveDaysPerMonth: 2.75,
-    signatoryName: "",
-    signatoryRole: "",
-    primes: [],
-    deductions: [],
-  });
+    signatoryName: "KOUASSI Joseph Eric",
+    signatoryRole: "Directeur Général",
+    primes: [
+      { name: "Prime de Transport", fiscalNature: "Exonéré jusqu'à 30 000 FCFA (Surplus Imposable)", socialNature: "Exonéré jusqu'à 30 000 FCFA" },
+      { name: "Indemnité de Repas / Panier", fiscalNature: "Exonéré jusqu'à 30 000 FCFA (Surplus Imposable)", socialNature: "Exonéré jusqu'à 30 000 FCFA" },
+      { name: "Indemnité de Salissure / Outillage", fiscalNature: "Exonéré jusqu'à 25 000 FCFA (Surplus Imposable)", socialNature: "Exonéré jusqu'à 25 000 FCFA" },
+      { name: "Gratification Fin d'Année", fiscalNature: "Imposable 100% (ITS / IGR)", socialNature: "Taxable 100% (CNPS)" },
+      { name: "Prime de Rendement", fiscalNature: "Imposable 100%", socialNature: "Taxable 100%" },
+    ],
+    deductions: ["Acompte sur Salaire", "Saisie-Arrêt sur Salaire", "Assurance Maladie Complémentaire", "Cotisation Syndicale"],
+  };
 
-  const [banks, setBanks] = useState<string[]>([]);
+  const [otherParams, setOtherParams] = useState<OtherParamsData>(DEFAULT_OTHER_PARAMS);
+  const [banks, setBanks] = useState<(string | BankItem)[]>(DEFAULT_BANKS);
 
   const [location, setLocation] = useState<LocationData>({
     officeLat: 5.3484,
@@ -86,6 +114,10 @@ export default function AdminSettingsPage() {
     radiusMeters: 150,
     strictGeofence: false,
   });
+
+  // État pour la configuration du bulletin de paie (7ème onglet)
+  const [payslipAppearance, setPayslipAppearance] = useState<PayslipAppearanceConfig>(DEFAULT_PAYSLIP_APPEARANCE);
+  const [payslipLegal, setPayslipLegal] = useState<PayslipLegalConfig>(DEFAULT_PAYSLIP_LEGAL);
 
   // Chargement 100% Dynamique depuis l'API /api/settings
   useEffect(() => {
@@ -99,10 +131,38 @@ export default function AdminSettingsPage() {
           else if (json.data.company) setCompany((prev) => ({ ...prev, ...json.data.company }));
 
           if (json.data.tax_rates) setRates(json.data.tax_rates);
-          if (json.data.salary_grid) setSalaryGrid(json.data.salary_grid);
-          if (json.data.other_params) setOtherParams((prev) => ({ ...prev, ...json.data.other_params }));
-          if (json.data.bank_list) setBanks(json.data.bank_list);
+          if (json.data.salary_grid && json.data.salary_grid.length > 0) setSalaryGrid(json.data.salary_grid);
+          if (json.data.other_params && json.data.other_params.primes && json.data.other_params.primes.length > 0) {
+            setOtherParams((prev) => ({ ...prev, ...json.data.other_params }));
+          }
+          if (json.data.bank_list && json.data.bank_list.length > 0) {
+            setBanks(json.data.bank_list);
+          }
           if (json.data.location) setLocation(json.data.location);
+
+          // Charger la configuration du bulletin (apparence + légal)
+          if (json.data.payslip_appearance) {
+            setPayslipAppearance((prev) => ({ ...prev, ...json.data.payslip_appearance }));
+          }
+          if (json.data.payslip_legal) {
+            setPayslipLegal((prev) => ({ ...prev, ...json.data.payslip_legal }));
+          }
+        }
+
+        // Charger aussi depuis l'endpoint dédié /api/settings/payslip
+        try {
+          const payslipRes = await fetch("/api/settings/payslip");
+          const payslipJson = await payslipRes.json();
+          if (payslipJson.success && payslipJson.data) {
+            if (payslipJson.data.appearance) {
+              setPayslipAppearance((prev) => ({ ...prev, ...payslipJson.data.appearance }));
+            }
+            if (payslipJson.data.legal) {
+              setPayslipLegal((prev) => ({ ...prev, ...payslipJson.data.legal }));
+            }
+          }
+        } catch {
+          // Silently ignore if the payslip endpoint is not yet available
         }
       } catch (err) {
         console.error("Échec du chargement des paramètres depuis la base de données:", err);
@@ -135,6 +195,31 @@ export default function AdminSettingsPage() {
     }
   };
 
+  const savePayslipConfig = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/settings/payslip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appearance: payslipAppearance,
+          legal: payslipLegal,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setToast({ message: "Configuration du bulletin enregistrée avec succès !", type: "success" });
+      } else {
+        setToast({ message: json.error || "Erreur de sauvegarde", type: "error" });
+      }
+    } catch (err) {
+      console.error("Save payslip config error:", err);
+      setToast({ message: "Erreur réseau lors de la sauvegarde", type: "error" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {toast && (
@@ -151,9 +236,7 @@ export default function AdminSettingsPage() {
           <h1 className="text-2xl font-bold text-[var(--neu-text)] flex items-center gap-2">
             <Sliders className="text-[var(--neu-accent)]" /> Paramètres du Système RH & Paie
           </h1>
-          <p className="text-[var(--neu-text-secondary)] text-sm mt-1">
-            Chargement et synchronisation 100% dynamique depuis la base de données PostgreSQL.
-          </p>
+
         </div>
       </div>
 
@@ -224,6 +307,17 @@ export default function AdminSettingsPage() {
         >
           <MapPin className="w-4 h-4" /> Géolocalisation
         </button>
+
+        <button
+          onClick={() => setActiveTab("payslip")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === "payslip"
+              ? "bg-[var(--neu-accent)] text-white shadow-md"
+              : "bg-[var(--neu-surface)] text-[var(--neu-text-secondary)] hover:bg-[var(--neu-surface-light)]"
+          }`}
+        >
+          <FileText className="w-4 h-4" /> Bulletin de Paie
+        </button>
       </div>
 
       {/* Tab 1: Identification Entreprise & Période */}
@@ -285,6 +379,19 @@ export default function AdminSettingsPage() {
           saving={saving}
         />
       )}
+
+      {/* Tab 7: Personnalisation du Bulletin de Paie */}
+      {activeTab === "payslip" && (
+        <PayslipCustomizerCard
+          appearance={payslipAppearance}
+          setAppearance={setPayslipAppearance}
+          legal={payslipLegal}
+          setLegal={setPayslipLegal}
+          onSave={savePayslipConfig}
+          saving={saving}
+        />
+      )}
     </div>
   );
 }
+

@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/neu-toast";
 import { ChipLoader } from "@/components/ui/chip-loader";
 import { List2, ListItem } from "@/components/ui/list-2";
 import { User as UserIcon, Calendar as CalendarIcon } from "lucide-react";
-import { DocumentEditorModal } from "@/components/documents/document-editor-modal";
+import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
 
 interface LeaveRequest {
   _id: string;
@@ -246,7 +246,7 @@ export default function AdminLeavesPage() {
 
       {/* Modal Édition & Génération Attestation de Congé */}
       {activeEditDoc && (
-        <DocumentEditorModal
+        <DocumentPreviewModal
           isOpen={!!activeEditDoc}
           onClose={() => setActiveEditDoc(null)}
           userId={activeEditDoc.userId}

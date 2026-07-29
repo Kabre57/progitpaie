@@ -8,7 +8,7 @@ import { DollarSign, Download, User as UserIcon, TrendingUp, Edit3, Printer } fr
 import { ChipLoader } from "@/components/ui/chip-loader";
 import { List2 } from "@/components/ui/list-2";
 import { NeuBadge } from "@/components/ui/neu-badge";
-import { DocumentEditorModal } from "@/components/documents/document-editor-modal";
+import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
 
 import { NeuPagination } from "@/components/ui/neu-pagination";
 
@@ -168,9 +168,25 @@ export default function AdminPayrollPage() {
           </select>
 
           {payroll.length > 0 && (
-            <NeuButton onClick={handleBulkPayslipExport} loading={downloadingBulk} variant="ghost" className="border border-[var(--neu-border)]">
-              <Printer className="w-4 h-4 mr-1 text-[var(--neu-accent)]" /> Édition Groupée (PDF)
-            </NeuButton>
+            <>
+              <NeuButton
+                onClick={() =>
+                  setActiveEditDoc({
+                    userId: payroll[0]?.userId?._id || payroll[0]?.userId?.id || "",
+                    name: "BULLETINS GROUPÉS DU MOIS",
+                    salary: payroll.reduce((sum, r) => sum + r.netSalary, 0),
+                    docType: "payslip",
+                  })
+                }
+                variant="ghost"
+                className="border border-[var(--neu-border)]"
+              >
+                <Printer className="w-4 h-4 mr-1 text-[var(--neu-accent)]" /> Aperçu Groupé A4
+              </NeuButton>
+              <NeuButton onClick={handleBulkPayslipExport} loading={downloadingBulk} variant="ghost" className="border border-[var(--neu-border)]">
+                <Download className="w-4 h-4 mr-1 text-[var(--neu-accent)]" /> Édition Groupée PDF
+              </NeuButton>
+            </>
           )}
 
           <NeuButton onClick={handleGenerate} loading={generating} variant="accent">
@@ -272,7 +288,7 @@ export default function AdminPayrollPage() {
 
       {/* Modal Édition & Génération Bulletin de Salaire */}
       {activeEditDoc && (
-        <DocumentEditorModal
+        <DocumentPreviewModal
           isOpen={!!activeEditDoc}
           onClose={() => setActiveEditDoc(null)}
           userId={activeEditDoc.userId}

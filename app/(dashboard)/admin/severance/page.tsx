@@ -7,7 +7,7 @@ import { NeuInput } from "@/components/ui/neu-input";
 import { NeuSelect } from "@/components/ui/neu-select";
 import { NeuBadge } from "@/components/ui/neu-badge";
 import { UserX, Plus, RefreshCw, Calculator, FileText } from "lucide-react";
-import { DocumentEditorModal } from "@/components/documents/document-editor-modal";
+import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
 
 import { NeuPagination } from "@/components/ui/neu-pagination";
 
@@ -281,7 +281,7 @@ export default function SeverancePage() {
 
       {/* Certificat de Travail Modal */}
       {activeCertifDoc && (
-        <DocumentEditorModal
+        <DocumentPreviewModal
           isOpen={!!activeCertifDoc}
           onClose={() => setActiveCertifDoc(null)}
           userId={activeCertifDoc.userId}

@@ -95,7 +95,7 @@ export function AdminSidebar() {
       >
         {/* Logo & Toggle Header */}
         <div className="h-20 flex items-center justify-between border-b border-[var(--neu-border)] px-4 bg-[var(--neu-surface)] shrink-0 relative">
-          <Link href="/admin" prefetch={false} className="flex items-center gap-2 overflow-hidden">
+          <Link href="/admin" className="flex items-center gap-2 overflow-hidden">
             <img 
               src="/logo.png" 
               alt="progitpaie Logo" 
@@ -130,7 +130,6 @@ export function AdminSidebar() {
               <Link
                 key={item.name}
                 href={item.href}
-                prefetch={false}
                 onClick={() => {
                   setPendingHref(item.href);
                   setIsOpen(false);

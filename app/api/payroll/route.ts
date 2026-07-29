@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/middleware-helpers";
 import { LeaveType, LeaveStatus, AttendanceStatus, PayrollStatus, Prisma } from "@prisma/client";
 import { ApiResponse, GeneratePayrollBody } from "@/types";
 import { calculatePayrollTaxes } from "@/lib/payroll-tax";
+import { PayslipConfigService } from "@/lib/payslip-config-service";
 
 // POST /api/payroll/generate - Generate payroll for all employees with tax & overtime calculation
 export async function POST(
@@ -28,6 +29,17 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    // Récupérer l'ID de l'admin pour la traçabilité
+    const admin = await prisma.user.findFirst({
+      where: { role: "admin" },
+      select: { id: true },
+    });
+    const adminId = admin?.id || "system";
+
+    // Créer un snapshot immutable de la configuration pour ce lot de paie
+    const configService = PayslipConfigService.getInstance();
+    const configSnapshotId = await configService.createSnapshot(adminId);
 
     // Get all active employees
     const employees = await prisma.user.findMany({ where: { isActive: true } });
@@ -141,6 +153,7 @@ export async function POST(
             totalDeductions: taxResult.totalDeductions,
             netSalary: taxResult.netSalary,
             status: PayrollStatus.draft,
+            configSnapshotId,
           },
         });
 

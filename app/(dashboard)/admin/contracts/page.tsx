@@ -7,7 +7,7 @@ import { NeuInput } from "@/components/ui/neu-input";
 import { NeuSelect } from "@/components/ui/neu-select";
 import { NeuBadge } from "@/components/ui/neu-badge";
 import { FileText, Plus, Download, Search, CheckCircle, RefreshCw, Edit3 } from "lucide-react";
-import { DocumentEditorModal } from "@/components/documents/document-editor-modal";
+import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
 
 import { NeuPagination } from "@/components/ui/neu-pagination";
 
@@ -391,7 +391,7 @@ export default function ContractsPage() {
 
       {/* Modal Édition & Génération Document RH */}
       {activeEditDoc && (
-        <DocumentEditorModal
+        <DocumentPreviewModal
           isOpen={!!activeEditDoc}
           onClose={() => setActiveEditDoc(null)}
           userId={activeEditDoc.userId}
