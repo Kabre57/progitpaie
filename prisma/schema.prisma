@@ -169,10 +169,12 @@ model User {
   leaveBalanceSick   Int              @default(10)
   leaveBalanceCasual Int              @default(5)
 
+  companyId          String?          // Entité juridique de rattachement (Multicompany 🏢)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
   // Relations principales
+  company            Company?         @relation("CompanyEmployees", fields: [companyId], references: [id], onDelete: SetNull)
   department         Department?      @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
   shift              Shift?           @relation("ShiftEmployees", fields: [shiftId], references: [id], onDelete: SetNull)
 
@@ -601,6 +603,47 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+/// Table des Entreprises / Entités Juridiques (Multicompany 🏢)
+model Company {
+  id          String   @id @default(cuid())
+  name        String   // Nom officiel (ex: LOGIPAIE RH CI)
+  taxNumber   String?  // N° Compte Contribuable (CC)
+  cnpsNumber  String?  // N° Affiliation CNPS
+  rccm        String?  // N° Registre du Commerce (RCCM)
+  address     String?  // Adresse physique / Boîte postale
+  city        String?  @default("Abidjan")
+  country     String?  @default("Côte d'Ivoire")
+  phone       String?  // Téléphone
+  email       String?  // Email officiel
+  isMain      Boolean  @default(false) // Entreprise principale par défaut
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  employees   User[]    @relation("CompanyEmployees")
+  settings    CompanySettings[]
+
+  @@map("companies")
+}
+
+/// Table des Paramètres Spécifiques par Entreprise (Multicompany 🏢)
+model CompanySettings {
+  id        String   @id @default(cuid())
+  companyId String
+  key       String   // Clé de paramètre (ex: payroll_rates, payslip_appearance)
+  value     Json     // Données JSON de configuration
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, key])
+  @@map("company_settings")
+}
+
 /// Table des Paramètres Globaux de l'Application
 model Settings {
   id        String   @id @default(cuid())
@@ -609,4 +652,62 @@ model Settings {
   updatedAt DateTime @updatedAt
 
   @@map("settings")
+}
+
+/// Niveau de criticité des alertes légales
+enum LegalAlertSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+/// Statut du workflow de validation humaine des évolutions légales
+enum LegalAlertStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  APPLIED
+}
+
+/// Table des Alertes Légales & Veille Réglementaire (Intelligence Légale ⚖️)
+model LegalAlert {
+  id            String             @id @default(cuid())
+  title         String             // Intitulé de l'alerte (ex: Révision du Plafond CNPS Retraite)
+  source        String             // Source officielle (DGI, CNPS, Journal Officiel, FDFP)
+  category      String             // Catégorie (CNPS, ITS, IGR, FDFP, CMU, SMIC)
+  summary       String             // Résumé synthétique
+  officialText  String?            // Extrait ou référence du texte de loi / décrets
+  effectiveDate DateTime           // Date d'entrée en vigueur légale
+  severity      LegalAlertSeverity @default(HIGH)
+  status        LegalAlertStatus   @default(PENDING_REVIEW)
+  proposedRates Json?              // Taux et barèmes suggérés par l'IA / Parser
+
+  reviewedById  String?            // Validateur humain (ID Admin)
+  reviewedAt    DateTime?          // Date de validation
+
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([status, severity])
+  @@index([effectiveDate])
+  @@map("legal_alerts")
+}
+
+/// Table des Clés API Publiques (Connecteurs ERP - SAP, Sage, Odoo 🔌)
+model ApiKey {
+  id          String    @id @default(cuid())
+  name        String    // Intitulé du système tiers (ex: Connecteur SAP Production)
+  keyHash     String    @unique // Hachage sécurisé SHA-256 de la clé API
+  keyPrefix   String    // Préfixe public de la clé (ex: pk_live_8f3a...)
+  permissions Json?     // Portée des droits (read:payroll, write:employees, etc.)
+  lastUsedAt  DateTime? // Horodatage du dernier appel API
+  expiresAt   DateTime? // Date d'expiration optionnelle
+  isActive    Boolean   @default(true)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([keyPrefix])
+  @@map("api_keys")
 }

@@ -17,7 +17,8 @@ type DocType =
   | "ordre_virement"
   | "declaration_its"
   | "declaration_fdfp"
-  | "declaration_cnps";
+  | "declaration_cnps"
+  | "rns";
 
 interface DocumentPreviewModalProps {
   isOpen: boolean;
@@ -57,7 +58,19 @@ interface DocumentPreviewModalProps {
     cnpsEmployeeTotal?: number;
     cnpsEmployerTotal?: number;
     totalCNPSToPay?: number;
+    employeeDetails?: Array<{
+      employeeId: string;
+      name: string;
+      grossSalary: number;
+      cnpsEmployee: number;
+      cnpsEmployer: number;
+    }>;
   };
+  rnsData?: Array<{
+    year: number;
+    monthsWorked: number;
+    grossCnpsSalary: number;
+  }>;
 }
 
 // ─── Utilitaires ─────────────────────────────────────────────────────────────
@@ -493,59 +506,292 @@ function OrdreVirementPreview({ bankName, totalAmount, month, year }: {
 }
 
 /* ─── Déclarations (ITS / FDFP / CNPS) ─────────────────────────────────────── */
-function DeclarationPreview({ docType, month, year, itsData, cnpsData }: {
-  docType: string; month: number; year: number;
+function DeclarationPreview({
+  docType,
+  month,
+  year,
+  itsData,
+  cnpsData,
+  rnsData,
+  empId = "EMP-001",
+  joiningStr = "01/02/2020",
+  name = "AKA DESQUITH AMBROISE",
+  cnps = "123456",
+  phone = "0709670671",
+  address = "01 BP 5115 ABIDJAN 01",
+  companyRccm = "1234567 A"
+}: {
+  docType: string;
+  month: number;
+  year: number;
   itsData?: DocumentPreviewModalProps["itsData"];
   cnpsData?: DocumentPreviewModalProps["cnpsData"];
+  rnsData?: DocumentPreviewModalProps["rnsData"];
+  empId?: string;
+  joiningStr?: string;
+  name?: string;
+  cnps?: string;
+  phone?: string;
+  address?: string;
+  companyRccm?: string;
 }) {
   const dateStr = new Date().toLocaleDateString("fr-FR");
   const companyName = "LOGIPAIE RH 21";
 
   if (docType === "declaration_its") {
-    const items = [
-      ["Nombre de Salariés en Effectif", `${itsData?.totalEmployees || 0}`],
-      ["Masse Salariale Brute Totale", `${fmtNum(itsData?.totalGrossSalary)} FCFA`],
-      ["IS (Impôt sur Salaire 1.2%)", `${fmtNum(itsData?.totalITS)} FCFA`],
-      ["IGR (Impôt Général sur le Revenu)", `${fmtNum(itsData?.totalIGR)} FCFA`],
-      ["Contribution Employeur CE (11.50%)", `${fmtNum(itsData?.totalCE)} FCFA`],
-    ];
+    const totalEmployees = itsData?.totalEmployees || 0;
+    const totalGross = itsData?.totalGrossSalary || 0;
+    const netTaxable = Math.round(totalGross * 0.8);
+    const netImposable = totalGross - netTaxable;
+
+    const totalITS = itsData?.totalITS || Math.round(totalGross * 0.012);
+    const totalIGR = itsData?.totalIGR || 0;
+    const totalCE = itsData?.totalCE || Math.round(totalGross * 0.115);
+    const totalCN = Math.round(totalGross * 0.012);
+    const grandTotalTax = totalITS + totalIGR + totalCE + totalCN;
+
     return (
-      <div className="doc-a4-page bg-white text-[#1e1e1e]" style={{ fontFamily: "Helvetica, Arial, sans-serif" }}>
-        <DocHeader companyName={companyName} legalForm="SARL" />
-        <div className="mx-6 mt-4 bg-[#ea580c] text-white px-4 py-2 rounded-sm">
-          <p className="text-[11px] font-bold">DIRECTION GÉNÉRALE DES IMPÔTS (DGI CÔTE D&apos;IVOIRE)</p>
-        </div>
-        <p className="px-6 mt-3 text-[13px] font-bold">DÉCLARATION DES IMPÔTS SUR LES TRAITEMENTS ET SALAIRES (ITS)</p>
-        <div className="mx-6 mt-3 border border-[#c8c8c8] p-3 rounded-sm text-[9px] font-bold space-y-1">
-          <div className="flex justify-between">
-            <span>CONTRIBUABLE : {companyName}</span>
-            <span>N° COMPTE CONTRIBUABLE (NCC) : 1234567 A</span>
+      <div className="doc-a4-page bg-white text-[#1e1e1e] p-6 text-[9px]" style={{ fontFamily: "Helvetica, Arial, sans-serif" }}>
+        {/* En-tête officiel DGI */}
+        <div className="flex justify-between border-b border-gray-400 pb-2 mb-3">
+          <div className="flex items-center">
+            <img src="/dgi.png" alt="DGI" className="w-10 h-10 object-contain mr-3" />
+            <div>
+              <p className="font-bold uppercase text-[9px]">REPUBLIQUE DE COTE D'IVOIRE</p>
+              <p className="italic text-[8px]">Union - Discipline - Travail</p>
+              <p className="text-[8px]">------</p>
+              <p className="font-bold text-[8px]">MINISTERE DE L'ECONOMIE ET DES FINANCES</p>
+              <p className="font-bold text-[8px]">DIRECTION GENERALE DES IMPOTS</p>
+            </div>
           </div>
-          <div className="flex justify-between">
-            <span>PÉRIODE D&apos;IMPOSITION : {month}/{year}</span>
-            <span>RÉGIME : RÉEL NORMAL</span>
+          <div className="text-right">
+            <p className="font-bold text-[9px]">DECLARATION DES IMPOTS SUR LES TRAITEMENTS,</p>
+            <p className="font-bold text-[9px]">SALAIRES, PENSIONS ET RENTES VIAGERES</p>
+            <p className="text-[8px]">(Article 115 et suivants du CGI)</p>
           </div>
         </div>
-        <div className="px-6 mt-3">
-          <table className="w-full border-collapse text-[9px]">
-            <thead><tr className="bg-[#ea580c] text-white">
-              <th className="border border-[#ea580c] px-2 py-1.5 text-left">NATURE DES IMPÔTS ET CONTRIBUTIONS FISCALES DGI</th>
-              <th className="border border-[#ea580c] px-2 py-1.5 text-right">MONTANT (FCFA)</th>
-            </tr></thead>
-            <tbody>
-              {items.map(([label, val], i) => (
-                <tr key={i} className={i % 2 === 0 ? "bg-[#fdf2ec]" : ""}>
-                  <td className="border border-[#eee] px-2 py-1">{label}</td>
-                  <td className="border border-[#eee] px-2 py-1 text-right font-mono">{val}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+        {/* Période */}
+        <div className="flex justify-between mb-3 text-[8.5px] font-bold">
+          <p>Période d'imposition : {month}/{year}</p>
+          <p>Service d'assiette des impôts : ABIDJAN A</p>
         </div>
-        <div className="mx-6 mt-4 bg-[#1e3a5f] text-white px-4 py-3 rounded-sm">
-          <p className="text-[12px] font-bold">TOTAL NET IMPÔTS DGI A PAYER : {fmtNum(itsData?.totalTaxToPay)} FCFA</p>
+
+        {/* 01 IDENTIFICATION */}
+        <div className="bg-[#ea580c] text-white font-bold px-2 py-0.5 text-[8.5px] rounded-sm uppercase">
+          01 IDENTIFICATION DU CONTRIBUABLE
         </div>
-        <DocSignature city="ABIDJAN" dateStr={dateStr} label="CACHET ET SIGNATURE DU CONTRIBUABLE" />
+        <div className="border border-gray-300 p-2 mb-3 rounded-sm grid grid-cols-2 gap-x-4 gap-y-1 text-[8.5px]">
+          <div><span className="font-bold">Raison sociale :</span> {companyName}</div>
+          <div><span className="font-bold">Localisation :</span> ABIDJAN</div>
+          <div><span className="font-bold">NCC :</span> {companyRccm || "1234567 A"}</div>
+          <div><span className="font-bold">Téléphone :</span> {phone || "0709670671"}</div>
+          <div><span className="font-bold">Adresse :</span> BP 5115 ABIDJAN 01</div>
+          <div><span className="font-bold">Ville :</span> ABIDJAN</div>
+          <div><span className="font-bold">Objet ou activité :</span> Logiciel de paie</div>
+          <div><span className="font-bold">Sigle :</span> {companyName}</div>
+        </div>
+
+        {/* 02 DETERMINATION DE L'ASSIETTE */}
+        <div className="bg-[#ea580c] text-white font-bold px-2 py-0.5 text-[8.5px] rounded-sm uppercase mb-1">
+          02 DETERMINATION DE L'ASSIETTE
+        </div>
+        <div className="bg-[#10b981] text-white font-bold px-2 py-0.5 text-[8px] mb-1">
+          C. TRAITEMENTS, SALAIRES, CONTRIBUTION EMPLOYEUR
+        </div>
+        <table className="w-full border-collapse border border-gray-300 text-[8px] mb-3">
+          <thead>
+            <tr className="bg-gray-100 font-bold border-b border-gray-300 text-center">
+              <th className="border border-gray-300 px-2 py-1 text-left w-[55%]">N° / REVENUS BRUTS</th>
+              <th className="border border-gray-300 px-2 py-1 w-[15%]">EFFECTIF</th>
+              <th className="border border-gray-300 px-2 py-1 text-right w-[30%]">MONTANT BRUT</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="border border-gray-300 px-2 py-0.5">5. Rémunérations versées (Brut)</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-center font-mono">{totalEmployees}</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">{fmtNum(totalGross)} F</td>
+            </tr>
+            <tr>
+              <td className="border border-gray-300 px-2 py-0.5">6. Avantages en nature</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-center font-mono">0</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">0</td>
+            </tr>
+            <tr>
+              <td className="border border-gray-300 px-2 py-0.5">7. Autres (à préciser)</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-center font-mono">0</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">0</td>
+            </tr>
+            <tr className="bg-gray-50 font-bold">
+              <td className="border border-gray-300 px-2 py-1 uppercase">MONTANT TOTAL BRUT</td>
+              <td className="border border-gray-300 px-2 py-1 text-center font-mono">{totalEmployees}</td>
+              <td className="border border-gray-300 px-2 py-1 text-right font-mono text-emerald-700">{fmtNum(totalGross)} F</td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* Déductions */}
+        <table className="w-full border-collapse border border-gray-300 text-[8px] mb-3">
+          <thead>
+            <tr className="bg-gray-100 font-bold border-b border-gray-300 text-center">
+              <th className="border border-gray-300 px-2 py-1 text-left w-[50%]">N° / REVENUS NON IMPOSABLES</th>
+              <th className="border border-gray-300 px-2 py-1 w-[10%]">EFFECTIF</th>
+              <th className="border border-gray-300 px-2 py-1 text-right w-[20%]">MONTANT ITS</th>
+              <th className="border border-gray-300 px-2 py-1 text-right w-[20%]">CONTRIBUTION EMPLOYEUR</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="border border-gray-300 px-2 py-0.5">9. Salaires non déclarés (inférieurs au minimum)</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-center font-mono">0</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">0</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">0</td>
+            </tr>
+            <tr>
+              <td className="border border-gray-300 px-2 py-0.5">10. Indemnités non imposables</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-center font-mono">0</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">0</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">0</td>
+            </tr>
+            <tr>
+              <td className="border border-gray-300 px-2 py-0.5">11. Montant brut imposable</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-center font-mono">{totalEmployees}</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">{fmtNum(totalGross)}</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">{fmtNum(totalGross)}</td>
+            </tr>
+            <tr>
+              <td className="border border-gray-300 px-2 py-0.5">12. Revenu net imposable [[11] * 80%]</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-center font-mono">{totalEmployees}</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">{fmtNum(netTaxable)}</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">{fmtNum(netTaxable)}</td>
+            </tr>
+            <tr className="bg-gray-50 font-bold">
+              <td className="border border-gray-300 px-2 py-1 uppercase">13. TOTAL MONTANT NET IMPOSABLE</td>
+              <td className="border border-gray-300 px-2 py-1 text-center font-mono">{totalEmployees}</td>
+              <td className="border border-gray-300 px-2 py-1 text-right font-mono text-emerald-700">{fmtNum(netImposable)}</td>
+              <td className="border border-gray-300 px-2 py-1 text-right font-mono text-emerald-700">{fmtNum(netImposable)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* 03 DETERMINATION DE L'IMPOT */}
+        <div className="bg-[#ea580c] text-white font-bold px-2 py-0.5 text-[8.5px] rounded-sm uppercase mb-1">
+          03 DETERMINATION DE L'IMPOT
+        </div>
+        <div className="bg-[#10b981] text-white font-bold px-2 py-0.5 text-[8px] mb-1">
+          D3.1 IMPOTS RETENUS AUX SALARIES
+        </div>
+        <table className="w-full border-collapse border border-gray-300 text-[8px] mb-3">
+          <thead>
+            <tr className="bg-gray-100 font-bold border-b border-gray-300 text-center">
+              <th className="border border-gray-300 px-2 py-1 text-left w-[45%]">NATURE DES IMPOTS</th>
+              <th className="border border-gray-300 px-2 py-1 text-right w-[20%]">BASE IMPOSABLE</th>
+              <th className="border border-gray-300 px-2 py-1 w-[15%]">TAUX</th>
+              <th className="border border-gray-300 px-2 py-1 text-right w-[20%]">MONTANT RETENU</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="border border-gray-300 px-2 py-0.5">14. Impôt sur traitements, salaires (ITS)</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">{fmtNum(totalGross)} F</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-center font-mono">1.20%</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">{fmtNum(totalITS)} F</td>
+            </tr>
+            <tr>
+              <td className="border border-gray-300 px-2 py-0.5">15. Impôt Général sur le Revenu (IGR)</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">{fmtNum(netImposable)} F</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-center font-mono">Variable</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">{fmtNum(totalIGR)} F</td>
+            </tr>
+            <tr className="bg-sky-50 font-bold text-sky-800">
+              <td className="border border-gray-300 px-2 py-1 uppercase" colSpan={3}>TOTAL IMPOTS RETENUS SALARIES</td>
+              <td className="border border-gray-300 px-2 py-1 text-right font-mono text-[9px]">{fmtNum(totalITS + totalIGR)} F</td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* D3.2 Contributions Employeur */}
+        <div className="bg-[#10b981] text-white font-bold px-2 py-0.5 text-[8px] mb-1">
+          D3.2 CONTRIBUTIONS A LA CHARGE DE L'EMPLOYEUR
+        </div>
+        <table className="w-full border-collapse border border-gray-300 text-[8px] mb-3">
+          <thead>
+            <tr className="bg-gray-100 font-bold border-b border-gray-300 text-center">
+              <th className="border border-gray-300 px-2 py-1 text-left w-[40%]">NATURE DES CONTRIBUTIONS</th>
+              <th className="border border-gray-300 px-2 py-1 w-[10%]">EFFECTIF</th>
+              <th className="border border-gray-300 px-2 py-1 text-right w-[20%]">BASE DE CALCUL</th>
+              <th className="border border-gray-300 px-2 py-1 w-[10%]">TAUX</th>
+              <th className="border border-gray-300 px-2 py-1 text-right w-[20%]">MONTANT DU</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="border border-gray-300 px-2 py-0.5">17. Contribution Employeur (CE) - Personnel local</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-center font-mono">{totalEmployees}</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">{fmtNum(totalGross)} F</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-center font-mono">11.50%</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">{fmtNum(totalCE)} F</td>
+            </tr>
+            <tr>
+              <td className="border border-gray-300 px-2 py-0.5">20. Contribution Nationale (CN) - Personnel local</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-center font-mono">{totalEmployees}</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">{fmtNum(totalGross)} F</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-center font-mono">1.20%</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">{fmtNum(totalCN)} F</td>
+            </tr>
+            <tr className="bg-sky-50 font-bold text-sky-800">
+              <td className="border border-gray-300 px-2 py-1 uppercase" colSpan={4}>TOTAL CONTRIBUTIONS EMPLOYEUR</td>
+              <td className="border border-gray-300 px-2 py-1 text-right font-mono text-[9px]">{fmtNum(totalCE + totalCN)} F</td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* 05 RECAPITULATION */}
+        <div className="bg-[#ea580c] text-white font-bold px-2 py-0.5 text-[8.5px] rounded-sm uppercase mb-1">
+          05 RECAPITULATION DES IMPOTS A PAYER
+        </div>
+        <table className="w-full border-collapse border border-gray-300 text-[8px] mb-3">
+          <thead>
+            <tr className="bg-gray-100 font-bold border-b border-gray-300 text-center">
+              <th className="border border-gray-300 px-2 py-1 text-left w-[70%]">RUBRIQUE DE RECAPITULATION</th>
+              <th className="border border-gray-300 px-2 py-1 text-right w-[30%]">MONTANT RECAPITULE</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="border border-gray-300 px-2 py-0.5">24. Impôts sur Traitements et Salaires (IS)</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">{fmtNum(totalITS)} F</td>
+            </tr>
+            <tr>
+              <td className="border border-gray-300 px-2 py-0.5">26. Impôt Général sur le Revenu (IGR) retenu</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">{fmtNum(totalIGR)} F</td>
+            </tr>
+            <tr>
+              <td className="border border-gray-300 px-2 py-0.5">28. Contribution Employeur (CE) à la charge</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">{fmtNum(totalCE)} F</td>
+            </tr>
+            <tr>
+              <td className="border border-gray-300 px-2 py-0.5">29. Contribution Nationale (CN) à la charge</td>
+              <td className="border border-gray-300 px-2 py-0.5 text-right font-mono">{fmtNum(totalCN)} F</td>
+            </tr>
+            <tr className="bg-orange-100 font-bold text-orange-800">
+              <td className="border border-gray-300 px-2 py-1 uppercase">MONTANT TOTAL A PAYER A LA DGI</td>
+              <td className="border border-gray-300 px-2 py-1 text-right font-mono text-[10px]">{fmtNum(grandTotalTax)} F</td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* Cachet et signature */}
+        <div className="flex justify-between items-center text-[7.5px] mt-4 pt-2 border-t">
+          <div>
+            <p className="italic text-gray-500">Fait à ABIDJAN, le {dateStr}</p>
+          </div>
+          <div className="text-center w-64 border border-dashed border-gray-300 p-2 rounded">
+            <p className="font-bold text-[8px] mb-6">Cachet et Signature du Contribuable</p>
+            <div className="h-6"></div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -554,76 +800,359 @@ function DeclarationPreview({ docType, month, year, itsData, cnpsData }: {
     const gross = itsData?.totalGrossSalary || 0;
     const tfc = Math.round(gross * 0.012);
     const tap = Math.round(gross * 0.004);
-    const items = [
-      ["Masse Salariale Brute Soumise à FDFP", `${fmtNum(gross)} FCFA`],
-      ["Taxe de Formation Continue - TFC (1.20%)", `${fmtNum(tfc)} FCFA`],
-      ["Taxe d'Apprentissage - TAP (0.40%)", `${fmtNum(tap)} FCFA`],
-      ["TOTAL A PAYER FDFP (1.60%)", `${fmtNum(tfc + tap)} FCFA`],
-    ];
+    const totalFdfp = tfc + tap;
+
     return (
-      <div className="doc-a4-page bg-white text-[#1e1e1e]" style={{ fontFamily: "Helvetica, Arial, sans-serif" }}>
-        <DocHeader companyName={companyName} legalForm="SARL" />
-        <div className="mx-6 mt-4 bg-[#10b981] text-white px-4 py-2 rounded-sm">
-          <p className="text-[11px] font-bold">DÉCLARATION MENSUELLE FDFP (25-DECLARATION FDFP)</p>
+      <div className="doc-a4-page bg-white text-[#1e1e1e] p-6 text-[10px]" style={{ fontFamily: "Helvetica, Arial, sans-serif" }}>
+        {/* En-tête officiel DGI */}
+        <div className="flex justify-between border-b border-gray-400 pb-2 mb-4">
+          <div className="flex items-center">
+            <img src="/dgi.png" alt="DGI" className="w-10 h-10 object-contain mr-3" />
+            <div>
+              <p className="font-bold uppercase text-[9px]">REPUBLIQUE DE COTE D'IVOIRE</p>
+              <p className="italic text-[8px]">Union - Discipline - Travail</p>
+              <p className="text-[8px]">------</p>
+              <p className="font-bold text-[8px]">MINISTERE DE L'ECONOMIE ET DES FINANCES</p>
+              <p className="font-bold text-[8px]">DIRECTION GENERALE DES IMPOTS</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="font-bold text-[9px]">TAXE D'APPRENTISSAGE ET TAXE</p>
+            <p className="font-bold text-[9px]">ADDITIONNELLE A LA FORMATION CONTINUE</p>
+            <p className="text-[8px]">(Articles 143 et suivants du CGI)</p>
+          </div>
         </div>
-        <p className="px-6 mt-3 text-[13px] font-bold">TAXE DE FORMATION CONTINUE &amp; APPRENTISSAGE (FDFP)</p>
-        <div className="px-6 mt-3">
-          <table className="w-full border-collapse text-[10px]">
-            <thead><tr className="bg-[#10b981] text-white">
-              <th className="border border-[#10b981] px-2 py-1.5 text-left">RUBRIQUE TAXES ET CONTRIBUTIONS FDFP</th>
-              <th className="border border-[#10b981] px-2 py-1.5 text-right">MONTANT (FCFA)</th>
-            </tr></thead>
+
+        {/* Titre Principal */}
+        <div className="bg-[#10b981] text-white text-center py-2 font-bold text-[12px] mb-4 uppercase rounded-sm">
+          DÉCLARATION MENSUELLE DES TAXES FDFP (TA &amp; TFC)
+        </div>
+
+        {/* Identification du Contribuable */}
+        <div className="border border-gray-300 p-3 mb-4 rounded-sm grid grid-cols-2 gap-2 text-[9px]">
+          <div className="col-span-2 font-bold border-b pb-1 mb-1 text-[#10b981]">01 - IDENTIFICATION DU CONTRIBUABLE</div>
+          <div><span className="font-bold">Raison sociale :</span> {companyName}</div>
+          <div><span className="font-bold">Période d'imposition :</span> {month}/{year}</div>
+          <div><span className="font-bold">N° Compte Contribuable (NCC) :</span> {companyRccm || "1234567 A"}</div>
+          <div><span className="font-bold">Ville / Commune :</span> ABIDJAN</div>
+          <div className="col-span-2"><span className="font-bold">Adresse :</span> BP 5115 ABIDJAN 01</div>
+        </div>
+
+        {/* Tableau de Détermination */}
+        <div className="mb-4">
+          <p className="font-bold mb-2 text-[10px] text-[#10b981]">02 - DETERMINATION DE LA BASE IMPOSABLE &amp; DES TAXES</p>
+          <table className="w-full border-collapse text-[9px]">
+            <thead>
+              <tr className="bg-[#10b981] text-white font-bold">
+                <th className="border border-gray-300 px-2 py-1.5 text-left">NATURE DES TAXES</th>
+                <th className="border border-gray-300 px-2 py-1.5 text-right">RÉMUNÉRATIONS BRUTES</th>
+                <th className="border border-gray-300 px-2 py-1.5 text-center">TAUX</th>
+                <th className="border border-gray-300 px-2 py-1.5 text-right">MONTANT À PAYER</th>
+              </tr>
+            </thead>
             <tbody>
-              {items.map(([label, val], i) => (
-                <tr key={i} className={i === items.length - 1 ? "font-bold bg-[#ecfdf5]" : ""}>
-                  <td className="border border-[#ddd] px-2 py-1">{label}</td>
-                  <td className="border border-[#ddd] px-2 py-1 text-right font-mono">{val}</td>
-                </tr>
-              ))}
+              <tr className="hover:bg-gray-50">
+                <td className="border border-gray-300 px-2 py-1">2.1 TAXE D'APPRENTISSAGE (TA)</td>
+                <td className="border border-gray-300 px-2 py-1 text-right font-mono">{fmtNum(gross)}</td>
+                <td className="border border-gray-300 px-2 py-1 text-center font-mono">0.40%</td>
+                <td className="border border-gray-300 px-2 py-1 text-right font-mono">{fmtNum(tap)}</td>
+              </tr>
+              <tr className="hover:bg-gray-50">
+                <td className="border border-gray-300 px-2 py-1">2.2 TAXE ADDITIONNELLE A LA FORMATION (TFC)</td>
+                <td className="border border-gray-300 px-2 py-1 text-right font-mono">{fmtNum(gross)}</td>
+                <td className="border border-gray-300 px-2 py-1 text-center font-mono">1.20%</td>
+                <td className="border border-gray-300 px-2 py-1 text-right font-mono">{fmtNum(tfc)}</td>
+              </tr>
+              <tr className="bg-emerald-50 font-bold">
+                <td className="border border-gray-300 px-2 py-1">TOTAL À PAYER FDFP (1.60%)</td>
+                <td className="border border-gray-300 px-2 py-1 text-right font-mono">{fmtNum(gross)}</td>
+                <td className="border border-gray-300 px-2 py-1 text-center font-mono">1.60%</td>
+                <td className="border border-gray-300 px-2 py-1 text-right font-mono text-emerald-600">{fmtNum(totalFdfp)} F</td>
+              </tr>
             </tbody>
           </table>
         </div>
-        <DocSignature city="ABIDJAN" dateStr={dateStr} label="CACHET ET SIGNATURE" />
+
+        {/* Signature */}
+        <div className="flex justify-end mt-8">
+          <div className="text-center w-64 border border-dashed border-gray-300 p-2 rounded">
+            <p className="italic text-[8px] mb-1">Fait à ABIDJAN, le {dateStr}</p>
+            <p className="font-bold text-[9px] mb-8">Cachet et Signature du Contribuable</p>
+            <div className="h-10"></div>
+          </div>
+        </div>
       </div>
     );
   }
 
   // declaration_cnps
-  const cnpsItems = [
-    ["Nombre d'Assurés en Effectif", `${cnpsData?.totalEmployees || 0}`],
-    ["Salaires Soumis à Cotisations CNPS", `${fmtNum(cnpsData?.totalGrossSalary)} FCFA`],
-    ["Cotisation Retraite Part Salariée (6.30%)", `${fmtNum(cnpsData?.cnpsEmployeeTotal)} FCFA`],
-    ["Cotisation Retraite Part Patronale (7.70%)", `${fmtNum(cnpsData?.cnpsEmployerTotal)} FCFA`],
-    ["Prestations Familiales PF (5.75%)", `${fmtNum((cnpsData?.totalGrossSalary || 0) * 0.0575)} FCFA`],
-    ["Accidents du Travail AT (3.00%)", `${fmtNum((cnpsData?.totalGrossSalary || 0) * 0.03)} FCFA`],
-  ];
+  let countCat3 = 0, sumRetCat3 = 0, sumPfCat3 = 0;
+  let countCat4 = 0, sumRetCat4 = 0, sumPfCat4 = 0;
+  let countCat5 = 0, sumRetCat5 = 0, sumPfCat5 = 0;
 
-  return (
-    <div className="doc-a4-page bg-white text-[#1e1e1e]" style={{ fontFamily: "Helvetica, Arial, sans-serif" }}>
-      <DocHeader companyName={companyName} legalForm="SARL" />
-      <div className="mx-6 mt-4 bg-[#0ea5e9] text-white px-4 py-2 rounded-sm">
-        <p className="text-[11px] font-bold">CNPS - APPEL DE COTISATION MENSUEL (27-DÉCLARATION CNPS)</p>
-      </div>
-      <div className="px-6 mt-3">
-        <table className="w-full border-collapse text-[9px]">
-          <thead><tr className="bg-[#0ea5e9] text-white">
-            <th className="border border-[#0ea5e9] px-2 py-1.5 text-left">COTISATIONS ET PRESTATIONS CNPS</th>
-            <th className="border border-[#0ea5e9] px-2 py-1.5 text-right">MONTANT (FCFA)</th>
-          </tr></thead>
+  const details = cnpsData?.employeeDetails || [];
+  details.forEach((emp: any) => {
+    const brut = emp.grossSalary || 0;
+    if (brut <= 75000) {
+      countCat3++;
+      sumRetCat3 += brut;
+      sumPfCat3 += brut;
+    } else if (brut <= 3375000) {
+      countCat4++;
+      sumRetCat4 += brut;
+      sumPfCat4 += 75000;
+    } else {
+      countCat5++;
+      sumRetCat5 += 3375000;
+      sumPfCat5 += 75000;
+    }
+  });
+
+  const totalEmployees = details.length;
+  const totalRetraite = sumRetCat3 + sumRetCat4 + sumRetCat5;
+  const totalPfAt = sumPfCat3 + sumPfCat4 + sumPfCat5;
+
+  const matVal = Math.round(totalPfAt * 0.0075);
+  const pfVal = Math.round(totalPfAt * 0.05);
+  const atVal = Math.round(totalPfAt * 0.03);
+  const retVal = Math.round(totalRetraite * 0.14);
+  const grandTotalCNPS = matVal + pfVal + atVal + retVal;
+
+  if (docType === "rns") {
+    const list = rnsData || [];
+    return (
+      <div className="doc-a4-page bg-white text-[#1e1e1e] p-6 text-[9px]" style={{ fontFamily: "Helvetica, Arial, sans-serif" }}>
+        <div className="border border-black flex mb-3">
+          <div className="w-[50%] p-2 border-r border-black flex items-center">
+            <img src="/cnps.jpeg" alt="CNPS" className="w-8 h-8 object-contain mr-2" />
+            <div>
+              <p className="font-bold text-[13px] text-sky-600">CNPS</p>
+              <p className="text-[6px] font-bold uppercase">Caisse Nationale de Prévoyance Sociale</p>
+              <p className="text-[5px] text-gray-500 mt-1">24, Avenue Lamblin Plateau - 01 BP 317 Abidjan 01</p>
+            </div>
+          </div>
+          <div className="w-[50%] p-2 text-center flex flex-col justify-center">
+            <p className="font-bold text-[10px]">RELEVÉ NOMINATIF DES SALAIRES</p>
+            <p className="text-[6.5px] text-gray-500 uppercase mt-0.5">Servant de base aux calculs des cotisations</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 border border-black divide-x divide-black mb-3">
+          <div className="p-2 space-y-1">
+            <p className="text-[7px] font-bold text-gray-500 uppercase">Employeur</p>
+            <p className="font-bold text-[9px]">{companyName}</p>
+            <p className="text-[7.5px] text-gray-600">{address}</p>
+          </div>
+          <div className="p-2 space-y-1">
+            <p className="text-[7px] font-bold text-gray-500 uppercase">Identifiants RNS</p>
+            <p><span className="font-bold">N° Employeur :</span> {cnps || "123456"}</p>
+            <p><span className="font-bold">Salarié :</span> {name.toUpperCase()}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 border border-black divide-x divide-black mb-3 p-2 bg-gray-50">
+          <div>
+            <p className="font-bold text-[7.5px] text-gray-500 uppercase">Matricule</p>
+            <p className="font-bold">{empId}</p>
+          </div>
+          <div>
+            <p className="font-bold text-[7.5px] text-gray-500 uppercase">Date d'embauche</p>
+            <p className="font-bold">{joiningStr}</p>
+          </div>
+          <div>
+            <p className="font-bold text-[7.5px] text-gray-500 uppercase">Période de Cotisations</p>
+            <p className="font-bold text-gray-700">Du {joiningStr} Au {dateStr}</p>
+          </div>
+        </div>
+
+        <table className="w-full border-collapse border border-gray-400 text-[8px] mb-4 text-center">
+          <thead>
+            <tr className="bg-gray-100 font-bold border-b border-gray-400">
+              <th className="border border-gray-400 px-2 py-1 w-[20%]">ANNÉES</th>
+              <th className="border border-gray-400 px-2 py-1 w-[50%] text-right">SALAIRES BRUTS ANNUELS SOUMIS CNPS</th>
+              <th className="border border-gray-400 px-2 py-1 w-[30%]">MOIS DE TRAVAIL DANS L'ANNÉE</th>
+            </tr>
+          </thead>
           <tbody>
-            {cnpsItems.map(([label, val], i) => (
-              <tr key={i} className={i % 2 === 0 ? "bg-[#f0f9ff]" : ""}>
-                <td className="border border-[#ddd] px-2 py-1">{label}</td>
-                <td className="border border-[#ddd] px-2 py-1 text-right font-mono">{val}</td>
+            {list.map((item: any, i: number) => (
+              <tr key={i} className="hover:bg-gray-50">
+                <td className="border border-gray-400 px-2 py-1 font-bold">{item.year}</td>
+                <td className="border border-gray-400 px-2 py-1 text-right font-mono">{fmtNum(item.grossCnpsSalary)} F</td>
+                <td className="border border-gray-400 px-2 py-1 font-mono">{item.monthsWorked}</td>
               </tr>
             ))}
+            {list.length === 0 && (
+              <tr>
+                <td colSpan={3} className="border border-gray-400 px-2 py-4 text-gray-400 italic">Aucun historique RNS</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+        <div className="mt-8 border-t pt-2 flex justify-between text-[7px] font-bold text-gray-500">
+          <p>NOM - SIGNATURE - CACHET DE L'EMPLOYEUR</p>
+          <p>N.B : FOURNIR LES ELEMENTS DE RENSEIGNEMENTS DEMANDES OBLIGATOIREMENT.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="doc-a4-page bg-white text-[#1e1e1e] p-6 text-[9px]" style={{ fontFamily: "Helvetica, Arial, sans-serif" }}>
+      {/* Cadre En-tête principal */}
+      <div className="border border-black flex text-center mb-4">
+        <div className="w-[30%] border-r border-black p-2 flex items-center justify-center">
+          <img src="/cnps.jpeg" alt="CNPS" className="w-8 h-8 object-contain mr-2" />
+          <div className="text-left">
+            <p className="font-bold text-[14px]">CNPS</p>
+            <p className="text-[6px] uppercase tracking-tighter leading-none">Caisse Nationale de Prévoyance Sociale</p>
+          </div>
+        </div>
+        <div className="w-[50%] border-r border-black p-2 flex flex-col justify-center items-center">
+          <p className="text-[8px] font-bold">ENREGISTREMENT</p>
+          <p className="text-[11px] font-bold mt-1">APPEL DE COTISATION MENSUEL</p>
+        </div>
+        <div className="w-[20%] p-2 flex flex-col justify-center items-start text-left text-[7px] space-y-0.5">
+          <p><span className="font-bold">Réf :</span> EN-GDREC-01</p>
+          <p><span className="font-bold">Version :</span> 03</p>
+          <p><span className="font-bold">Page :</span> 1/1</p>
+        </div>
+      </div>
+
+      {/* Identification Employeur */}
+      <div className="grid grid-cols-3 border border-black divide-x divide-black mb-4">
+        <div className="p-2 space-y-1">
+          <p className="text-[7px] font-bold text-gray-500 uppercase">N° Employeur</p>
+          <p className="font-bold text-[9px]">{cnps || "123456"}</p>
+          <p className="text-[7px] font-bold text-gray-500 uppercase mt-2">Période</p>
+          <p className="font-bold text-[9px]">{year}/{String(month).padStart(2, "0")}</p>
+        </div>
+        <div className="p-2 space-y-1 col-span-2">
+          <p className="text-[7px] font-bold text-gray-500 uppercase">Raison sociale / Nom et Adresse</p>
+          <p className="font-bold text-[10px] text-[#0ea5e9]">{companyName}</p>
+          <p className="text-[8px] text-gray-700">{address}</p>
+          <p className="text-[7px] font-bold text-gray-500 uppercase mt-1">Téléphone</p>
+          <p className="text-[8px]">{phone || "0709670671"}</p>
+        </div>
+      </div>
+
+      <p className="font-bold text-[9px] mb-2 uppercase">
+        Total Salaires Bruts Payés au cours de la Période : <span className="font-mono text-gray-800 bg-gray-100 px-2 py-0.5 rounded">{fmtNum(cnpsData?.totalGrossSalary || 0)} F</span>
+      </p>
+
+      {/* Catégories de Salaires */}
+      <table className="w-full border-collapse border border-gray-400 mb-4 text-[8px]">
+        <thead>
+          <tr className="bg-gray-100 text-gray-800 text-center font-bold border-b border-gray-400">
+            <th className="border border-gray-400 px-1 py-1 text-left w-[45%]" rowSpan={2}>CATEGORIES DE SALAIRES</th>
+            <th className="border border-gray-400 px-1 py-1 w-[15%]" rowSpan={2}>NOMBRE DE SALARIES</th>
+            <th className="border border-gray-400 px-1 py-0.5" colSpan={2}>SALAIRES BRUTS SOUMIS A COTISATIONS</th>
+          </tr>
+          <tr className="bg-gray-50 text-gray-700 text-center font-bold border-b border-gray-400">
+            <th className="border border-gray-400 px-1 py-0.5 w-[20%]">REGIME DE RETRAITE (Plafond=3.375.000 F)</th>
+            <th className="border border-gray-400 px-1 py-0.5 w-[20%]">PF &amp; ACCIDENTS (Plafond=75.000 F)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td className="border border-gray-400 px-2 py-0.5">Horaires, journaliers &amp; occasionnels $\le$ 3462 F/j</td>
+            <td className="border border-gray-400 px-2 py-0.5 text-center font-mono">0</td>
+            <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">0</td>
+            <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">0</td>
+          </tr>
+          <tr>
+            <td className="border border-gray-400 px-2 py-0.5">Horaires, journaliers &amp; occasionnels &gt; 3462 F/j</td>
+            <td className="border border-gray-400 px-2 py-0.5 text-center font-mono">0</td>
+            <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">0</td>
+            <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">0</td>
+          </tr>
+          <tr>
+            <td className="border border-gray-400 px-2 py-0.5">Mensuels $\le$ 75 000 F par mois</td>
+            <td className="border border-gray-400 px-2 py-0.5 text-center font-mono">{countCat3}</td>
+            <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">{fmtNum(sumRetCat3)}</td>
+            <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">{fmtNum(sumPfCat3)}</td>
+          </tr>
+          <tr>
+            <td className="border border-gray-400 px-2 py-0.5">Mensuels de 75 000 F à 3 375 000 F par mois</td>
+            <td className="border border-gray-400 px-2 py-0.5 text-center font-mono">{countCat4}</td>
+            <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">{fmtNum(sumRetCat4)}</td>
+            <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">{fmtNum(sumPfCat4)}</td>
+          </tr>
+          <tr>
+            <td className="border border-gray-400 px-2 py-0.5">Mensuels &gt; 3 375 000 F par mois</td>
+            <td className="border border-gray-400 px-2 py-0.5 text-center font-mono">{countCat5}</td>
+            <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">{fmtNum(sumRetCat5)}</td>
+            <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">{fmtNum(sumPfCat5)}</td>
+          </tr>
+          <tr className="bg-sky-50 font-bold">
+            <td className="border border-gray-400 px-2 py-1 uppercase">TOTAL</td>
+            <td className="border border-gray-400 px-2 py-1 text-center font-mono">{totalEmployees}</td>
+            <td className="border border-gray-400 px-2 py-1 text-right font-mono text-sky-700">{fmtNum(totalRetraite)}</td>
+            <td className="border border-gray-400 px-2 py-1 text-right font-mono text-sky-700">{fmtNum(totalPfAt)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* Décompte des Cotisations Dues */}
+      <div className="mb-4">
+        <p className="font-bold mb-1 text-[9px] uppercase text-[#0ea5e9]">Décompte des Cotisations Dues</p>
+        <table className="w-full border-collapse border border-gray-400 text-[8px]">
+          <thead>
+            <tr className="bg-gray-100 font-bold border-b border-gray-400 text-center text-gray-800">
+              <th className="border border-gray-400 px-2 py-1 text-left w-[40%]">Rubriques</th>
+              <th className="border border-gray-400 px-2 py-1 w-[25%]">SALAIRES SOUMIS À COTISATION</th>
+              <th className="border border-gray-400 px-2 py-1 w-[15%]">TAUX</th>
+              <th className="border border-gray-400 px-2 py-1 w-[20%] text-right">MONTANTS</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="border border-gray-400 px-2 py-0.5">Assurance Maternité</td>
+              <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">{fmtNum(totalPfAt)} F</td>
+              <td className="border border-gray-400 px-2 py-0.5 text-center font-mono">0.75%</td>
+              <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">{fmtNum(matVal)} F</td>
+            </tr>
+            <tr>
+              <td className="border border-gray-400 px-2 py-0.5">Prestations Familiales</td>
+              <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">{fmtNum(totalPfAt)} F</td>
+              <td className="border border-gray-400 px-2 py-0.5 text-center font-mono">5.00%</td>
+              <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">{fmtNum(pfVal)} F</td>
+            </tr>
+            <tr>
+              <td className="border border-gray-400 px-2 py-0.5">Accidents du Travail</td>
+              <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">{fmtNum(totalPfAt)} F</td>
+              <td className="border border-gray-400 px-2 py-0.5 text-center font-mono">3.00%</td>
+              <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">{fmtNum(atVal)} F</td>
+            </tr>
+            <tr>
+              <td className="border border-gray-400 px-2 py-0.5">Régime de Retraite</td>
+              <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">{fmtNum(totalRetraite)} F</td>
+              <td className="border border-gray-400 px-2 py-0.5 text-center font-mono">14.00%</td>
+              <td className="border border-gray-400 px-2 py-0.5 text-right font-mono">{fmtNum(retVal)} F</td>
+            </tr>
+            <tr className="bg-sky-100 font-bold text-sky-800">
+              <td className="border border-gray-400 px-2 py-1 uppercase" colSpan={3}>TOTAL COTISATIONS A PAYER</td>
+              <td className="border border-gray-400 px-2 py-1 text-right font-mono text-[10px]">{fmtNum(grandTotalCNPS)} F</td>
+            </tr>
           </tbody>
         </table>
       </div>
-      <div className="px-6 mt-4">
-        <p className="text-[12px] font-bold">TOTAL CHÈQUE CNPS A VERSER : {fmtNum(cnpsData?.totalCNPSToPay)} FCFA</p>
+
+      {/* Bas de page légal et signature */}
+      <div className="grid grid-cols-3 gap-2 mt-4 text-[7px] border-t pt-2">
+        <div className="col-span-2 border p-2 rounded-sm space-y-0.5 bg-gray-50">
+          <p className="font-bold">ATTENTION</p>
+          <p className="text-[6px] text-gray-600 leading-tight">
+            Il est vivement conseillé d'annexer à la présente déclaration votre titre de paiement, faute de quoi vous serez responsable du retard de traitement.
+            Le chèque doit être libellé à l'ordre de la Direction Financière et Comptable de la CNPS.
+          </p>
+        </div>
+        <div className="border p-2 rounded-sm text-center">
+          <p className="font-bold text-[7px]">ABIDJAN, le {dateStr}</p>
+          <p className="text-gray-500 font-semibold mb-6">Signature &amp; Cachet</p>
+          <div className="h-6"></div>
+        </div>
       </div>
-      <DocSignature city="ABIDJAN" dateStr={dateStr} label="CACHET ET SIGNATURE" />
     </div>
   );
 }
@@ -654,6 +1183,7 @@ export function DocumentPreviewModal({
   year,
   itsData,
   cnpsData,
+  rnsData,
 }: DocumentPreviewModalProps) {
   const [activeTab, setActiveTab] = useState<"preview" | "edit">("preview");
 
@@ -822,7 +1352,7 @@ export function DocumentPreviewModal({
     payslip: "Bulletin de Paie",
     attestation_conge: "Attestation de Congé Payé",
     ordre_virement: "Ordre de Virement",
-    declaration_its: "Déclaration ITS (DGI)",
+    declaration_its: " ",
     declaration_fdfp: "Déclaration FDFP",
     declaration_cnps: "Déclaration CNPS",
   };
@@ -869,7 +1399,20 @@ export function DocumentPreviewModal({
       case "declaration_its":
       case "declaration_fdfp":
       case "declaration_cnps":
-        return <DeclarationPreview docType={docType} month={month || 1} year={year || 2026} itsData={itsData} cnpsData={cnpsData} />;
+      case "rns":
+        return (
+          <DeclarationPreview
+            docType={docType}
+            month={month || 1}
+            year={year || 2026}
+            itsData={itsData}
+            cnpsData={cnpsData}
+            rnsData={rnsData}
+            empId={userId}
+            name={name}
+            joiningStr={defaultJoiningDate ? new Date(defaultJoiningDate).toLocaleDateString("fr-FR") : "01/02/2020"}
+          />
+        );
       default:
         return <AttestationPreview title="DOCUMENT RH OFFICIEL" bodyText={bodyText} />;
     }

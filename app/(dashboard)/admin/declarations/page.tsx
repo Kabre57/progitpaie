@@ -119,7 +119,7 @@ export default function DeclarationsPage() {
 
       {/* Declaration Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* 1. Déclaration ITS (DGI) */}
+        {/* 1.   */}
         <NeuCard className="p-6 space-y-4">
           <div className="flex justify-between items-center border-b border-[var(--neu-border)] pb-3">
             <div className="flex items-center gap-3">
@@ -127,7 +127,7 @@ export default function DeclarationsPage() {
                 <Building size={24} />
               </div>
               <div>
-                <h3 className="font-bold text-lg text-[var(--neu-text)]">24-DÉCLARATION ITS (DGI)</h3>
+                <h3 className="font-bold text-lg text-[var(--neu-text)]">DÉCLARATION ITS (DGI)</h3>
                 <p className="text-xs text-[var(--neu-text-secondary)]">Direction Générale des Impôts (DGI Côte d'Ivoire)</p>
               </div>
             </div>

@@ -27,6 +27,16 @@ interface PayslipCustomizerCardProps {
   onPreview?: () => void;
 }
 
+function getContrastColor(hexColor: string): string {
+  if (!hexColor || !/^#[0-9A-Fa-f]{6}$/.test(hexColor)) return "#1e1e1e";
+  const hex = hexColor.replace("#", "");
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 128 ? "#1e1e1e" : "#ffffff";
+}
+
 export function PayslipCustomizerCard({
   appearance,
   setAppearance,
@@ -194,7 +204,7 @@ export function PayslipCustomizerCard({
             {/* Aperçu de la bande */}
             <div
               className="w-full h-10 rounded-lg flex items-center justify-center text-sm font-bold transition-colors duration-300"
-              style={{ backgroundColor: appearance.primaryColor, color: "#000" }}
+              style={{ backgroundColor: appearance.primaryColor, color: getContrastColor(appearance.primaryColor) }}
             >
               NET À PAYER ▸ 350 000 FCFA
             </div>

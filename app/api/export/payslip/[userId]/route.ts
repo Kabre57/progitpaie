@@ -7,6 +7,9 @@ import { decryptData } from "@/lib/crypto";
 import { RateService } from "@/lib/rate-service";
 import { PayslipConfigService } from "@/lib/payslip-config-service";
 import { DEFAULT_PAYSLIP_APPEARANCE, DEFAULT_PAYSLIP_LEGAL } from "@/lib/payslip-config";
+import { calculatePayslip } from "@/lib/domain/payroll";
+import { legacyRatesToTaxRatesConfig, isModularEngineEnabled } from "@/lib/domain/payroll/adapters/legacy-rates-adapter";
+import { compareDoubleRun, logDoubleRunResult } from "@/lib/domain/payroll/adapters/double-run-service";
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -131,7 +134,7 @@ export async function GET(
     let legalConfig = DEFAULT_PAYSLIP_LEGAL;
     let rates = await RateService.getInstance().getRates();
 
-    if (payroll?.configSnapshotId) {
+    if (payroll && payroll.status === "finalized" && payroll.configSnapshotId) {
       const snapshotData = await configService.getConfigFromSnapshot(payroll.configSnapshotId);
       if (snapshotData) {
         appearanceConfig = snapshotData.appearance;
@@ -237,12 +240,16 @@ export async function GET(
     doc.setFillColor(rgbColor.r, rgbColor.g, rgbColor.b);
     doc.rect(100, 38, 96, 48, "F");
 
+    const yiqBox = (rgbColor.r * 299 + rgbColor.g * 587 + rgbColor.b * 114) / 1000;
+    const contrastTextColor = yiqBox >= 128 ? [30, 30, 30] : [255, 255, 255];
+
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(30, 30, 30);
+    doc.setTextColor(contrastTextColor[0], contrastTextColor[1], contrastTextColor[2]);
     doc.text(`${civility} ${empName}`, 120, 56);
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
+    doc.setTextColor(contrastTextColor[0], contrastTextColor[1], contrastTextColor[2]);
     doc.text(empAddress, 120, 64);
 
     // 3. COMPOSANTES DE PAIE
@@ -257,17 +264,95 @@ export async function GET(
     const brutSocial = totalBrut;
     const brutFiscal = totalBrut;
 
-    const itsTax = payroll.itsTax || Math.round(brutFiscal * 0.012);
-    const cnpsEmployee = payroll.cnpsEmployee || Math.round(brutSocial * (cnpsEmployeeRate / 100));
-    const cnpsEmployerRetraite = Math.round(brutSocial * (cnpsEmployerRetraiteRate / 100));
-    const tfcVal = Math.round(brutSocial * (tfcRate / 100));
-    const tapVal = Math.round(brutSocial * (tapRate / 100));
-    const cnpsEmployerATVal = Math.round(brutSocial * 0.03);
-    const cnpsEmployerPFVal = Math.round(brutSocial * 0.0575);
+    let itsTax = payroll.itsTax || Math.round(brutFiscal * 0.012);
+    let cnpsEmployee = payroll.cnpsEmployee || Math.round(brutSocial * (cnpsEmployeeRate / 100));
+    let cnpsEmployerRetraite = Math.round(brutSocial * (cnpsEmployerRetraiteRate / 100));
+    let tfcVal = Math.round(brutSocial * (tfcRate / 100));
+    let tapVal = Math.round(brutSocial * (tapRate / 100));
+    let cnpsEmployerATVal = Math.round(brutSocial * 0.03);
+    let cnpsEmployerPFVal = Math.round(brutSocial * 0.0575);
 
-    const totalGains = totalBrut + transport;
-    const totalRetenuesSal = itsTax + cnpsEmployee;
-    const totalRetenuesPat = cnpsEmployerRetraite + tfcVal + tapVal + cnpsEmployerATVal + cnpsEmployerPFVal;
+    let totalGains = totalBrut + transport;
+    let totalRetenuesSal = itsTax + cnpsEmployee;
+    let totalRetenuesPat = cnpsEmployerRetraite + tfcVal + tapVal + cnpsEmployerATVal + cnpsEmployerPFVal;
+
+    // ─── PHASES 1 & 4 : DOUBLE RUN & ENGINE SWITCH ─────────────────────────────
+    const domainTaxConfig = legacyRatesToTaxRatesConfig(rates);
+    const modularInput = {
+      employee: {
+        id: employee.id,
+        name: empName,
+        employeeId: empId,
+        baseSalary,
+        sursalaire,
+        transportAllowance: transport,
+        category,
+        partsIGR,
+        cnpsNumber: empCnps,
+        joiningDate: employee.joiningDate ? employee.joiningDate.toISOString() : new Date().toISOString(),
+        contractType: (employee.contractType as any) || "CDI",
+        isExpatriate: false,
+        departmentName: deptName,
+        jobTitle,
+      },
+      month,
+      year,
+      variables: {
+        overtimeHours: 0,
+        overtimeRate: 0,
+        bonuses: bonuses ? [{ label: "Primes", amount: bonuses, isTaxable: true }] : [],
+        absenceDays: 0,
+        loanDeduction: 0,
+      },
+    };
+
+    const modularRes = calculatePayslip(modularInput, domainTaxConfig);
+
+    const doubleRun = compareDoubleRun(
+      {
+        totalBrut,
+        itsTax,
+        cnpsEmployee,
+        cnpsEmployerRetraite,
+        cnpsEmployerAT: cnpsEmployerATVal,
+        cnpsEmployerPF: cnpsEmployerPFVal,
+        fdfpTA: tapVal,
+        fdfpTFC: tfcVal,
+        totalGains,
+        totalRetenuesSal,
+        totalRetenuesPat,
+        netSalary: payroll.netSalary || (totalGains - totalRetenuesSal - (rates.showCMU !== false ? cmuEmployeeVal : 0)),
+      },
+      {
+        totalBrut: modularRes.grossSalary,
+        itsTax: modularRes.taxDeductions.its,
+        cnpsEmployee: modularRes.employeeContributions.cnpsRetirement,
+        cnpsEmployerRetraite: modularRes.employerContributions.cnpsRetirement,
+        cnpsEmployerAT: modularRes.employerContributions.cnpsAccident,
+        cnpsEmployerPF: modularRes.employerContributions.cnpsFamily,
+        fdfpTA: modularRes.employerContributions.fdfpTA,
+        fdfpTFC: modularRes.employerContributions.fdfpTFC,
+        totalGains: modularRes.grossSalary + modularRes.transportAllowance,
+        totalRetenuesSal: modularRes.totalDeductions,
+        totalRetenuesPat: modularRes.employerContributions.totalEmployer,
+        netSalary: modularRes.netSalary,
+      }
+    );
+
+    logDoubleRunResult(empId, month, year, doubleRun);
+
+    if (isModularEngineEnabled()) {
+      itsTax = modularRes.taxDeductions.its;
+      cnpsEmployee = modularRes.employeeContributions.cnpsRetirement;
+      cnpsEmployerRetraite = modularRes.employerContributions.cnpsRetirement;
+      cnpsEmployerATVal = modularRes.employerContributions.cnpsAccident;
+      cnpsEmployerPFVal = modularRes.employerContributions.cnpsFamily;
+      tapVal = modularRes.employerContributions.fdfpTA;
+      tfcVal = modularRes.employerContributions.fdfpTFC;
+      totalGains = modularRes.grossSalary + modularRes.transportAllowance;
+      totalRetenuesSal = modularRes.totalDeductions;
+      totalRetenuesPat = modularRes.employerContributions.totalEmployer;
+    }
 
     const tableRows = [
       ["01", "Salaire Categoriel", fmtNum(baseSalary), "30,00", fmtNum(baseSalary), "", "", ""],
@@ -384,7 +469,7 @@ export async function GET(
 
     doc.setFontSize(8.5);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(30, 30, 30);
+    doc.setTextColor(contrastTextColor[0], contrastTextColor[1], contrastTextColor[2]);
     doc.text("50", 18, finalTableY + 7);
     doc.text("Arrondi:", 70, finalTableY + 7);
     doc.text("NET A PAYER :", 130, finalTableY + 7);

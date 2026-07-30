@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/middleware-helpers";
+import fs from "fs";
+import path from "path";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { decryptData } from "@/lib/crypto";
 import { RateService } from "@/lib/rate-service";
 import { PayslipConfigService } from "@/lib/payslip-config-service";
 import { DEFAULT_PAYSLIP_APPEARANCE, DEFAULT_PAYSLIP_LEGAL } from "@/lib/payslip-config";
+import { PDFDocumentFactory } from "@/lib/infrastructure/pdf/pdf-document-factory";
+import { isModularPDFEnabled } from "@/lib/domain/payroll/adapters/legacy-rates-adapter";
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -105,6 +109,7 @@ export async function POST(
       year,
       itsData,
       cnpsData,
+      rnsData,
     } = body;
 
     // Récupération des paramètres d'entreprise depuis la base de données Settings
@@ -125,6 +130,58 @@ export async function POST(
     const rccm = cleanText(compSettings.rccm || "CI-ABJ-3000-A 451");
     const cc = cleanText(compSettings.taxNumber || "1234567 A");
     const cnps = cleanText(compSettings.cnpsNumber || "123456");
+    // Chargement des images de logos officiels
+    const dgiPath = path.join(process.cwd(), "public", "dgi.png");
+    let dgiBase64 = "";
+    try {
+      if (fs.existsSync(dgiPath)) {
+        const fileBuffer = fs.readFileSync(dgiPath);
+        dgiBase64 = `data:image/png;base64,${fileBuffer.toString("base64")}`;
+      }
+    } catch (err) {
+      console.error("Failed to load dgi.png:", err);
+    }
+
+    const cnpsPath = path.join(process.cwd(), "public", "cnps.jpeg");
+    let cnpsBase64 = "";
+    try {
+      if (fs.existsSync(cnpsPath)) {
+        const fileBuffer = fs.readFileSync(cnpsPath);
+        cnpsBase64 = `data:image/jpeg;base64,${fileBuffer.toString("base64")}`;
+      }
+    } catch (err) {
+      console.error("Failed to load cnps.jpeg:", err);
+    }
+
+    // ─── PHASE 3 : MODULAR PDF BUILDER FACTORY ───────────────────────────────
+    if (isModularPDFEnabled() && ["declaration_its", "declaration_cnps", "declaration_fdfp", "rns"].includes(docType)) {
+      try {
+        const pdfBuffer = PDFDocumentFactory.createDocument({
+          docType,
+          month: month || new Date().getMonth() + 1,
+          year: year || new Date().getFullYear(),
+          companyName,
+          companyAddress: address,
+          taxNumber: cc,
+          cnpsNumber: cnps,
+          dgiLogoBase64: dgiBase64,
+          cnpsLogoBase64: cnpsBase64,
+          itsData,
+          cnpsData,
+        });
+
+        return new Response(new Uint8Array(pdfBuffer), {
+          status: 200,
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="${docType}-${month || 1}-${year || 2026}.pdf"`,
+            "Content-Length": pdfBuffer.length.toString(),
+          },
+        });
+      } catch (factoryErr) {
+        console.error("PDFDocumentFactory failed, falling back to legacy builder:", factoryErr);
+      }
+    }
 
     const doc = new jsPDF() as any;
     const dateStr = cleanText(customDate || new Date().toLocaleDateString("fr-FR"));
@@ -168,7 +225,7 @@ export async function POST(
       let legalConfig = DEFAULT_PAYSLIP_LEGAL;
       let rates = await RateService.getInstance().getRates();
 
-      if (payroll?.configSnapshotId) {
+      if (payroll && payroll.status === "finalized" && payroll.configSnapshotId) {
         const snapshotData = await configService.getConfigFromSnapshot(payroll.configSnapshotId);
         if (snapshotData) {
           appearanceConfig = snapshotData.appearance;
@@ -262,12 +319,16 @@ export async function POST(
       doc.setFillColor(rgbColor.r, rgbColor.g, rgbColor.b);
       doc.rect(100, 38, 96, 48, "F");
 
+      const yiqBox = (rgbColor.r * 299 + rgbColor.g * 587 + rgbColor.b * 114) / 1000;
+      const contrastTextColor = yiqBox >= 128 ? [30, 30, 30] : [255, 255, 255];
+
       doc.setFontSize(10);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(30, 30, 30);
+      doc.setTextColor(contrastTextColor[0], contrastTextColor[1], contrastTextColor[2]);
       doc.text(`${civility} ${userName}`, 120, 56);
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
+      doc.setTextColor(contrastTextColor[0], contrastTextColor[1], contrastTextColor[2]);
       doc.text(empAddress, 120, 64);
 
       // Valeurs de paie
@@ -424,7 +485,7 @@ export async function POST(
 
       doc.setFontSize(8.5);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(30, 30, 30);
+      doc.setTextColor(contrastTextColor[0], contrastTextColor[1], contrastTextColor[2]);
       doc.text("50", 18, finalTableY + 7);
       doc.text("Arrondi:", 70, finalTableY + 7);
       doc.text("NET A PAYER :", 130, finalTableY + 7);
@@ -630,126 +691,761 @@ export async function POST(
       doc.text("La Direction Generale", 130, 205);
 
     } else if (docType === "declaration_its") {
+      // ═══════════════════════════════════════════════════════════════
+      // 24-DÉCLARATION ITS (DGI) — FORMULAIRE OFFICIEL COMPLET (Capture 3)
+      // ═══════════════════════════════════════════════════════════════
+      
+      // Dessin du logo DGI officiel si présent
+      if (dgiBase64) {
+        doc.addImage(dgiBase64, "PNG", 14, 11, 20, 20);
+      }
+
+      // En-tête officiel DGI Côte d'Ivoire
+      const headerX = dgiBase64 ? 38 : 14;
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 30, 30);
+      doc.text("REPUBLIQUE DE COTE D'IVOIRE", headerX, 15);
+      doc.setFont("helvetica", "normal");
+      doc.text("Union - Discipline - Travail", headerX, 19);
+      doc.text("------", headerX, 23);
+      doc.setFont("helvetica", "bold");
+      doc.text("MINISTERE DE L'ECONOMIE ET DES FINANCES", headerX, 27);
+      doc.text("DIRECTION GENERALE DES IMPOTS", headerX, 31);
+
+      // Titre du document officiel
+      doc.setFontSize(8.5);
+      doc.setFont("helvetica", "bold");
+      doc.text("DECLARATION DES IMPOTS SUR LES TRAITEMENTS,", 196, 15, { align: "right" });
+      doc.text("SALAIRES, PENSIONS ET RENTES VIAGERES", 196, 19, { align: "right" });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.text("(Article 115 et suivants du CGI)", 196, 23, { align: "right" });
+
+      doc.setDrawColor(100, 100, 100);
+      doc.setLineWidth(0.4);
+      doc.line(14, 35, 196, 35);
+
+      // Période et Service d'assiette
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Periode d'imposition : ${month || 1}/${year || 2026}`, 14, 40);
+      doc.text(`Service d'assiette des impots : ABIDJAN A`, 120, 40);
+
+      // Section 1: Identification du Contribuable
       doc.setFillColor(234, 88, 12);
-      doc.rect(14, 45, 182, 12, "F");
-      doc.setFontSize(11);
+      doc.rect(14, 43, 182, 5, "F");
+      doc.setFontSize(8);
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
-      doc.text("DIRECTION GENERALE DES IMPOTS (DGI COTE D'IVOIRE)", 30, 53);
+      doc.text("01 IDENTIFICATION DU CONTRIBUABLE", 16, 47);
 
-      doc.setFontSize(13);
+      doc.setDrawColor(180, 180, 180);
+      doc.rect(14, 48, 182, 22);
+      doc.line(110, 48, 110, 70);
+
+      doc.setFontSize(7.5);
       doc.setTextColor(30, 30, 30);
-      doc.text("DECLARATION DES IMPOTS SUR LES TRAITEMENTS ET SALAIRES (ITS)", 22, 66);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Raison sociale : ${companyName}`, 18, 53);
+      doc.text(`NCC : ${cc}`, 18, 58);
+      doc.text(`Adresse : ${address}`, 18, 63);
+      doc.text(`Objet ou activite : Logiciel de paie`, 18, 68);
 
-      doc.setDrawColor(200, 200, 200);
-      doc.rect(14, 72, 182, 30);
+      doc.text(`Localisation : ${city}`, 113, 53);
+      doc.text(`Telephone : ${phone || "0709670671"}`, 113, 58);
+      doc.text(`Ville : ${city}`, 113, 63);
+      doc.text(`Sigle : ${companyName}`, 113, 68);
 
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.text(`CONTRIBUABLE : ${companyName}`, 18, 80);
-      doc.text(`N° COMPTE CONTRIBUABLE (NCC) : ${cc}`, 120, 80);
-      doc.text(`PERIODE D'IMPOSITION : ${month || 1}/${year || 2026}`, 18, 88);
-      doc.text("REGIME : REEL NORMAL", 120, 88);
+      // Section 2: Détermination de l'Assiette
+      doc.setFillColor(234, 88, 12);
+      doc.rect(14, 73, 182, 5, "F");
+      doc.setFontSize(8);
+      doc.setTextColor(255, 255, 255);
+      doc.text("02 DETERMINATION DE L'ASSIETTE", 16, 77);
 
-      const items = [
-        ["Nombre de Salaries en Effectif", `${itsData?.totalEmployees || 0}`],
-        ["Masse Salariale Brute Totale", `${fmtNum(itsData?.totalGrossSalary)} FCFA`],
-        ["IS (Impôt sur Salaire 1.2%)", `${fmtNum(itsData?.totalITS)} FCFA`],
-        ["IGR (Impôt General sur le Revenu)", `${fmtNum(itsData?.totalIGR)} FCFA`],
-        ["Contribution Employeur CE (11.50%)", `${fmtNum(itsData?.totalCE)} FCFA`],
+      // C. Traitements, Salaires, Contribution Employeur
+      doc.setFillColor(16, 185, 129);
+      doc.rect(14, 78, 182, 5, "F");
+      doc.setFontSize(7.5);
+      doc.text("C. TRAITEMENTS, SALAIRES, CONTRIBUTION EMPLOYEUR", 16, 82);
+
+      const totalEmployees = itsData?.totalEmployees || 0;
+      const totalGross = itsData?.totalGrossSalary || 0;
+      const netTaxable = Math.round(totalGross * 0.8); // 20% abattement standard
+      const netImposable = totalGross - netTaxable; // le total taxable net réel
+
+      const salariesRows = [
+        ["5. Remunerations versees (Brut)", totalEmployees.toString(), fmtNum(totalGross)],
+        ["6. Avantages en nature", "0", "0"],
+        ["7. Autres (a preciser)", "0", "0"],
+        ["MONTANT TOTAL BRUT", totalEmployees.toString(), fmtNum(totalGross)]
       ];
 
       autoTable(doc, {
-        startY: 108,
-        head: [["NATURE DES IMPOTS ET CONTRIBUTIONS FISCALES DGI", "MONTANT (FCFA)"]],
-        body: items,
-        theme: "striped",
-        headStyles: { fillColor: [234, 88, 12] },
-        styles: { fontSize: 9 },
+        startY: 83,
+        margin: { left: 14, right: 14 },
+        head: [["N° / REVENUS BRUTS", "EFFECTIF", "MONTANT BRUT (FCFA)"]],
+        body: salariesRows,
+        theme: "grid",
+        styles: { fontSize: 7, cellPadding: 1 },
+        headStyles: { fillColor: [240, 240, 240], textColor: [30, 30, 30], fontStyle: "bold", halign: "center" },
+        columnStyles: {
+          0: { cellWidth: 90, halign: "left" },
+          1: { cellWidth: 32, halign: "center" },
+          2: { cellWidth: 60, halign: "right" }
+        },
+        didParseCell: function(data) {
+          if (data.row.index === 3) {
+            data.cell.styles.fontStyle = "bold";
+          }
+        }
       });
 
-      const finalY = doc.lastAutoTable?.finalY || 170;
+      const salariesFinalY = (doc as any).lastAutoTable?.finalY || 110;
 
-      doc.setFillColor(30, 58, 95);
-      doc.rect(14, finalY + 8, 182, 18, "F");
-      doc.setFontSize(12);
+      // Déduction et Net Imposable
+      const deductRows = [
+        ["9. Salaires (inferieurs au minimum) non declares", "0", "0", "0"],
+        ["10. Indemnites non imposables", "0", "0", "0"],
+        ["11. Montant brut imposable [[5]+[6]+[7]-[10]]", totalEmployees.toString(), fmtNum(totalGross), fmtNum(totalGross)],
+        ["12. Revenu net imposable [[11] * 80%]", totalEmployees.toString(), fmtNum(netTaxable), fmtNum(netTaxable)],
+        ["13. TOTAL MONTANT NET IMPOSABLE [[11]-[12]+[9]]", totalEmployees.toString(), fmtNum(netImposable), fmtNum(netImposable)]
+      ];
+
+      autoTable(doc, {
+        startY: salariesFinalY + 2,
+        margin: { left: 14, right: 14 },
+        head: [["N° / REVENUS NON IMPOSABLES", "EFFECTIF", "MONTANT ITS", "CONTRIBUTION EMPLOYEUR"]],
+        body: deductRows,
+        theme: "grid",
+        styles: { fontSize: 7, cellPadding: 1 },
+        headStyles: { fillColor: [240, 240, 240], textColor: [30, 30, 30], fontStyle: "bold", halign: "center" },
+        columnStyles: {
+          0: { cellWidth: 90, halign: "left" },
+          1: { cellWidth: 20, halign: "center" },
+          2: { cellWidth: 36, halign: "right" },
+          3: { cellWidth: 36, halign: "right" }
+        },
+        didParseCell: function(data) {
+          if (data.row.index === 4) {
+            data.cell.styles.fontStyle = "bold";
+          }
+        }
+      });
+
+      const deductFinalY = (doc as any).lastAutoTable?.finalY || 140;
+
+      // Section 3: Détermination de l'impôt
+      doc.setFillColor(234, 88, 12);
+      doc.rect(14, deductFinalY + 3, 182, 5, "F");
+      doc.setFontSize(8);
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
-      doc.text(`TOTAL NET IMPOTS DGI A PAYER : ${fmtNum(itsData?.totalTaxToPay)} FCFA`, 20, finalY + 20);
+      doc.text("03 DETERMINATION DE L'IMPOT", 16, deductFinalY + 7);
 
-      doc.setFontSize(9);
-      doc.setTextColor(100, 100, 100);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Fait a ${city}, le ${dateStr}`, 130, finalY + 38);
+      // D3.1 Impôts retenus aux salariés
+      doc.setFillColor(16, 185, 129);
+      doc.rect(14, deductFinalY + 8, 182, 5, "F");
+      doc.setFontSize(7.5);
+      doc.text("D3.1 IMPOTS RETENUS AUX SALARIES", 16, deductFinalY + 12);
+
+      const totalITS = itsData?.totalITS || Math.round(totalGross * 0.012);
+      const totalIGR = itsData?.totalIGR || 0;
+
+      const impotsRetenusRows = [
+        ["14. Impot sur traitements, salaires, pensions, rentes viageres (ITS)", fmtNum(totalGross), "1.20%", fmtNum(totalITS)],
+        ["15. Impot General sur le Revenu (IGR) retenu sur salaires", fmtNum(netImposable), "Taux Variable", fmtNum(totalIGR)],
+        ["TOTAL DES IMPOTS RETENUS AUX SALARIES", "", "", fmtNum(totalITS + totalIGR)]
+      ];
+
+      autoTable(doc, {
+        startY: deductFinalY + 13,
+        margin: { left: 14, right: 14 },
+        head: [["NATURE DES IMPOTS", "BASE IMPOSABLE", "TAUX", "MONTANT RETENU (FCFA)"]],
+        body: impotsRetenusRows,
+        theme: "grid",
+        styles: { fontSize: 7, cellPadding: 1 },
+        headStyles: { fillColor: [240, 240, 240], textColor: [30, 30, 30], fontStyle: "bold", halign: "center" },
+        columnStyles: {
+          0: { cellWidth: 90, halign: "left" },
+          1: { cellWidth: 32, halign: "right" },
+          2: { cellWidth: 20, halign: "center" },
+          3: { cellWidth: 40, halign: "right" }
+        },
+        didParseCell: function(data) {
+          if (data.row.index === 2) {
+            data.cell.styles.fontStyle = "bold";
+          }
+        }
+      });
+
+      const impotsFinalY = (doc as any).lastAutoTable?.finalY || 165;
+
+      // D3.2 Contributions à la charge de l'employeur
+      doc.setFillColor(16, 185, 129);
+      doc.rect(14, impotsFinalY + 2, 182, 5, "F");
+      doc.setFontSize(7.5);
+      doc.setTextColor(255, 255, 255);
+      doc.text("D3.2 CONTRIBUTIONS A LA CHARGE DE L'EMPLOYEUR", 16, impotsFinalY + 6);
+
+      const totalCE = itsData?.totalCE || Math.round(totalGross * 0.115);
+      const totalCN = Math.round(totalGross * 0.012); // Taux CN employeur standard
+
+      const contributionRows = [
+        ["17. Contribution Employeur (CE) - Personnel local", totalEmployees.toString(), fmtNum(totalGross), "11.50%", fmtNum(totalCE)],
+        ["18. Personnel expatrie (CE)", "0", "0", "11.50%", "0"],
+        ["20. Contribution Nationale (CN) - Personnel local", totalEmployees.toString(), fmtNum(totalGross), "1.20%", fmtNum(totalCN)],
+        ["TOTAL DES CONTRIBUTIONS EMPLOYEUR", totalEmployees.toString(), "", "", fmtNum(totalCE + totalCN)]
+      ];
+
+      autoTable(doc, {
+        startY: impotsFinalY + 7,
+        margin: { left: 14, right: 14 },
+        head: [["NATURE DES CONTRIBUTIONS", "EFFECTIF", "REVENUS NET IMPOSABLES", "TAUX", "MONTANT DU (FCFA)"]],
+        body: contributionRows,
+        theme: "grid",
+        styles: { fontSize: 7, cellPadding: 1 },
+        headStyles: { fillColor: [240, 240, 240], textColor: [30, 30, 30], fontStyle: "bold", halign: "center" },
+        columnStyles: {
+          0: { cellWidth: 80, halign: "left" },
+          1: { cellWidth: 16, halign: "center" },
+          2: { cellWidth: 36, halign: "right" },
+          3: { cellWidth: 18, halign: "center" },
+          4: { cellWidth: 32, halign: "right" }
+        },
+        didParseCell: function(data) {
+          if (data.row.index === 3) {
+            data.cell.styles.fontStyle = "bold";
+          }
+        }
+      });
+
+      const contrFinalY = (doc as any).lastAutoTable?.finalY || 195;
+
+      // Section 5: Recapitulation & Total à payer
+      doc.setFillColor(234, 88, 12);
+      doc.rect(14, contrFinalY + 3, 182, 5, "F");
+      doc.setFontSize(8);
+      doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
-      doc.text("CACHE ET SIGNATURE DU CONTRIBUABLE", 110, finalY + 46);
+      doc.text("05 RECAPITULATION DES IMPOTS A PAYER", 16, contrFinalY + 7);
+
+      const grandTotalTax = totalITS + totalIGR + totalCE + totalCN;
+
+      const recapRows = [
+        ["24. Impots sur Traitements et Salaires (IS)", fmtNum(totalITS)],
+        ["26. Impot General sur le Revenu (IGR) retenu aux salaries", fmtNum(totalIGR)],
+        ["28. Contribution Employeur (CE) a la charge de l'employeur", fmtNum(totalCE)],
+        ["29. Contribution Nationale (CN) a la charge de l'employeur", fmtNum(totalCN)],
+        ["MONTANT TOTAL A PAYER A LA DGI", fmtNum(grandTotalTax)]
+      ];
+
+      autoTable(doc, {
+        startY: contrFinalY + 8,
+        margin: { left: 14, right: 14 },
+        head: [["RUBRIQUE DE RECAPITULATION", "MONTANT RECAPITULE (FCFA)"]],
+        body: recapRows,
+        theme: "grid",
+        styles: { fontSize: 7.5, cellPadding: 1 },
+        headStyles: { fillColor: [240, 240, 240], textColor: [30, 30, 30], fontStyle: "bold", halign: "center" },
+        columnStyles: {
+          0: { cellWidth: 120, halign: "left" },
+          1: { cellWidth: 62, halign: "right" }
+        },
+        didParseCell: function(data) {
+          if (data.row.index === 4) {
+            data.cell.styles.fontStyle = "bold";
+          }
+        }
+      });
+
+      const recapFinalY = (doc as any).lastAutoTable?.finalY || 225;
+
+      doc.setFontSize(8);
+      doc.setTextColor(30, 30, 30);
+      doc.text(`Fait a ${city}, le ${dateStr}`, 130, recapFinalY + 8);
+      doc.setFont("helvetica", "bold");
+      doc.text("CACHE ET SIGNATURE DU CONTRIBUABLE", 110, recapFinalY + 13);
+      doc.rect(110, recapFinalY + 16, 75, 15);
 
     } else if (docType === "declaration_fdfp") {
+      // ═══════════════════════════════════════════════════════════════
+      // 25-DÉCLARATION FDFP (TA & TFC) — FORMULAIRE OFFICIEL DGI
+      // ═══════════════════════════════════════════════════════════════
+      
+      // Dessin du logo DGI officiel si présent
+      if (dgiBase64) {
+        doc.addImage(dgiBase64, "PNG", 14, 11, 20, 20);
+      }
+
+      // En-tête officiel DGI Côte d'Ivoire
+      const headerX = dgiBase64 ? 38 : 14;
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 30, 30);
+      doc.text("REPUBLIQUE DE COTE D'IVOIRE", headerX, 15);
+      doc.setFont("helvetica", "normal");
+      doc.text("Union - Discipline - Travail", headerX, 19);
+      doc.text("------", headerX, 23);
+      doc.setFont("helvetica", "bold");
+      doc.text("MINISTERE DE L'ECONOMIE ET DES FINANCES", headerX, 27);
+      doc.text("DIRECTION GENERALE DES IMPOTS", headerX, 31);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("TAXE D'APPRENTISSAGE ET TAXE", 130, 15, { align: "right" });
+      doc.text("ADDITIONNELLE A LA FORMATION CONTINUE", 130, 19, { align: "right" });
+      doc.setFont("helvetica", "normal");
+      doc.text("(Articles 143 et suivants du CGI)", 130, 23, { align: "right" });
+
+      doc.setDrawColor(100, 100, 100);
+      doc.setLineWidth(0.4);
+      doc.line(14, 35, 196, 35);
+
+      // Titre principal
       doc.setFillColor(16, 185, 129);
-      doc.rect(14, 45, 182, 12, "F");
-      doc.setFontSize(11);
+      doc.rect(14, 38, 182, 11, "F");
+      doc.setFontSize(10.5);
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
-      doc.text("DECLARATION MENSUELLE FDFP (25-DECLARATION FDFP)", 30, 53);
+      doc.text("DÉCLARATION MENSUELLE DES TAXES FDFP (TA & TFC)", 105, 45, { align: "center" });
 
-      doc.setFontSize(13);
+      // Identification du Contribuable
+      doc.setDrawColor(180, 180, 180);
+      doc.rect(14, 53, 182, 32);
+      doc.setFontSize(8);
       doc.setTextColor(30, 30, 30);
-      doc.text("TAXE DE FORMATION CONTINUE & APPRENTISSAGE (FDFP)", 20, 66);
+      doc.setFont("helvetica", "bold");
+      doc.text("01 - IDENTIFICATION DU CONTRIBUABLE", 18, 59);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Raison sociale : ${companyName}`, 18, 65);
+      doc.text(`N° Compte Contribuable (NCC) : ${cc}`, 18, 71);
+      doc.text(`Adresse : ${address}`, 18, 77);
+      doc.text(`Période d'imposition : ${month}/${year}`, 120, 65);
+      doc.text(`Ville / Commune : ${city}`, 120, 71);
+      doc.text("Régime : Réel Normal", 120, 77);
 
+      // Détermination des Taxes
       const gross = itsData?.totalGrossSalary || 0;
       const tfc = Math.round(gross * 0.012);
       const tap = Math.round(gross * 0.004);
+      const totalFdfp = tfc + tap;
 
       const fdfpItems = [
-        ["Masse Salariale Brute Soumise a FDFP", `${fmtNum(gross)} FCFA`],
-        ["Taxe de Formation Continue - TFC (1.20%)", `${fmtNum(tfc)} FCFA`],
-        ["Taxe d'Apprentissage - TAP (0.40%)", `${fmtNum(tap)} FCFA`],
-        ["TOTAL A PAYER FDFP (1.60%)", `${fmtNum(tfc + tap)} FCFA`],
+        ["2.1 TAXE D'APPRENTISSAGE (TA) (0.40%)", fmtNum(gross), "0.40%", fmtNum(tap)],
+        ["2.2 TAXE ADDITIONNELLE A LA FORMATION CONTINUE (TFC) (1.20%)", fmtNum(gross), "1.20%", fmtNum(tfc)],
+        ["TOTAL A PAYER FDFP (1.60%)", fmtNum(gross), "1.60%", fmtNum(totalFdfp)]
       ];
 
       autoTable(doc, {
-        startY: 80,
-        head: [["RUBRIQUE TAXES ET CONTRIBUTIONS FDFP", "MONTANT (FCFA)"]],
+        startY: 90,
+        margin: { left: 14, right: 14 },
+        head: [["NATURE DES TAXES", "REMUNERATIONS BRUTES TOTALES", "TAUX", "MONTANT A PAYER (FCFA)"]],
         body: fdfpItems,
         theme: "grid",
-        headStyles: { fillColor: [16, 185, 129] },
-        styles: { fontSize: 10 },
+        headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.5 },
+        styles: { fontSize: 8.5 },
+        columnStyles: {
+          0: { cellWidth: 80 },
+          1: { cellWidth: 42, halign: "right" },
+          2: { cellWidth: 20, halign: "center" },
+          3: { cellWidth: 40, halign: "right" }
+        },
+        didParseCell: function(data) {
+          if (data.row.index === 2) {
+            data.cell.styles.fontStyle = "bold";
+          }
+        }
       });
 
-      const finalY = doc.lastAutoTable?.finalY || 140;
-      doc.setFontSize(9);
-      doc.text(`Fait a ${city}, le ${dateStr}`, 130, finalY + 20);
+      const finalY = (doc as any).lastAutoTable?.finalY || 140;
+
+      // Mentions de signature
+      doc.setFontSize(8.5);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Fait a ${city}, le ${dateStr}`, 130, finalY + 12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Cachet et Signature du Contribuable", 110, finalY + 18);
+      doc.rect(110, finalY + 21, 75, 20);
 
     } else if (docType === "declaration_cnps") {
-      doc.setFillColor(14, 165, 233);
-      doc.rect(14, 45, 182, 12, "F");
-      doc.setFontSize(11);
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.text("CNPS - APPEL DE COTISATION MENSUEL (27-DECLARATION CNPS)", 20, 53);
+      // ═══════════════════════════════════════════════════════════════
+      // 27-DÉCLARATION CNPS — APPEL DE COTISATION MENSUEL (Capture 1)
+      // ═══════════════════════════════════════════════════════════════
+      
+      // Cadre d'en-tête principal
+      doc.setDrawColor(30, 30, 30);
+      doc.setLineWidth(0.5);
+      doc.rect(14, 15, 182, 22);
+      doc.line(75, 15, 75, 37);
+      doc.line(155, 15, 155, 37);
 
-      const cnpsItems = [
-        ["Nombre d'Assures en Effectif", `${cnpsData?.totalEmployees || 0}`],
-        ["Salaires Soumis a Cotisations CNPS", `${fmtNum(cnpsData?.totalGrossSalary)} FCFA`],
-        ["Cotisation Retraite Part Salariee (6.30%)", `${fmtNum(cnpsData?.cnpsEmployeeTotal)} FCFA`],
-        ["Cotisation Retraite Part Patronale (7.70%)", `${fmtNum(cnpsData?.cnpsEmployerTotal)} FCFA`],
-        ["Prestations Familiales PF (5.75%)", `${fmtNum((cnpsData?.totalGrossSalary || 0) * 0.0575)} FCFA`],
-        ["Accidents du Travail AT (3.00%)", `${fmtNum((cnpsData?.totalGrossSalary || 0) * 0.03)} FCFA`],
+      // À gauche: CNPS (avec logo officiel)
+      if (cnpsBase64) {
+        doc.addImage(cnpsBase64, "JPEG", 16, 17, 12, 12);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("CNPS", 30, 24);
+        doc.setFontSize(5);
+        doc.text("CAISSE NATIONALE DE PREVOYANCE SOCIALE", 30, 28);
+      } else {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("CNPS", 20, 24);
+        doc.setFontSize(6);
+        doc.text("CAISSE NATIONALE DE PREVOYANCE SOCIALE", 17, 28);
+      }
+
+      // Au milieu: Titre
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text("ENREGISTREMENT", 115, 20, { align: "center" });
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10.5);
+      doc.text("APPEL DE COTISATION MENSUEL", 115, 27, { align: "center" });
+
+      // À droite: Références
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.text("Ref. : EN-GDREC-01", 158, 20);
+      doc.text("Version: 03", 158, 25);
+      doc.text("Page: 1/1", 158, 30);
+
+      // Identification de l'Employeur
+      doc.rect(14, 40, 182, 25);
+      doc.line(55, 40, 55, 65);
+      doc.line(110, 40, 110, 65);
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.text("N° Employeur", 18, 44);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.text(cnps || "123456", 18, 52);
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.text("Periode", 18, 58);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.text(`${year}/${String(month).padStart(2, "0")}`, 18, 63);
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.text("Raison sociale", 58, 44);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.text(companyName, 58, 50);
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.text("Adresse", 58, 56);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text(address, 58, 61);
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.text("Telephone", 113, 44);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.text(phone || "0709670671", 113, 50);
+
+      // Calcul dynamique des catégories de salaire CNPS
+      let countCat3 = 0, sumRetCat3 = 0, sumPfCat3 = 0;
+      let countCat4 = 0, sumRetCat4 = 0, sumPfCat4 = 0;
+      let countCat5 = 0, sumRetCat5 = 0, sumPfCat5 = 0;
+
+      const details = cnpsData?.employeeDetails || [];
+      details.forEach((emp: any) => {
+        const brut = emp.grossSalary || 0;
+        if (brut <= 75000) {
+          countCat3++;
+          sumRetCat3 += brut;
+          sumPfCat3 += brut;
+        } else if (brut <= 3375000) {
+          countCat4++;
+          sumRetCat4 += brut;
+          sumPfCat4 += 75000;
+        } else {
+          countCat5++;
+          sumRetCat5 += 3375000;
+          sumPfCat5 += 75000;
+        }
+      });
+
+      const totalEmployees = details.length;
+      const totalRetraite = sumRetCat3 + sumRetCat4 + sumRetCat5;
+      const totalPfAt = sumPfCat3 + sumPfCat4 + sumPfCat5;
+
+      const matVal = Math.round(totalPfAt * 0.0075);
+      const pfVal = Math.round(totalPfAt * 0.05);
+      const atVal = Math.round(totalPfAt * 0.03);
+      const retVal = Math.round(totalRetraite * 0.14);
+      const grandTotalCNPS = matVal + pfVal + atVal + retVal;
+
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text(`TOTAL SALAIRES BRUTS PAYES AU COURS DE LA PERIODE :   ${fmtNum(cnpsData?.totalGrossSalary || 0)} F`, 14, 72);
+
+      // Tableau Catégories de salaires
+      const catRows = [
+        ["Horaires, journaliers et occasionnels inferieurs ou egaux a 3462 F par jour.", "0", "0", "0"],
+        ["Horaires, journaliers et occasionnels superieurs ou egaux a 3462 F par jour.", "0", "0", "0"],
+        ["Mensuels inferieurs ou egaux a 75.000 F par mois.", countCat3.toString(), fmtNum(sumRetCat3), fmtNum(sumPfCat3)],
+        ["Mensuels superieurs a 75.000 F par mois et inferieurs ou egaux a 3.375.000 F par mois.", countCat4.toString(), fmtNum(sumRetCat4), fmtNum(sumPfCat4)],
+        ["Mensuels superieurs a 3.375.000 F par mois.", countCat5.toString(), fmtNum(sumRetCat5), fmtNum(sumPfCat5)],
+        ["TOTAL", totalEmployees.toString(), fmtNum(totalRetraite), fmtNum(totalPfAt)]
       ];
 
       autoTable(doc, {
-        startY: 70,
-        head: [["COTISATIONS ET PRESTATIONS CNPS", "MONTANT (FCFA)"]],
-        body: cnpsItems,
-        theme: "striped",
-        headStyles: { fillColor: [14, 165, 233] },
-        styles: { fontSize: 9 },
+        startY: 76,
+        margin: { left: 14, right: 14 },
+        head: [
+          [
+            { content: "CATEGORIES DE SALAIRES", rowSpan: 2 },
+            { content: "NOMBRE DE SALARIES", rowSpan: 2 },
+            { content: "SALAIRES BRUTS SOUMIS A COTISATIONS", colSpan: 2 }
+          ],
+          [
+            "REGIME DE RETRAITE (Plafond=3.375.000 F/mois)", "REGIMES PF ET ACCIDENTS DU TRAVAIL"
+          ]
+        ],
+        body: catRows,
+        theme: "grid",
+        styles: { fontSize: 7, cellPadding: 1 },
+        headStyles: { fillColor: [240, 240, 240], textColor: [30, 30, 30], fontStyle: "bold", halign: "center" },
+        columnStyles: {
+          0: { cellWidth: 80, halign: "left" },
+          1: { cellWidth: 20, halign: "center" },
+          2: { cellWidth: 42, halign: "right" },
+          3: { cellWidth: 40, halign: "right" }
+        },
+        didParseCell: function(data) {
+          if (data.row.index === 5) {
+            data.cell.styles.fontStyle = "bold";
+          }
+        }
       });
 
-      const finalY = doc.lastAutoTable?.finalY || 150;
-      doc.setFontSize(12);
+      const catFinalY = (doc as any).lastAutoTable?.finalY || 120;
+
+      // Décompte des Cotisations Dues
+      const decRows = [
+        ["Assurance Maternite", fmtNum(totalPfAt), "0.75%", fmtNum(matVal)],
+        ["Prestations Familiales", fmtNum(totalPfAt), "5.00%", fmtNum(pfVal)],
+        ["Accidents du Travail", fmtNum(totalPfAt), "3.00%", fmtNum(atVal)],
+        ["Regime de Retraite", fmtNum(totalRetraite), "14.00%", fmtNum(retVal)],
+        ["TOTAL COTISATIONS A PAYER", "", "", fmtNum(grandTotalCNPS)]
+      ];
+
+      doc.setFontSize(8.5);
       doc.setFont("helvetica", "bold");
-      doc.text(`TOTAL CHEQUE CNPS A VERSER : ${fmtNum(cnpsData?.totalCNPSToPay)} FCFA`, 14, finalY + 15);
+      doc.text("DECOMPTE DES COTISATIONS DUES", 14, catFinalY + 8);
+
+      autoTable(doc, {
+        startY: catFinalY + 11,
+        margin: { left: 14, right: 14 },
+        head: [["Rubriques", "SALAIRES SOUMIS A COTISATION", "TAUX", "MONTANTS (Francs CFA)"]],
+        body: decRows,
+        theme: "grid",
+        styles: { fontSize: 7.5, cellPadding: 1.2 },
+        headStyles: { fillColor: [230, 230, 230], textColor: [30, 30, 30], fontStyle: "bold", halign: "center" },
+        columnStyles: {
+          0: { cellWidth: 60, halign: "left" },
+          1: { cellWidth: 50, halign: "right" },
+          2: { cellWidth: 22, halign: "center" },
+          3: { cellWidth: 50, halign: "right" }
+        },
+        didParseCell: function(data) {
+          if (data.row.index === 4) {
+            data.cell.styles.fontStyle = "bold";
+          }
+        }
+      });
+
+      const decFinalY = (doc as any).lastAutoTable?.finalY || 185;
+
+      // Mentions Légales CNPS & Signature
+      doc.setFontSize(6.5);
+      doc.setFont("helvetica", "bold");
+      doc.text("Bordereau certifie exact,", 140, decFinalY + 8);
+      doc.setFont("helvetica", "normal");
+      doc.text(`A ABIDJAN le ${dateStr}`, 140, decFinalY + 13);
+      doc.setFont("helvetica", "bold");
+      doc.text("Signature et cachet", 140, decFinalY + 18);
+      doc.rect(140, decFinalY + 21, 45, 12);
+
+      // Cadre attention à gauche
+      doc.setFontSize(6);
+      doc.rect(14, decFinalY + 8, 115, 25);
+      doc.text("ATTENTION", 18, decFinalY + 12);
+      doc.setFont("helvetica", "normal");
+      const attentionLines = [
+        "Il est vivement conseille d'annexer a la presente declaration votre titre de paiement faute de quoi vous",
+        "serez responsable du retard des pertes et des erreurs de comptabilisation.",
+        "Le titre de paiement doit etre libelle a l'ordre de la Direction Financiere et Comptable de la CNPS."
+      ];
+      attentionLines.forEach((l, idx) => {
+        doc.text(l, 18, decFinalY + 16 + (idx * 3.5));
+      });
+
+      // Cadre réservé CNPS
+      doc.rect(14, decFinalY + 38, 182, 13);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.text("CADRE RESERVE A LA C.N.P.S. (ne rien inscrire S.V.P.)", 18, decFinalY + 42);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6);
+      doc.text("Code oper.   |   Date de journee   |   N° Piece   |   Periode   |   Code Virement   |   Banque   |   Montant", 18, decFinalY + 48);
+
+    } else if (docType === "rns") {
+      // ═══════════════════════════════════════════════════════════════
+      // 17-RNS — RELEVÉ NOMINATIF DES SALAIRES (Capture 2)
+      // ═══════════════════════════════════════════════════════════════
+      
+      // Cadre principal
+      doc.setDrawColor(30, 30, 30);
+      doc.setLineWidth(0.4);
+      doc.rect(14, 15, 182, 25);
+      doc.line(100, 15, 100, 40);
+
+      // À gauche: CNPS (avec logo officiel)
+      if (cnpsBase64) {
+        doc.addImage(cnpsBase64, "JPEG", 16, 17, 12, 12);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text("CNPS", 30, 24);
+        doc.setFontSize(5.5);
+        doc.text("CAISSE NATIONALE DE PREVOYANCE SOCIALE", 30, 28);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(4.5);
+        doc.text("24, Avenue Lamblin Plateau - 01 B.P. 317 Abidjan 01 - Cote d'Ivoire", 30, 32);
+        doc.text("Tel.:(225) 20 252 100  -  Fax: (225) 327 994  -  E-mail: info@cnps.ci", 30, 36);
+      } else {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text("CNPS", 20, 24);
+        doc.setFontSize(6.5);
+        doc.text("CAISSE NATIONALE DE PREVOYANCE SOCIALE", 20, 28);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(5);
+        doc.text("24, Avenue Lamblin Plateau - 01 B.P. 317 Abidjan 01 - Cote d'Ivoire", 20, 32);
+        doc.text("Tel.:(225) 20 252 100  -  Fax: (225) 327 994  -  E-mail: info@cnps.ci", 20, 36);
+      }
+
+      // À droite: Titre du document
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10.5);
+      doc.text("RELEVE NOMINATIF DES SALAIRES", 148, 24, { align: "center" });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.text("SERVANT DE BASE AUX CALCULS", 148, 29, { align: "center" });
+      doc.text("DES COTISATIONS", 148, 33, { align: "center" });
+
+      // Tableau d'identification
+      doc.rect(14, 43, 182, 34);
+      doc.line(100, 43, 100, 77);
+      doc.line(14, 60, 196, 60);
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.text("NOM ET ADRESSE DE L'EMPLOYEUR", 18, 48);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.text(companyName, 18, 54);
+      doc.setFontSize(7.5);
+      doc.text(address, 18, 58);
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.text("N° EMPLOYEUR", 104, 48);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.text(cnps || "123456", 104, 55);
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.text("NOM ET PRENOMS DU SALARIE", 18, 65);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(userName.toUpperCase(), 18, 72);
+
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.text("DATE ET LIEU D'ETABLISSEMENT DU DOCUMENT", 104, 65);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text(`A ${city}, le ${dateStr}`, 104, 72);
+
+      // Détails du salarié
+      doc.rect(14, 80, 182, 28);
+      doc.line(65, 80, 65, 108);
+      doc.line(130, 80, 130, 108);
+
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "bold");
+      doc.text("Matricule Salarie(e) :", 18, 86);
+      doc.setFont("helvetica", "normal");
+      doc.text(empId, 18, 91);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Date d'embauche :", 18, 97);
+      doc.setFont("helvetica", "normal");
+      doc.text(joiningStr, 18, 102);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Date de cessation :", 69, 86);
+      doc.setFont("helvetica", "normal");
+      doc.text(user?.exitDate ? cleanText(new Date(user.exitDate).toLocaleDateString("fr-FR")) : "Neant", 69, 91);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Periode de cotisations :", 69, 97);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Du ${joiningStr} Au ${dateStr}`, 69, 102);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Observations :", 134, 86);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.text("CONGE ANNUEL COMPRIS", 134, 92);
+
+      // Historique des Salaires (Données RNS)
+      const rnsRows = (rnsData || []).map((item: any) => [
+        item.year.toString(),
+        fmtNumZero(item.grossCnpsSalary),
+        item.monthsWorked.toString(),
+        "N/A"
+      ]);
+
+      autoTable(doc, {
+        startY: 112,
+        margin: { left: 14, right: 14 },
+        head: [["ANNEES", "SALAIRES BRUTS ANNUELS SOUMIS A COTISATIONS C.N.P.S", "NOMBRE DE MOIS DE TRAVAIL DANS L'ANNEE", "OBSERVATIONS"]],
+        body: rnsRows.length > 0 ? rnsRows : [["N/A", "0", "0", "Aucun historique"]],
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 2, halign: "center" },
+        headStyles: { fillColor: [240, 240, 240], textColor: [30, 30, 30], fontStyle: "bold", fontSize: 7.5 },
+        columnStyles: {
+          0: { cellWidth: 25 },
+          1: { cellWidth: 70, halign: "right" },
+          2: { cellWidth: 47 },
+          3: { cellWidth: 40, halign: "left" }
+        }
+      });
+
+      const rnsFinalY = (doc as any).lastAutoTable?.finalY || 160;
+
+      // Bas de page Signature
+      doc.setFontSize(8.5);
+      doc.setFont("helvetica", "bold");
+      doc.text("NOM - SIGNATURE - CACHET", 14, rnsFinalY + 15);
+      doc.text("QUALITE DU SIGNATAIRE", 14, rnsFinalY + 20);
+      doc.rect(14, rnsFinalY + 23, 70, 16);
+
+      doc.setFontSize(6.5);
+      doc.setFont("helvetica", "bold");
+      doc.text("N.B : FOURNIR LES ELEMENTS DE RENSEIGNEMENTS DEMANDES OBLIGATOIREMENT.", 14, rnsFinalY + 45);
 
     } else {
       doc.setFontSize(16);

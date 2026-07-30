@@ -213,11 +213,14 @@ export class PayslipConfigService {
       if (!snapshot) return null;
 
       const { DEFAULT_PAYROLL_RATES } = await import("./rates-config");
+      const globalAppearance = await this.getAppearance();
+      const snapAppearance = snapshot.appearanceConfig as unknown as Partial<PayslipAppearanceConfig> & { hasLogo?: boolean };
 
       return {
         appearance: {
           ...DEFAULT_PAYSLIP_APPEARANCE,
-          ...(snapshot.appearanceConfig as unknown as Partial<PayslipAppearanceConfig>),
+          ...snapAppearance,
+          logoBase64: snapAppearance.hasLogo ? globalAppearance.logoBase64 : undefined,
         },
         legal: {
           ...DEFAULT_PAYSLIP_LEGAL,
