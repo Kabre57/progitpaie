@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Clock, LogIn, LogOut, CheckCircle } from "lucide-react";
+import { Clock, LogIn, LogOut, CheckCircle, MapPin, AlertCircle, RefreshCw, Send } from "lucide-react";
 import { ChipLoader } from "@/components/ui/chip-loader";
 import { NeuCard, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
@@ -36,32 +36,97 @@ function formatShortTime(dateStr: Date | string): string {
 
 export default function CheckInOutPanel() {
   const [currentTime, setCurrentTime] = React.useState<Date | null>(null);
-  const toast = useToast();
+  const [geoState, setGeoState] = React.useState<{
+    loading: boolean;
+    lat?: number;
+    lng?: number;
+    accuracy?: number;
+    error?: string;
+  }>({ loading: false });
 
-  const { data: todayRecord, isLoading: isFetchingToday } = useTodayAttendance();
+  const [showExceptionModal, setShowExceptionModal] = React.useState(false);
+  const [exceptionType, setExceptionType] = React.useState("MISSION");
+  const [exceptionReason, setExceptionReason] = React.useState("");
+  const [submittingException, setSubmittingException] = React.useState(false);
+
+  const toast = useToast();
+  const { data: todayRecord, refetch } = useTodayAttendance();
   const checkInMutation = useCheckIn();
   const checkOutMutation = useCheckOut();
 
-  const loading = checkInMutation.isPending || checkOutMutation.isPending;
+  const isCheckedIn = Boolean(todayRecord);
+  const isCheckedOut = Boolean(todayRecord?.checkOut);
 
   React.useEffect(() => {
     setCurrentTime(new Date());
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
+  /**
+   * Obtient les coordonnées GPS réelles de l'appareil
+   */
+  const requestGeolocation = (): Promise<{ lat: number; lng: number; accuracy: number }> => {
+    setGeoState({ loading: true });
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        const errMsg = "La géolocalisation n'est pas supportée par votre navigateur.";
+        setGeoState({ loading: false, error: errMsg });
+        reject(new Error(errMsg));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const res = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+          };
+          setGeoState({ loading: false, ...res });
+          resolve(res);
+        },
+        (err) => {
+          let errMsg = "Erreur d'accès GPS.";
+          if (err.code === err.PERMISSION_DENIED) {
+            errMsg = "Accès GPS refusé. Veuillez autoriser la géolocalisation dans votre navigateur.";
+          } else if (err.code === err.POSITION_UNAVAILABLE) {
+            errMsg = "Position GPS indisponible.";
+          } else if (err.code === err.TIMEOUT) {
+            errMsg = "Délai d'attente GPS dépassé.";
+          }
+          setGeoState({ loading: false, error: errMsg });
+          reject(new Error(errMsg));
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    });
+  };
+
+  /**
+   * Clic sur Pointer Arrivée
+   */
   const handleCheckIn = async () => {
     try {
-      await checkInMutation.mutateAsync({ outOfOffice: false });
-      toast.success("Votre arrivée a été enregistrée avec succès.");
+      const gps = await requestGeolocation();
+      await checkInMutation.mutateAsync({
+        latitude: gps.lat,
+        longitude: gps.lng,
+        accuracyMeters: gps.accuracy,
+      } as any);
+      toast.success("Votre présence au bureau a été validée par GPS.");
     } catch (error: any) {
-      toast.error(error.message || "Échec du pointage d'arrivée");
+      if (error.message?.includes("hors zone") || error.message?.includes("GPS")) {
+        setShowExceptionModal(true);
+      } else {
+        toast.error(error.message || "Échec du pointage d'arrivée");
+      }
     }
   };
 
+  /**
+   * Clic sur Pointer Départ
+   */
   const handleCheckOut = async () => {
     try {
       await checkOutMutation.mutateAsync({});
@@ -71,105 +136,156 @@ export default function CheckInOutPanel() {
     }
   };
 
-  const isCheckedIn = Boolean(todayRecord);
-  const isCheckedOut = Boolean(todayRecord?.checkOut);
-  const isCompleted = isCheckedIn && isCheckedOut;
+  /**
+   * Soumission d'une demande d'exception RH
+   */
+  const handleSubmitException = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingException(true);
+    try {
+      const res = await fetch("/api/attendance/exception", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          exceptionType,
+          exceptionReason,
+          latitude: geoState.lat,
+          longitude: geoState.lng,
+        }),
+      });
 
-  const getStatusInfo = () => {
-    if (!isCheckedIn || !todayRecord) {
-      return {
-        text: "Non pointé aujourd'hui",
-        color: "text-[var(--neu-text-muted)]",
-      };
+      const json = await res.json();
+      if (json.success) {
+        toast.success("Demande d'exception transmise à la RH.");
+        setShowExceptionModal(false);
+        setExceptionReason("");
+        refetch();
+      } else {
+        toast.error(json.error || "Erreur de soumission");
+      }
+    } catch (err) {
+      toast.error("Erreur serveur");
+    } finally {
+      setSubmittingException(false);
     }
-    if (!isCheckedOut) {
-      return {
-        text: `Arrivé à ${formatShortTime(todayRecord.checkIn)}`,
-        color: "text-[var(--neu-success)]",
-      };
-    }
-    return {
-      text: `Départ enregistré — ${todayRecord.hoursWorked?.toFixed(1) || 0}h effectuées`,
-      color: "text-[var(--neu-accent)]",
-    };
-  };
-
-  const statusInfo = getStatusInfo();
-
-  const getBadgeVariant = (status?: string): "success" | "warning" | "error" | "info" => {
-    if (status === "present") return "success";
-    if (status === "late") return "warning";
-    if (status === "absent") return "error";
-    return "info";
   };
 
   return (
     <NeuCard className="w-full">
-      <NeuCardContent className="p-8">
-        <div className="flex flex-col items-center space-y-6">
-          {/* Horloge en direct */}
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <Clock className="w-5 h-5 md:w-6 md:h-6 text-[var(--neu-accent)]" />
-              <span className="text-3xl md:text-5xl font-bold text-[var(--neu-text)] tracking-tight" suppressHydrationWarning>
-                {currentTime ? formatTime(currentTime) : "--:--:--"}
-              </span>
-            </div>
-            <p className="text-lg text-[var(--neu-text-secondary)] capitalize" suppressHydrationWarning>
-              {currentTime ? formatDate(currentTime) : "Chargement..."}
-            </p>
+      <NeuCardContent className="p-6 space-y-6">
+        {/* HORLOGE CENTRALE */}
+        <div className="text-center space-y-2">
+          <div className="flex items-center justify-center gap-2 text-sm text-[var(--neu-text-subtle)] font-medium">
+            <Clock className="w-4 h-4 text-emerald-500" />
+            <span className="capitalize">{currentTime ? formatDate(currentTime) : "Chargement..."}</span>
           </div>
 
-          {/* Indicateur de Statut */}
-          <div className="flex items-center gap-3">
-            <span className={`text-lg font-medium ${statusInfo.color}`}>
-              {statusInfo.text}
-            </span>
-            {isCheckedIn && todayRecord?.status && (
-              <NeuBadge variant={getBadgeVariant(todayRecord.status)}>
-                {todayRecord.status === "present" ? "Présent" : todayRecord.status === "late" ? "En Retard" : todayRecord.status}
-              </NeuBadge>
+          <div className="text-4xl font-extrabold tracking-tight font-mono text-[var(--neu-text)]">
+            {currentTime ? formatTime(currentTime) : "--:--:--"}
+          </div>
+
+          {/* INDICATEUR GPS EN TEMPS RÉEL */}
+          <div className="flex items-center justify-center gap-2 text-xs font-semibold">
+            {geoState.loading ? (
+              <span className="text-blue-500 flex items-center gap-1">
+                <RefreshCw size={12} className="animate-spin" /> Recherche de votre position GPS...
+              </span>
+            ) : geoState.lat ? (
+              <span className="text-emerald-600 flex items-center gap-1 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                <MapPin size={12} /> GPS Détecté (Précision ±{Math.round(geoState.accuracy || 0)}m)
+              </span>
+            ) : geoState.error ? (
+              <span className="text-rose-500 flex items-center gap-1 bg-rose-500/10 px-2.5 py-1 rounded-full border border-rose-500/20">
+                <AlertCircle size={12} /> {geoState.error}
+              </span>
+            ) : (
+              <span className="text-[var(--neu-text-subtle)] flex items-center gap-1">
+                <MapPin size={12} /> Pointage conditionné au bureau (Geofencing GPS)
+              </span>
             )}
           </div>
+        </div>
 
-          {/* Boutons d'action React Query */}
-          {isFetchingToday ? (
-            <div className="w-full flex justify-center py-4">
-              <ChipLoader size="sm" />
-            </div>
-          ) : isCompleted ? (
+        {/* BOUTON PRINCIPAL DE POINTAGE */}
+        <div className="flex justify-center pt-2">
+          {!isCheckedIn ? (
             <NeuButton
-              size="lg"
-              disabled
-              className="w-48 h-14 text-lg opacity-60"
-            >
-              <CheckCircle className="w-5 h-5" />
-              Pointage Terminé
-            </NeuButton>
-          ) : !isCheckedIn ? (
-            <NeuButton
-              variant="accent"
-              size="lg"
-              loading={loading}
               onClick={handleCheckIn}
-              className="w-48 h-14 text-lg bg-[var(--neu-success)] hover:brightness-110"
+              disabled={checkInMutation.isPending || geoState.loading}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg"
             >
-              <LogIn className="w-5 h-5" />
-              Pointer l'Arrivée
+              <LogIn size={20} />
+              {geoState.loading ? "Acquisition GPS..." : "Pointer mon Arrivée"}
+            </NeuButton>
+          ) : !isCheckedOut ? (
+            <NeuButton
+              onClick={handleCheckOut}
+              disabled={checkOutMutation.isPending}
+              className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg"
+            >
+              <LogOut size={20} />
+              Pointer mon Départ
             </NeuButton>
           ) : (
-            <NeuButton
-              size="lg"
-              loading={loading}
-              onClick={handleCheckOut}
-              className="w-48 h-14 text-lg bg-[var(--neu-warning)] text-[var(--neu-bg)] hover:brightness-110"
-            >
-              <LogOut className="w-5 h-5" />
-              Pointer le Départ
-            </NeuButton>
+            <div className="flex items-center gap-2 text-emerald-600 bg-emerald-500/10 px-6 py-3 rounded-2xl font-bold border border-emerald-500/20">
+              <CheckCircle size={20} />
+              Journée de travail clôturée
+            </div>
           )}
         </div>
       </NeuCardContent>
+
+      {/* MODALE DE DEMANDE D'EXCEPTION RH */}
+      {showExceptionModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[var(--neu-bg)] border border-[var(--neu-border)] p-6 rounded-2xl max-w-md w-full space-y-4 shadow-xl">
+            <div className="flex items-center gap-2 text-amber-500 font-bold text-lg">
+              <AlertCircle size={24} />
+              Pointage Hors Zone / Exception RH
+            </div>
+
+            <p className="text-xs text-[var(--neu-text-subtle)]">
+              Vous êtes situé en dehors du rayon autorisé ou votre GPS est indisponible. Veuillez formuler une demande d'exception au service RH.
+            </p>
+
+            <form onSubmit={handleSubmitException} className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-[var(--neu-text-subtle)] block mb-1">Motif de l'exception *</label>
+                <select
+                  value={exceptionType}
+                  onChange={(e) => setExceptionType(e.target.value)}
+                  className="w-full p-2 text-xs rounded-xl bg-[var(--neu-bg-subtle)] border border-[var(--neu-border)] text-[var(--neu-text)] outline-none"
+                >
+                  <option value="MISSION">Mission extérieure / Déplacement client</option>
+                  <option value="REMOTE">Télétravail non programmé</option>
+                  <option value="GPS_FAILURE">Problème d'appareil / GPS bloqué</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[var(--neu-text-subtle)] block mb-1">Justification détaillée *</label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="Explication claire du déplacement..."
+                  value={exceptionReason}
+                  onChange={(e) => setExceptionReason(e.target.value)}
+                  className="w-full p-2 text-xs rounded-xl bg-[var(--neu-bg-subtle)] border border-[var(--neu-border)] text-[var(--neu-text)] outline-none resize-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <NeuButton type="button" onClick={() => setShowExceptionModal(false)}>
+                  Annuler
+                </NeuButton>
+                <NeuButton type="submit" disabled={submittingException} className="bg-amber-600 text-white flex items-center gap-1">
+                  <Send size={14} /> Soumettre la Demande
+                </NeuButton>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </NeuCard>
   );
 }

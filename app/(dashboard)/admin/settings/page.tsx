@@ -12,6 +12,7 @@ import { SalaryGridCard } from "@/components/settings/salary-grid-card";
 import { OtherParamsCard, OtherParamsData } from "@/components/settings/other-params-card";
 import { BanksSettingsCard, BankItem } from "@/components/settings/banks-settings-card";
 import { LocationSettingsCard, LocationData } from "@/components/settings/location-settings-card";
+import GeolocationConfig from "@/components/settings/geolocation-config";
 import { PayslipCustomizerCard } from "@/components/settings/payslip-customizer-card";
 import { DEFAULT_PAYROLL_RATES } from "@/lib/rates-config";
 import {
@@ -370,13 +371,21 @@ export default function AdminSettingsPage() {
         />
       )}
 
-      {/* Tab 6: Géolocalisation */}
+      {/* Tab 6: Géolocalisation & Geofence (Carte Interactive 📍) */}
       {activeTab === "location" && (
-        <LocationSettingsCard
-          location={location}
-          setLocation={setLocation}
-          onSave={() => saveSettingsKey("location", location)}
-          saving={saving}
+        <GeolocationConfig
+          initialLat={location.officeLat}
+          initialLng={location.officeLng}
+          initialRadius={location.radiusMeters}
+          onSave={(data) => {
+            setLocation({
+              ...location,
+              officeLat: data.latitude,
+              officeLng: data.longitude,
+              radiusMeters: data.radiusMeters,
+            });
+            setToast({ message: "Coordonnées GPS et rayon enregistrés avec succès.", type: "success" });
+          }}
         />
       )}
 

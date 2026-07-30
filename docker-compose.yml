@@ -1,0 +1,71 @@
+version: '3.8'
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PROGITPAIE — Docker Compose Infrastructure de Production VPS 🏢
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  # 1. Application PROGITPAIE (Next.js)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: progitpaie-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3300:3000"  # Exposé STRICTEMENT en local pour le Nginx du VPS
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://progitpaie:${DB_PASSWORD:-ProgitpaieSecure2026!}@postgres:5432/progitpaie?schema=public
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-progitpaie_super_secret_jwt_key_2026}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./uploads:/app/public/uploads
+    networks:
+      - progitpaie-net
+
+  # 2. Base de données PostgreSQL (Port 5433 en local uniquement)
+  postgres:
+    image: postgres:15-alpine
+    container_name: progitpaie-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=progitpaie
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-ProgitpaieSecure2026!}
+      - POSTGRES_DB=progitpaie
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"  # Accessible uniquement depuis 127.0.0.1 (Jamais public!)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U progitpaie -d progitpaie"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - progitpaie-net
+
+  # 3. Cache In-Memory Redis
+  redis:
+    image: redis:7-alpine
+    container_name: progitpaie-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6380:6379"  # Accessible uniquement en local
+    volumes:
+      - redis_data:/data
+    networks:
+      - progitpaie-net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  progitpaie-net:
+    driver: bridge

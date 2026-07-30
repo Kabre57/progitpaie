@@ -113,6 +113,13 @@ enum DeclarationType {
   DISA
 }
 
+/// Type de présence au travail (Pointage Géolocalisé 📍)
+enum WorkType {
+  ONSITE
+  REMOTE
+  HYBRID
+}
+
 // ═══════════════════════════════════════════════
 // MODÈLES DE DONNÉES (TABLES)
 // ═══════════════════════════════════════════════
@@ -170,6 +177,7 @@ model User {
   leaveBalanceCasual Int              @default(5)
 
   companyId          String?          // Entité juridique de rattachement (Multicompany 🏢)
+  workType           WorkType         @default(ONSITE) // Type de présence (ONSITE, REMOTE, HYBRID)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
@@ -212,6 +220,15 @@ model Attendance {
   notes           String           @default("") // Notes ou motifs
   locationLat     Float?           // Latitude GPS lors du pointage
   locationLng     Float?           // Longitude GPS lors du pointage
+  accuracyMeters  Float?           // Précision GPS estimée HTML5 (en mètres)
+  distanceMeters  Float?           // Distance calculée au bureau (en mètres)
+  isWithinFence   Boolean          @default(true) // Dans le rayon autorisé
+  
+  // Demande d'exception RH (Mission, Télétravail, Problème GPS)
+  exceptionStatus String?          // PENDING, APPROVED, REJECTED
+  exceptionType   String?          // MISSION, REMOTE, GPS_FAILURE
+  exceptionReason String?          // Motif rédigé par l'employé
+
   overriddenById  String?          // Modifié par (Admin ID)
   overriddenAt    DateTime?        // Date de modification admin
   outOfOffice     Boolean          @default(false) // Mission extérieure
@@ -615,6 +632,9 @@ model Company {
   country     String?  @default("Côte d'Ivoire")
   phone       String?  // Téléphone
   email       String?  // Email officiel
+  latitude    Float?   @default(5.3484) // Latitude GPS du siège / bureau (ex: Abidjan 5.3484)
+  longitude   Float?   @default(-4.0305) // Longitude GPS du siège / bureau (ex: Abidjan -4.0305)
+  radiusMeters Float   @default(100.0) // Rayon d'autorisation de pointage en mètres (ex: 100m)
   isMain      Boolean  @default(false) // Entreprise principale par défaut
   isActive    Boolean  @default(true)
 
