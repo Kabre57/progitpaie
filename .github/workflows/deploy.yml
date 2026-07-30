@@ -1,0 +1,56 @@
+name: Déploiement Automatique PROGITPAIE sur VPS (GitOps) 🚀
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  deploy:
+    name: Build & Deploy via SSH
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Récupération du code source (Checkout)
+        uses: actions/checkout@v4
+
+      - name: 🚀 Exécution du Déploiement sur le VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}       # IP VPS: 180.149.199.203
+          username: ${{ secrets.VPS_USER }}   # Utilisateur: root ou ubuntu
+          key: ${{ secrets.VPS_SSH_KEY }}     # Clé privée SSH
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            echo "====================================================="
+            echo "🚀 Début du Déploiement PROGITPAIE via GitHub Actions"
+            echo "====================================================="
+
+            # 1. Aller dans le dossier /opt/progitpaie
+            mkdir -p /opt/progitpaie
+            cd /opt/progitpaie
+
+            # 2. Si le dépôt n'est pas encore cloné sur le VPS
+            if [ ! -d .git ]; then
+              echo "📦 Premier clonage du dépôt GitHub..."
+              git clone https://github.com/${{ github.repository }}.git .
+            else
+              echo "🔄 Récupération des dernières modifications..."
+              git fetch origin main
+              git reset --hard origin/main
+            fi
+
+            # 3. Sécurisation des ports UFW si le script existe
+            if [ -f secure-ports.sh ]; then
+              chmod +x secure-ports.sh
+              ./secure-ports.sh
+            fi
+
+            # 4. Lancement de la construction et des conteneurs Docker
+            chmod +x deploy.sh
+            ./deploy.sh
+
+            echo "====================================================="
+            echo "✅ Déploiement terminé avec succès !"
+            echo "====================================================="
