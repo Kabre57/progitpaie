@@ -16,6 +16,6 @@ cd "$APP_DIR" || exit 1
 git reset --hard HEAD~1
 
 # Relance des conteneurs
-docker compose up -d --build progitpaie-app
+docker compose up -d --build app || docker compose up -d
 
 echo "✅ Rollback exécuté avec succès en moins de 30 secondes."

@@ -18,11 +18,11 @@ git reset --hard origin/main
 
 # 2. Construction de la nouvelle image Docker sans interrompre l'ancienne
 echo "🏗️ Construction de la nouvelle image Docker..."
-docker compose build progitpaie-app
+docker compose build app || docker compose build
 
 # 3. Relance du conteneur en mode Rolling Update
 echo "🔄 Relance du conteneur d'application..."
-docker compose up -d --no-deps --build progitpaie-app
+docker compose up -d --no-deps --build app || docker compose up -d
 
 # 4. Attente et vérification du Health Check
 echo "⏳ Vérification du Health Check (/api/health)..."
