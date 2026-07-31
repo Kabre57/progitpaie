@@ -200,7 +200,7 @@ const nextConfig: NextConfig = {
 ## 12. Questions / Points d’ombre
 
 1. **Pourquoi `mongoose` est-il dans le `package.json` ?** Le projet utilise Prisma pour la base de données, ce qui rend Mongoose totalement inutile. Cela alourdit le dossier `node_modules`.
-2. **Le calcul des taxes (Côte d'Ivoire / SYSCOHADA) est-il à jour ?** La logique fiscale est complexe et propre à un pays (`lib/payroll-tax.ts`). Aucune documentation ou commentaire n'indique la date de mise à jour de ce barème, ce qui représente un risque légal si les lois changent.
+2. **Le calcul des taxes (Côte d'Ivoire /  ) est-il à jour ?** La logique fiscale est complexe et propre à un pays (`lib/payroll-tax.ts`). Aucune documentation ou commentaire n'indique la date de mise à jour de ce barème, ce qui représente un risque légal si les lois changent.
 3. **Gestion de la concurrence (Race Conditions)** : Dans la route `api/attendance/check-in`, si un employé double-clique sur le bouton "Check-in", deux requêtes peuvent arriver presque simultanément. Prisma gère bien les transactions, mais une vérification explicite (ex: lock sur la date ou validation en base de données avant création) serait plus sûre que la vérification initiale en mémoire.
 4. **Absence de pagination côté API pour certains endpoints** : Certaines routes (comme la liste des employés ou des feuilles de temps) paginent les résultats, mais d'autres (comme les exports Excel) chargent tout en mémoire, ce qui pourrait causer des *Out Of Memory* (OOM) sur Vercel si le dataset est trop gros.
 

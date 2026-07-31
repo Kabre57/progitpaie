@@ -148,7 +148,7 @@ export async function PATCH(
     await createNotification({
       userId: payroll.userId,
       title: "Payslip Published",
-      message: `Your payslip for ${monthName} ${payroll.year} has been generated and is now available for download.`,
+      message: `Votre fiche de paie ${monthName} ${payroll.year} a été généré et est désormais disponible au téléchargement.`,
       type: "success",
       link: "/employee/payslip",
     });

@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════
-// Schéma Prisma progitpaie — Suite Complète RH, Paie & Comptabilité SYSCOHADA
+// Schéma Prisma progitpaie — Suite Complète RH, Paie & Comptabilité  
 // ════════════════════════════════════════════════════════════════════════
 
 generator client {
@@ -489,13 +489,13 @@ model LoanSchedule {
   @@map("loan_schedules")
 }
 
-/// Table des Imputations Comptables (Journal de Paie SYSCOHADA)
+/// Table des Imputations Comptables (Journal de Paie  )
 model AccountingEntry {
   id            String   @id @default(cuid())
   payrollId     String   // Fiche de paie rattachée
   journalDate   DateTime @default(now()) // Date de l'écriture
   pieceNumber   String   // N° de pièce comptable
-  accountNumber String   // N° de compte SYSCOHADA (ex: 661100, 447200, 431310, 422000)
+  accountNumber String   // N° de compte   (ex: 661100, 447200, 431310, 422000)
   accountName   String   // Intitulé du compte (ex: Appointements & Salaires, Impôts sur Salaires)
   debit         Float    @default(0) // Montant au Débit
   credit        Float    @default(0) // Montant au Crédit

@@ -145,7 +145,7 @@ export interface PayslipResult {
   readonly netToPay: number;         // Net à payer (après retenue prêt)
   // Métadonnées
   readonly calculatedAt: string;      // ISO date
-  readonly formulaVersion: string;    // ex: "SYSCOHADA-CI-2024-v1"
+  readonly formulaVersion: string;    // ex: " -CI-2024-v1"
 }
 
 // ─── Données de déclarations ─────────────────────────────────────────────────

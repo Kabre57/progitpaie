@@ -172,6 +172,6 @@ export function calculatePayslip(
     netSalary,
     netToPay,
     calculatedAt: new Date().toISOString(),
-    formulaVersion: `SYSCOHADA-CI-${igrSchedule.validFrom.substring(0, 4)}-v1`,
+    formulaVersion: ` -CI-${igrSchedule.validFrom.substring(0, 4)}-v1`,
   };
 }

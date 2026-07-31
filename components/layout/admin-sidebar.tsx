@@ -47,7 +47,7 @@ const navItems = [
   { name: "Relevé RNS CNPS", href: "/admin/rns", icon: ShieldCheck },
   { name: "Prêts & Avances", href: "/admin/loans", icon: CreditCard },
   { name: "Solde Tout Compte", href: "/admin/severance", icon: UserX },
-  { name: "Comptabilité SYSCOHADA", href: "/admin/accounting", icon: BookOpen },
+  { name: "Comptabilité  ", href: "/admin/accounting", icon: BookOpen },
   { name: "Provisions Congés & Retraite", href: "/admin/provisions", icon: PieChart },
   { name: "Déclarations Fiscales & CNPS", href: "/admin/declarations", icon: FileSpreadsheet },
   { name: "Planning & Horaires", href: "/admin/shifts", icon: Clock },

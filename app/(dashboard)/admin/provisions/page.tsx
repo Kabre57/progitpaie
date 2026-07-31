@@ -163,7 +163,7 @@ export default function ProvisionsPage() {
       {activeTab === "leaves" ? (
         <NeuCard>
           <NeuCardHeader className="p-4 border-b border-[var(--neu-border)]">
-            <NeuCardTitle className="text-lg font-bold">37-PROVISION POUR CONGÉS PAYÉS NON PRIS</NeuCardTitle>
+            <NeuCardTitle className="text-lg font-bold">37PROVISION POUR CONGÉS PAYÉS NON PRIS</NeuCardTitle>
           </NeuCardHeader>
           <NeuCardContent className="p-0 overflow-x-auto">
             <table className="w-full text-left border-collapse text-sm">

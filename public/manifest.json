@@ -1,0 +1,22 @@
+{
+  "name": "PROGITPAIE — RH & Paie Côte d'Ivoire",
+  "short_name": "PROGITPAIE",
+  "description": "Application SaaS de Gestion de la Paie, Pointage Géolocalisé GPS et RH.",
+  "start_url": "/login",
+  "display": "standalone",
+  "background_color": "#080d19",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

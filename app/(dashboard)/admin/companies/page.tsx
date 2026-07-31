@@ -218,7 +218,7 @@ export default function MulticompanyAdminPage() {
       {/* MODALE CRÉATION D'ENTREPRISE */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-[var(--neu-bg)] border border-[var(--neu-border)] p-6 rounded-2xl max-w-lg w-full space-y-4 shadow-xl">
+          <div className="bg-[var(--neu-bg)] border border-[var(--neu-border)] p-6 rounded-2xl max-w-2xl w-full space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-[var(--neu-text)]">Ajouter une Entité Juridique</h3>
 
             <form onSubmit={handleSubmit} className="space-y-3">

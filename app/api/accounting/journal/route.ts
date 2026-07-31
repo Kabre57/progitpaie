@@ -12,7 +12,7 @@ export interface JournalRow {
   credit: number;
 }
 
-// GET /api/accounting/journal?month=1&year=2026 - Journal d'imputations comptables SYSCOHADA
+// GET /api/accounting/journal?month=1&year=2026 - Journal d'imputations comptables  
 export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {

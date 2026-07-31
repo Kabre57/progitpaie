@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { AuthUI } from "@/components/ui/auth-fuse";
 
 interface LoginResponse {
@@ -19,7 +18,6 @@ interface LoginResponse {
 }
 
 export default function LoginPage() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,12 +37,12 @@ export default function LoginPage() {
       const result: LoginResponse = await response.json();
 
       if (!response.ok || !result.success) {
-        setError(result.error || "Login failed. Please try again.");
+        setError(result.error || "Échec de connexion. Veuillez vérifier vos identifiants.");
         setIsLoading(false);
         return;
       }
 
-      // Redirect based on role with a full page refresh
+      // Redirection selon le rôle utilisateur
       const userRole = result.data?.user?.role;
       if (userRole === "admin") {
         window.location.href = "/admin";
@@ -52,7 +50,7 @@ export default function LoginPage() {
         window.location.href = "/employee";
       }
     } catch (err) {
-      setError("An unexpected error occurred. Please try again.");
+      setError("Une erreur inattendue est survenue. Veuillez réessayer.");
       console.error("Login error:", err);
       setIsLoading(false);
     }
@@ -66,7 +64,7 @@ export default function LoginPage() {
       signInContent={{
         quote: {
           text: "Ravi de vous revoir ! Suivez les pointages, gérez les congés et simplifiez la paie de vos équipes.",
-          author: "Équipe progitpaie"
+          author: "Équipe PROGITPAIE"
         }
       }}
     />

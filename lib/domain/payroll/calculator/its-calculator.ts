@@ -6,7 +6,7 @@
  * Strategy Pattern : Calcule l'ITS, la Contribution Nationale (CN),
  * la Contribution Employeur (CE) et l'Impôt Général sur le Revenu (IGR).
  *
- * Barème applicable : Côte d'Ivoire (SYSCOHADA)
+ * Barème applicable : Côte d'Ivoire ( )
  * ADR-001 : Fonction pure, testable unitairement, zéro side effect.
  * ═══════════════════════════════════════════════════════════════════════════════
  */

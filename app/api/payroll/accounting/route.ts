@@ -49,7 +49,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     const fdfpTap = Math.round(totalGross * 0.004);
     const totalFdfp = fdfpTfc + fdfpTap;
 
-    // Journal comptable SYSCOHADA (28-IMPUTATIONS COMPTABLES)
+    // Journal comptable   (28-IMPUTATIONS COMPTABLES)
     const journalVouchers = [
       { account: "661100", label: "Salaires de base", debit: totalBasic + totalSursalaire, credit: 0 },
       { account: "661200", label: "Primes, indemnités et gratifications", debit: totalBonuses, credit: 0 },
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   } catch (error) {
     console.error("Accounting journal error:", error);
     return NextResponse.json(
-      { success: false, error: "Échec du calcul du journal comptable SYSCOHADA" },
+      { success: false, error: "Échec du calcul du journal comptable  " },
       { status: 500 }
     );
   }

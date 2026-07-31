@@ -56,7 +56,7 @@ const NeuDialog: React.FC<NeuDialogProps> = ({
       {/* Dialog content */}
       <div
         className={cn(
-          "relative z-10 w-full max-w-md",
+          "relative z-10 w-full max-w-2xl md:max-w-3xl max-h-[90vh] overflow-y-auto",
           "bg-[var(--neu-surface)]",
           "border border-[var(--neu-border)]",
           "rounded-[var(--neu-radius)]",

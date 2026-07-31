@@ -50,10 +50,10 @@ export default function AccountingPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[var(--neu-text)] flex items-center gap-2">
-            <BookOpen className="text-[var(--neu-accent)]" /> Journal des Imputations Comptables SYSCOHADA 
+            <BookOpen className="text-[var(--neu-accent)]" /> Journal des Imputations Comptables   
           </h1>
           <p className="text-[var(--neu-text-secondary)] text-sm mt-1">
-            Génération automatique des pièces comptables de paie conformes au plan comptable SYSCOHADA.
+            Génération automatique des pièces comptables de paie conformes au plan comptable  .
           </p>
         </div>
 
@@ -110,7 +110,7 @@ export default function AccountingPage() {
         </div>
 
         <NeuBadge variant={isBalanced ? "success" : "danger"}>
-          {isBalanced ? "SYSCOHADA OK" : "ERREUR BALANCE"}
+          {isBalanced ? "  OK" : "ERREUR BALANCE"}
         </NeuBadge>
       </NeuCard>
 
@@ -123,7 +123,7 @@ export default function AccountingPage() {
           <table className="w-full text-left border-collapse text-sm">
             <thead>
               <tr className="border-b border-[var(--neu-border)] bg-[var(--neu-surface-light)] text-[var(--neu-text-secondary)] uppercase text-[11px] font-semibold tracking-wider">
-                <th className="px-4 py-3">Compte Général SYSCOHADA</th>
+                <th className="px-4 py-3">Compte Général  </th>
                 <th className="px-4 py-3">Intitulé du Compte / Libellé d'Écriture</th>
                 <th className="px-4 py-3 text-right">Débit (FCFA)</th>
                 <th className="px-4 py-3 text-right">Crédit (FCFA)</th>

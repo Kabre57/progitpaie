@@ -1,0 +1,33 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "title": "Statut Application & DB",
+      "type": "stat",
+      "targets": [{ "expr": "progitpaie_up", "legendFormat": "App Up" }]
+    },
+    {
+      "title": "Utilisation Mémoire Heap (MB)",
+      "type": "timeseries",
+      "targets": [{ "expr": "progitpaie_memory_heap_bytes / 1024 / 1024", "legendFormat": "Heap Used MB" }]
+    },
+    {
+      "title": "Uptime Serveur (Secondes)",
+      "type": "stat",
+      "targets": [{ "expr": "progitpaie_uptime_seconds", "legendFormat": "Uptime" }]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["progitpaie", "monitoring"],
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "PROGITPAIE Real-time Monitoring Dashboard",
+  "uid": "progitpaie-dashboard"
+}

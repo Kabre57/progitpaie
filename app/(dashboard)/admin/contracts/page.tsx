@@ -295,7 +295,7 @@ export default function ContractsPage() {
       {/* Modal Création Contrat */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <NeuCard className="w-full max-w-xl p-6 space-y-4">
+          <NeuCard className="w-full max-w-3xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-[var(--neu-text)] flex items-center gap-2 border-b border-[var(--neu-border)] pb-3">
               <FileText className="text-[var(--neu-accent)]" /> Nouveau Contrat de Travail
             </h2>

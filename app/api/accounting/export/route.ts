@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/middleware-helpers";
 import * as XLSX from "xlsx";
 import { ApiResponse } from "@/types";
 
-// GET /api/accounting/export?month=1&year=2026 - Exporter le journal comptable SYSCOHADA
+// GET /api/accounting/export?month=1&year=2026 - Exporter le journal comptable  
 export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown> | Buffer>> {
@@ -75,7 +75,7 @@ export async function GET(
       { wch: 15 },
     ];
 
-    XLSX.utils.book_append_sheet(wb, ws, "SYSCOHADA Journal");
+    XLSX.utils.book_append_sheet(wb, ws, "  Journal");
 
     const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
 

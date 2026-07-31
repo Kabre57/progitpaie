@@ -119,7 +119,7 @@ export async function POST(
     // 1. Indemnité de préavis (si non effectué)
     const noticeIndemnity = Math.round((noticeDays || 0) * perDaySalary);
 
-    // 2. Indemnité de licenciement / retraite selon le barème de la convention collective (CI / OHADA / SYSCOHADA)
+    // 2. Indemnité de licenciement / retraite selon le barème de la convention collective (CI / OHADA /  )
     // - 30% du salaire moyen pour les 5 premières années
     // - 35% de la 6ème à la 10ème année
     // - 40% au-delà de 10 ans

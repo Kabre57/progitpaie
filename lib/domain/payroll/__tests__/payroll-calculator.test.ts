@@ -287,7 +287,7 @@ describe("PayslipCalculator — Calcul Complet", () => {
     expect(result.netSalary).toBeGreaterThan(0);
 
     // Métadonnées
-    expect(result.formulaVersion).toContain("SYSCOHADA-CI");
+    expect(result.formulaVersion).toContain(" -CI");
     expect(result.calculatedAt).toBeTruthy();
   });
 

@@ -170,7 +170,7 @@ export default function DeclarationsPage() {
                   onClick={() => handlePrintPdf("etat_301", "etat-301-dgi")}
                   loading={downloadingDoc === "etat_301"}
                 >
-                  <FileText className="w-4 h-4 mr-2 text-indigo-400" /> Imprimer État 301 DGI PDF (31/32)
+                  <FileText className="w-4 h-4 mr-2 text-indigo-400" /> Imprimer État 301 DGI PDF
                 </NeuButton>
               </div>
             </div>
@@ -185,7 +185,7 @@ export default function DeclarationsPage() {
                 <FileSpreadsheet size={24} />
               </div>
               <div>
-                <h3 className="font-bold text-lg text-[var(--neu-text)]">25-DÉCLARATION FDFP (1.6%)</h3>
+                <h3 className="font-bold text-lg text-[var(--neu-text)]">DÉCLARATION FDFP (1.6%)</h3>
                 <p className="text-xs text-[var(--neu-text-secondary)]">Fonds de Développement de la Formation Professionnelle</p>
               </div>
             </div>
@@ -234,7 +234,7 @@ export default function DeclarationsPage() {
                 <ShieldCheck size={24} />
               </div>
               <div>
-                <h3 className="font-bold text-lg text-[var(--neu-text)]">27-DÉCLARATION CNPS & 34-DISA / 35-DASC</h3>
+                <h3 className="font-bold text-lg text-[var(--neu-text)]">DÉCLARATION CNPS & -DISA / DASC</h3>
                 <p className="text-xs text-[var(--neu-text-secondary)]">Caisse Nationale de Prévoyance Sociale (Côte d'Ivoire)</p>
               </div>
             </div>
@@ -279,7 +279,7 @@ export default function DeclarationsPage() {
               loading={downloadingDoc === "declaration_cnps"}
               className="flex-1"
             >
-              <Printer className="w-4 h-4 mr-2" /> Imprimer CNPS PDF (27)
+              <Printer className="w-4 h-4 mr-2" /> Imprimer CNPS PDF
             </NeuButton>
             <NeuButton
               variant="ghost"
@@ -287,7 +287,7 @@ export default function DeclarationsPage() {
               loading={downloadingDoc === "disa_cnps"}
               className="flex-1"
             >
-              <FileText className="w-4 h-4 mr-2 text-sky-400" /> Imprimer DISA / DASC CNPS PDF (34/35)
+              <FileText className="w-4 h-4 mr-2 text-sky-400" /> Imprimer DISA / DASC CNPS PDF
             </NeuButton>
           </div>
         </NeuCard>

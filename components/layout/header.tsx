@@ -60,7 +60,7 @@ export function Header() {
       rns: "Relevé RNS CNPS",
       loans: "Prêts & Avances",
       severance: "Solde Tout Compte",
-      accounting: "Comptabilité SYSCOHADA",
+      accounting: "Comptabilité  ",
       provisions: "Provisions Congés & Retraite",
       declarations: "Déclarations Fiscales & CNPS",
       shifts: "Planning & Horaires",

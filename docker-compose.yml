@@ -1,3 +1,5 @@
+version: '3.8'
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # PROGITPAIE — Docker Compose Infrastructure de Production VPS 🏢
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -11,16 +13,13 @@ services:
     container_name: progitpaie-app
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3300:3000"  # Exposé STRICTEMENT en local pour le Nginx du VPS
+      - "127.0.0.1:3500:3000"  # Port 3500 libre pour vos tests locaux et Nginx
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must be set}
+      - DATABASE_URL=postgresql://progitpaie:${DB_PASSWORD:-ProgitpaieSecure2026!}@postgres:5432/progitpaie?schema=public
       - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY must be set}
+      - JWT_SECRET=${JWT_SECRET:-progitpaie_super_secret_jwt_key_2026}
     depends_on:
-      migrate:
-        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -30,33 +29,19 @@ services:
     networks:
       - progitpaie-net
 
-  # 2. Migrations Prisma : doivent réussir avant le démarrage de l'application
-  migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: builder
-    command: ["npx", "prisma", "migrate", "deploy"]
-    restart: "no"
-    environment:
-      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must be set}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - progitpaie-net
-
-  # 3. Base de données PostgreSQL (réseau Docker privé uniquement)
+  # 2. Base de données PostgreSQL
   postgres:
     image: postgres:15-alpine
     container_name: progitpaie-postgres
     restart: unless-stopped
     environment:
       - POSTGRES_USER=progitpaie
-      - POSTGRES_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-ProgitpaieSecure2026!}
       - POSTGRES_DB=progitpaie
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"  # Accessible uniquement en local
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U progitpaie -d progitpaie"]
       interval: 5s
@@ -65,11 +50,13 @@ services:
     networks:
       - progitpaie-net
 
-  # 4. Cache Redis (réseau Docker privé uniquement)
+  # 3. Cache In-Memory Redis
   redis:
     image: redis:7-alpine
     container_name: progitpaie-redis
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:6380:6379"  # Accessible uniquement en local
     volumes:
       - redis_data:/data
     networks:

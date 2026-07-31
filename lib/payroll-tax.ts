@@ -1,5 +1,5 @@
 /**
- * Moteur de Calcul Fiscalité & Cotisations Sociales (Côte d'Ivoire / SYSCOHADA)
+ * Moteur de Calcul Fiscalité & Cotisations Sociales (Côte d'Ivoire /  )
  */
 
 export interface TaxCalculationParams {
