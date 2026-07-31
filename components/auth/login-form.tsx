@@ -18,12 +18,12 @@ interface LoginResponse {
   message?: string;
   error?: string;
   data?: {
-    _id: string;
-    name: string;
-    email: string;
-    role: "admin" | "employee";
-    department: string;
-    createdAt: string;
+    user: {
+      id: string;
+      _id: string;
+      name: string;
+      role: "admin" | "employee";
+    };
   };
 }
 
@@ -81,7 +81,7 @@ export default function LoginForm() {
       }
 
       // Redirect based on role with a full page refresh to ensure layouts sync with the new session
-      const userRole = data.data?.role;
+      const userRole = data.data?.user?.role;
       if (userRole === "admin") {
         window.location.href = "/admin";
       } else {

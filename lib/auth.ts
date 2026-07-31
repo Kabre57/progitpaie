@@ -2,12 +2,12 @@ import bcrypt from "bcryptjs";
 import jwt, { SignOptions } from "jsonwebtoken";
 import { JWTPayload } from "@/types";
 
-const JWT_SECRET = process.env.JWT_SECRET;
-
-if (!JWT_SECRET) {
-  throw new Error(
-    "Please define the JWT_SECRET environment variable inside .env.local"
-  );
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("JWT_SECRET must be defined at runtime");
+  }
+  return secret;
 }
 
 /**
@@ -34,7 +34,7 @@ export function generateToken(userId: string, email: string, role: string): stri
   const payload: JWTPayload = { userId, email, role: role as JWTPayload["role"] };
   const expiresIn = (process.env.JWT_EXPIRES_IN || "7d") as SignOptions["expiresIn"];
   const options: SignOptions = { expiresIn };
-  return jwt.sign(payload, JWT_SECRET!, options);
+  return jwt.sign(payload, getJwtSecret(), options);
 }
 
 /**
@@ -42,7 +42,7 @@ export function generateToken(userId: string, email: string, role: string): stri
  */
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET!) as JWTPayload;
+    const decoded = jwt.verify(token, getJwtSecret()) as JWTPayload;
     return decoded;
   } catch {
     return null;

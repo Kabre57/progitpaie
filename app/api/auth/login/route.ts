@@ -5,9 +5,13 @@ import { comparePassword, generateToken } from "@/lib/auth";
 import { cacheSession } from "@/lib/redis";
 import { validateBody } from "@/lib/validate";
 import { loginSchema } from "@/lib/validators/auth.schema";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimitResponse = await enforceRateLimit(request, "login", 10, 60);
+    if (rateLimitResponse) return rateLimitResponse;
+
     // Validation centralisée Zod du corps de la requête
     const validation = await validateBody(request, loginSchema);
     if (!validation.success) {
@@ -78,7 +82,6 @@ export async function POST(request: NextRequest) {
             name: user.name,
             role: user.role,
           },
-          token,
         },
       },
       { status: 200 }

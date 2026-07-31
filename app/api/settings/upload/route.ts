@@ -5,6 +5,8 @@ import {
   LOGO_ALLOWED_MIME_TYPES,
   LOGO_MAGIC_NUMBERS,
 } from "@/lib/payslip-config";
+import { requireAdmin } from "@/lib/middleware-helpers";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 /**
  * POST /api/settings/upload
@@ -19,6 +21,11 @@ import {
  */
 export async function POST(req: NextRequest) {
   try {
+    const authResult = await requireAdmin(req);
+    if (authResult instanceof NextResponse) return authResult;
+    const rateLimitResponse = await enforceRateLimit(req, "payslip-logo-upload", 10, 60);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const formData = await req.formData();
     const file = formData.get("logo") as File | null;
 
@@ -133,8 +140,10 @@ export async function POST(req: NextRequest) {
  * DELETE /api/settings/upload
  * Supprime le logo actuel
  */
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
   try {
+    const authResult = await requireAdmin(req);
+    if (authResult instanceof NextResponse) return authResult;
     const configService = PayslipConfigService.getInstance();
     await configService.updateAppearance({ logoBase64: undefined });
 

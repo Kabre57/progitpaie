@@ -7,9 +7,29 @@ on:
       - master
 
 jobs:
+  quality:
+    name: Qualité et build
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://progitpaie:ci-password@localhost:5432/progitpaie?schema=public
+      JWT_SECRET: ci-only-jwt-secret-at-least-32-characters
+      ENCRYPTION_KEY: ci-only-encryption-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
   deploy:
     name: Build & Deploy via SSH
     runs-on: ubuntu-latest
+    needs: quality
 
     steps:
       - name: 📦 Récupération du code source (Checkout)
@@ -27,9 +47,8 @@ jobs:
             echo "🚀 Début du Déploiement PROGITPAIE via GitHub Actions"
             echo "====================================================="
 
-            # 1. Aller dans le dossier /opt/progitpaie
-            mkdir -p /opt/progitpaie
-            cd /opt/progitpaie
+            # 1. Aller dans le dossier de déploiement configuré sur le VPS
+            cd /home/theo_pbl/apps/progitpaie
 
             # 2. Si le dépôt n'est pas encore cloné sur le VPS
             if [ ! -d .git ]; then
@@ -37,17 +56,13 @@ jobs:
               git clone https://github.com/${{ github.repository }}.git .
             else
               echo "🔄 Récupération des dernières modifications..."
+              if [ -f .env ]; then cp .env /tmp/progitpaie.env; fi
               git fetch origin main
               git reset --hard origin/main
+              if [ -f /tmp/progitpaie.env ]; then mv /tmp/progitpaie.env .env; fi
             fi
 
-            # 3. Sécurisation des ports UFW si le script existe
-            if [ -f secure-ports.sh ]; then
-              chmod +x secure-ports.sh
-              ./secure-ports.sh
-            fi
-
-            # 4. Lancement de la construction et des conteneurs Docker
+            # 3. Lancement de la construction et des conteneurs Docker
             chmod +x deploy.sh
             ./deploy.sh
 

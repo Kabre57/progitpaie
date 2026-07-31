@@ -2,13 +2,17 @@ import { NextResponse } from "next/server";
 import { RateService } from "@/lib/rate-service";
 import { DEFAULT_PAYROLL_RATES } from "@/lib/rates-config";
 import { prisma } from "@/lib/db";
+import { requireAdmin } from "@/lib/middleware-helpers";
 
 /**
  * GET /api/settings/rates
  * Récupère les taux de paie dynamiques (avec cache & fallback)
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const authResult = await requireAdmin(request);
+    if (authResult instanceof NextResponse) return authResult;
+
     const rateService = RateService.getInstance();
     const rates = await rateService.getRates();
 
@@ -35,6 +39,9 @@ export async function GET() {
  */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAdmin(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const body = await req.json();
 
     // Validation des données

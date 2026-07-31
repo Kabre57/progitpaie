@@ -7,6 +7,9 @@ import { cacheSettings, getSettings } from "@/lib/redis";
 // GET /api/settings - Récupérer l'intégralité des paramètres réels depuis la base de données
 export async function GET(request: NextRequest): Promise<Response> {
   try {
+    const authResult = await requireAdmin(request);
+    if (authResult instanceof NextResponse) return authResult;
+
     const allSettings = await prisma.settings.findMany();
     
     const settingsMap: Record<string, unknown> = {};

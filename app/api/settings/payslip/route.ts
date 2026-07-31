@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PayslipConfigService } from "@/lib/payslip-config-service";
+import { requireAdmin } from "@/lib/middleware-helpers";
 import {
   DEFAULT_PAYSLIP_APPEARANCE,
   DEFAULT_PAYSLIP_LEGAL,
@@ -9,8 +10,11 @@ import {
  * GET /api/settings/payslip
  * Récupère la configuration complète du bulletin (apparence + mentions légales)
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAdmin(request);
+    if (authResult instanceof NextResponse) return authResult;
+
     const configService = PayslipConfigService.getInstance();
     const [appearance, legal] = await Promise.all([
       configService.getAppearance(),
@@ -44,6 +48,9 @@ export async function GET() {
  */
 export async function POST(req: NextRequest) {
   try {
+    const authResult = await requireAdmin(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const body = await req.json();
 
     if (typeof body !== "object" || body === null) {
@@ -97,10 +104,7 @@ export async function POST(req: NextRequest) {
     // Journalisation AuditLog (si un admin est identifié dans la requête)
     try {
       const { prisma } = await import("@/lib/db");
-      // Tenter de récupérer l'admin depuis le cookie/session
-      const adminId = req.headers.get("x-admin-id") || "system";
-      
-      // Chercher un admin valide pour l'audit
+      // L'auteur est l'administrateur authentifié, jamais une valeur client.
       const admin = await prisma.user.findFirst({
         where: { role: "admin" },
         select: { id: true },

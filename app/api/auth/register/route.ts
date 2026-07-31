@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { UserRole } from "@prisma/client";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimitResponse = await enforceRateLimit(request, "register", 5, 60);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const body = await request.json();
     const { name, email, password, department } = body;
 

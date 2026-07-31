@@ -4,6 +4,20 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
+  const email = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.SEED_ADMIN_PASSWORD;
+  const name = process.env.SEED_ADMIN_NAME?.trim() || "Administrateur PROGITPAIE";
+
+  if (!email || !password) {
+    throw new Error(
+      "SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD are required to seed the first administrator"
+    );
+  }
+
+  if (password.length < 12) {
+    throw new Error("SEED_ADMIN_PASSWORD must contain at least 12 characters");
+  }
+
   const existingAdmin = await prisma.user.findFirst({
     where: { role: UserRole.admin },
   });
@@ -13,12 +27,12 @@ async function main() {
     return;
   }
 
-  const hashedPassword = await bcrypt.hash("admin123", 12);
+  const hashedPassword = await bcrypt.hash(password, 12);
 
   const admin = await prisma.user.create({
     data: {
-      name: "System Administrator",
-      email: "admin@attendance.com",
+      name,
+      email,
       password: hashedPassword,
       role: UserRole.admin,
       employeeId: "EMP-001",
@@ -28,7 +42,7 @@ async function main() {
     },
   });
 
-  console.log("✅ Default admin seeded successfully:", admin.email);
+  console.log("✅ First administrator seeded successfully:", admin.email);
 }
 
 main()

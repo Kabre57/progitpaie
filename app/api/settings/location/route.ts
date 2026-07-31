@@ -13,6 +13,9 @@ const geoCache = GeolocationCache.getInstance();
 
 export async function GET(request: NextRequest): Promise<Response> {
   try {
+    const authResult = await requireAdmin(request);
+    if (authResult instanceof NextResponse) return authResult;
+
     const globalSettings = await prisma.settings.findUnique({
       where: { key: "location" },
     });
@@ -47,8 +50,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   try {
     const authResult = await requireAdmin(request);
     if (authResult instanceof NextResponse) {
-      // En cas de test d'API ou d'authentification optionnelle
-      console.warn("requireAdmin warn on POST /api/settings/location");
+      return authResult;
     }
 
     const body = await request.json();

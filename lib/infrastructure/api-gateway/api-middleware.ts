@@ -6,10 +6,14 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { ApiKeyService } from "./api-key-service";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 const apiKeyService = new ApiKeyService();
 
 export async function authenticatePublicApi(request: NextRequest): Promise<NextResponse | null> {
+  const rateLimitResponse = await enforceRateLimit(request, "public-api", 120, 60);
+  if (rateLimitResponse) return rateLimitResponse;
+
   const authHeader = request.headers.get("authorization") || "";
   const apiKeyHeader = request.headers.get("x-api-key") || "";
 

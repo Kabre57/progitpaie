@@ -12,16 +12,9 @@
 
 ---
 
-## 🔑 Demo Credentials
+## 🔐 Premier accès
 
-> Try the live demo instantly — no signup required.
-
-| Role | Email | Password |
-|------|-------|----------|
-| 👨‍💼 **Admin** | `admin@attendance.com` | `admin123` |
-| 👨‍💻 **Employee** | Register at `/register` | — |
-
-> **Note:** The very first registered user is automatically promoted to **Admin**. All subsequent registrations become employees and must be managed by the admin.
+Au premier démarrage, créez l'administrateur via `/register`. L'inscription est ensuite fermée : les employés sont créés par un administrateur. Aucun compte ni mot de passe de démonstration n'est livré.
 
 ---
 
@@ -51,7 +44,8 @@
 ### 🔐 Authentication & Security
 - `httpOnly` JWT cookie — not accessible via JavaScript
 - Bcrypt password hashing (12 salt rounds)
-- Role-based middleware protecting all routes
+- Route-level authorization for administration and sensitive settings
+- Rate limiting on login, registration, logo upload and external API
 - Auto-logout after 7 days (configurable)
 - One check-in per calendar day enforced
 - Auto checkout after 12 hours if employee forgets
@@ -64,7 +58,7 @@
 |-------|-----------|-----|
 | Framework | Next.js 16 (App Router) | Full-stack — SSR + API routes in one |
 | Language | TypeScript 5 (strict) | Catch errors at build time, not runtime |
-| Database | MongoDB Atlas + Mongoose v9 | Flexible schema, serverless-friendly |
+| Database | PostgreSQL 15 + Prisma | Schéma relationnel, migrations versionnées |
 | Auth | JWT + bcryptjs | Stateless, scalable, secure cookies |
 | Styling | Tailwind CSS v4 | Direct CSS imports, zero config |
 | Animation | GSAP + framer-motion | Cinematic scroll reveals + micro-animations |
@@ -73,7 +67,7 @@
 | Export | SheetJS + jsPDF | Excel and PDF on client and server |
 | Email | Nodemailer | SMTP-based, no vendor lock-in |
 | Icons | Lucide React | Consistent, tree-shakeable icon set |
-| Deployment | Vercel | Zero-config CI/CD from GitHub |
+| Deployment | Docker Compose + Nginx sur VPS | Déploiement reproductible et ports internes |
 
 ---
 
@@ -104,7 +98,7 @@ graph TB
         AuditAPI["/api/audit-logs/*"]
     end
 
-    subgraph DB["🗄️ MongoDB Atlas"]
+    subgraph DB["🗄️ PostgreSQL"]
         Users[("Users")]
         Attendance[("Attendance")]
         Leaves[("Leaves")]
@@ -150,14 +144,14 @@ graph TB
 ```mermaid
 erDiagram
     USER {
-        ObjectId _id PK
+        string id PK
         string name
         string email
         string password
         string role
         string employeeId
-        ObjectId department FK
-        ObjectId shift FK
+        string departmentId FK
+        string shiftId FK
         number salary
         date joiningDate
         object leaveBalance
@@ -165,15 +159,15 @@ erDiagram
     }
 
     DEPARTMENT {
-        ObjectId _id PK
+        string id PK
         string name
         string description
-        ObjectId managerId FK
+        string managerId FK
         boolean isActive
     }
 
     SHIFT {
-        ObjectId _id PK
+        string id PK
         string name
         string startTime
         string endTime
@@ -182,8 +176,8 @@ erDiagram
     }
 
     ATTENDANCE {
-        ObjectId _id PK
-        ObjectId userId FK
+        string id PK
+        string userId FK
         date date
         date checkIn
         date checkOut
@@ -192,25 +186,25 @@ erDiagram
         string notes
         object location
         boolean outOfOffice
-        ObjectId overriddenBy FK
+        string overriddenById FK
     }
 
     LEAVE {
-        ObjectId _id PK
-        ObjectId userId FK
+        string id PK
+        string userId FK
         string leaveType
         date startDate
         date endDate
         number totalDays
         string reason
         string status
-        ObjectId approvedBy FK
+        string approvedById FK
         string adminComment
     }
 
     PAYROLL {
-        ObjectId _id PK
-        ObjectId userId FK
+        string id PK
+        string userId FK
         number month
         number year
         number basicSalary
@@ -223,8 +217,8 @@ erDiagram
     }
 
     NOTIFICATION {
-        ObjectId _id PK
-        ObjectId userId FK
+        string id PK
+        string userId FK
         string title
         string message
         string type
@@ -233,8 +227,8 @@ erDiagram
     }
 
     AUDITLOG {
-        ObjectId _id PK
-        ObjectId performedBy FK
+        string id PK
+        string performedById FK
         string action
         string targetModel
         object oldValues
@@ -353,7 +347,7 @@ attendance/
 │   └── AuditLog.ts
 │
 ├── lib/
-│   ├── db.ts                      # MongoDB connection with cache
+│   ├── db.ts                      # Client Prisma PostgreSQL
 │   ├── auth.ts                    # JWT sign + verify (full payload)
 │   ├── middleware-helpers.ts       # getAuthUser, requireAuth, requireAdmin
 │   ├── email.ts                   # Nodemailer SMTP setup
@@ -376,7 +370,7 @@ attendance/
 
 ### Prerequisites
 - Node.js 18+ (LTS)
-- MongoDB Atlas free tier account
+- PostgreSQL 15 et Redis 7 (fournis par Docker Compose en production)
 - Gmail account with App Password enabled (for SMTP)
 
 ### 1. Clone the repository
@@ -494,11 +488,13 @@ progitpaie uses a custom **Neumorphic design system** built entirely with CSS va
 
 ## 🚀 Deployment
 
-progitpaie is deployed on **Vercel** with automatic deployments on every `git push` to `main`.
+## Déploiement VPS
 
-**Environment variables** must be set in the Vercel dashboard under Project → Settings → Environment Variables.
+Copiez `.env.production.example` vers `.env`, renseignez des secrets aléatoires uniques (`DB_PASSWORD`, `DATABASE_URL`, `JWT_SECRET`, `ENCRYPTION_KEY`), puis lancez `./deploy.sh`. Les migrations Prisma doivent réussir avant le démarrage de l'application. La CI exécute lint, tests unitaires et build avant le déploiement.
 
-[![Deploy with Vercel](https://vercel.com/button)]
+## Tests
+
+`npm run lint`, `npm test` et `npm run build` contrôlent le projet. Pour les tests E2E, fournissez `E2E_BASE_URL`, `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`, `E2E_EMPLOYEE_EMAIL` et `E2E_EMPLOYEE_PASSWORD`, puis lancez `npm run test:e2e`.
 ---
 
 <div align="center">
@@ -510,4 +506,3 @@ progitpaie is deployed on **Vercel** with automatic deployments on every `git pu
 
 
 <br/>
-

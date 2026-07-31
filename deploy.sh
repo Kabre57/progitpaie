@@ -11,13 +11,17 @@ echo "================================================================="
 
 # 1. Vérification du fichier .env
 if [ ! -f .env ]; then
-    echo "⚠️ Le fichier .env n'existe pas. Copie depuis .env.production..."
-    cp .env.production.example .env
+    echo "❌ Le fichier .env est requis. Copiez .env.production.example puis renseignez des secrets uniques."
+    exit 1
 fi
 
-# 2. Recharger le dernier code source
+# 2. Recharger le dernier code source sans jamais écraser les secrets locaux
 echo "📦 Récupération du code source..."
+progitpaie_env_backup="$(mktemp /tmp/progitpaie-env.XXXXXX)"
+cp .env "$progitpaie_env_backup"
 git pull origin main || echo "ℹ️ Attention: git pull a échoué ou aucun dépôt distant configuré."
+cp "$progitpaie_env_backup" .env
+rm -f "$progitpaie_env_backup"
 
 # 3. Build des conteneurs Docker
 echo "🏗️ Construction des conteneurs Docker..."
@@ -28,12 +32,7 @@ echo "🔄 Démarrage des conteneurs PROGITPAIE..."
 docker compose down
 docker compose up -d
 
-# 5. Application des migrations Prisma
-echo "🗄️ Exécution des migrations Prisma PostgreSQL..."
-sleep 5
-docker compose exec -T app npx prisma migrate deploy || docker compose exec -T app npx prisma db push
-
 echo "================================================================="
 echo "✅ Déploiement de PROGITPAIE terminé avec succès !"
-echo "🌐 URL : https://paie.progitpaie.com"
+echo "🌐 URL : https://progitpaie.online"
 echo "================================================================="

@@ -9,6 +9,9 @@ export async function GET(
   { params }: { params: Promise<{ key: string }> }
 ): Promise<Response> {
   try {
+    const authResult = await requireAdmin(request);
+    if (authResult instanceof NextResponse) return authResult;
+
     const { key } = await params;
     const dbSettings = await prisma.settings.findUnique({
       where: { key },
