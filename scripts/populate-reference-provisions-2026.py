@@ -2,14 +2,14 @@
 """
 Populate reference-provisions-2026.xlsx DIRECTLY from PostgreSQL database (STAGING-PROVISIONS-2026-R1).
 
-This script:
-1. STRICT SECURITY: Expects DATABASE_URL from system environment only. Fails explicitly if missing.
-2. Connects to PostgreSQL to query Users, Contracts, Payrolls, and LeaveLedgerEntries for VAL26-* employees.
-3. Writes source data and calculated formula values (<v>) into reference-provisions-2026.xlsx via XML/ZIP manipulation.
-4. PRESERVES ALL 1,500 FORMULA <f> TAGS INTACT (480 in Périodes, 380 in Détails, 640 in Synthèse).
-5. Populates cached <v> for EVERY SINGLE FORMULA CELL (1,500 / 1,500 = 100.0% populated).
-6. Writes string values directly as t="str" with plain text in <v> so no external sharedStrings table dependency is required.
-7. Generates the final SHA-256 checksum after completing file write.
+Statistiques exactes des formules XML du classeur :
+- Périodes : 480 formules, 480 balises <v>, 480 valeurs non vides
+- Détails : 380 formules, 380 balises <v>, 380 valeurs non vides
+- Synthèse : 640 formules, 640 balises <v>, dont 623 valeurs non vides et 17 valeurs vides attendues (cellules d'avertissement représentées par <v />)
+- Total : 1 500 formules, 1 500 balises <v>, dont 1 483 valeurs non vides
+
+Securité :
+- Expects DATABASE_URL from system environment only. Fails explicitly if missing.
 """
 
 import zipfile
@@ -27,7 +27,7 @@ from datetime import datetime, date
 db_url = os.environ.get("DATABASE_URL")
 if not db_url:
     print("❌ ERREUR SÉCURITÉ CRITIQUE : La variable d'environnement DATABASE_URL est absente !")
-    print("   Le script refuse d'exécuter avec un identifiant en dur. Définissez DATABASE_URL dans votre environnement.")
+    print("   Le script refuse d'exécuter sans DATABASE_URL fournie par l'environnement.")
     sys.exit(1)
 
 env = os.environ.copy()
@@ -385,11 +385,12 @@ with zipfile.ZipFile(template_path, 'r') as z:
         
         set_cell_value(row_el, 'AI', r, status_expected, is_string=True)
         
-        warning = ""
+        warning = None
         if cas_id == "C13": warning = "Historique salarial partiel 4 mois"
         elif cas_id == "C14": warning = "Aucune paie finalisée ; fallback contractuel"
         elif cas_id == "C18": warning = "Embauche postérieure à la date de référence"
-        set_cell_value(row_el, 'AJ', r, warning, is_string=True)
+        if warning:
+            set_cell_value(row_el, 'AJ', r, warning, is_string=True)
             
         set_cell_value(row_el, 'AK', r, "STAGING-PROVISIONS-2026-R1", is_string=True)
 
@@ -459,12 +460,11 @@ with zipfile.ZipFile(template_path, 'r') as z:
             
         total_exp = provision_amount + exposure if cas_id != "C18" else 0
         
-        warning = ""
+        warning = None
         if cas_id == "C13": warning = "Historique salarial partiel 4 mois"
         elif cas_id == "C14": warning = "Aucune paie finalisée ; fallback contractuel"
         elif cas_id == "C18": warning = "Embauche postérieure à la date de référence"
         
-        # Populate EVERY SINGLE FORMULA CELL (32 formulas per row x 20 rows = 640 formula cells)
         set_cell_value(row_el, 'C', r, f"VAL26-{marker}-{cas_id}", is_string=True)
         set_cell_value(row_el, 'D', r, db_user["joiningDate"], is_string=True)
         set_cell_value(row_el, 'E', r, seniority_m)
@@ -491,7 +491,8 @@ with zipfile.ZipFile(template_path, 'r') as z:
         set_cell_value(row_el, 'AE', r, int(exposure))
         set_cell_value(row_el, 'AF', r, int(total_exp))
         set_cell_value(row_el, 'AG', r, "NOT_APPLICABLE" if cas_id == "C18" else "PASS", is_string=True)
-        set_cell_value(row_el, 'AH', r, warning, is_string=True)
+        if warning:
+            set_cell_value(row_el, 'AH', r, warning, is_string=True)
 
     sort_cells_in_rows(syn_tree)
     sheets_to_modify['xl/worksheets/sheet4.xml'] = syn_tree

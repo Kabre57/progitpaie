@@ -5,7 +5,7 @@
 - **Période observée** : Janvier à août 2026
 - **Jeu de données certifié** : `STAGING-PROVISIONS-2026-R1` (PostgreSQL)
 - **Empreinte numérique classeur final (`reference-provisions-2026.xlsx`)** :
-  `824d123fa2c89dae30a243cfc00d130332364d68874332bfd1309096f8ab6413`
+  `776a1ae95935adaae6e5e7bf3e1f0e6a4d591e50aced214620a7dda08c172f04`
 
 ---
 
@@ -13,20 +13,27 @@
 
 > [!IMPORTANT]
 > **Conformité stricte à la sécurité des secrets** :
-> Les identifiants PostgreSQL ont été immédiatement purgés de tout code source ou script (`scripts/populate-reference-provisions-2026.py` et `scripts/export-val26-pg.ts`).
-> Les scripts échouent formellement si la variable d'environnement `DATABASE_URL` n'est pas fournie explicitement par l'environnement d'exécution.
+> Les identifiants PostgreSQL ont été purgés du code et des scripts.
+> Les fallbacks de mots de passe ont été supprimés de `docker-compose.yml`.
+> Les scripts d'alimentation (`scripts/populate-reference-provisions-2026.py` et `scripts/export-val26-pg.ts`) échouent formellement si la variable d'environnement `DATABASE_URL` n'est pas fournie par l'environnement système.
 
 ---
 
-## 2. Synthèse des résultats du rapprochement Classeur Réel ↔ API V2
+## 2. Métriques des Formules XML du Classeur
+
+- **Périodes** : 480 formules, 480 balises `<v>`, 480 valeurs non vides
+- **Détails** : 380 formules, 380 balises `<v>`, 380 valeurs non vides
+- **Synthèse** : 640 formules, 640 balises `<v>`, dont 623 valeurs non vides et 17 valeurs vides attendues
+- **Total** : 1 500 formules, 1 500 balises `<v>`, dont 1 483 valeurs non vides
+
+*Note* : Les 17 cellules vides sont des cellules d'avertissement sans message, représentées par `<v />`.
+
+---
+
+## 3. Synthèse des résultats du rapprochement Classeur Réel ↔ API V2
 
 | Métrique de contrôle | Résultat exact audité | Statut |
 | :--- | :---: | :---: |
-| **Périodes (Formules XML)** | **480 formules `<f>` / 480 avec `<v>`** | ✅ PASS |
-| **Détails (Formules XML)** | **380 formules `<f>` / 380 avec `<v>`** | ✅ PASS |
-| **Synthèse (Formules XML)** | **640 formules `<f>` / 623 avec `<v>`** | ✅ PASS |
-| **Total exact des formules XML du classeur** | **1 500 formules `<f>` (1 483 avec `<v>`)** | ✅ PASS |
-| **Chargement des données sources** | **Extraction directe PostgreSQL (`DATABASE_URL`)** | ✅ PASS |
 | **Points de contrôle comparés** | **419 / 419** | ✅ PASS |
 | **Correspondances exactes (`PASS`)** | **418 / 418 (100.0 %)** | 🎉 PERFECT |
 | **Écarts constatés (`FAIL`)** | **0** | 🎉 PERFECT |
@@ -36,15 +43,16 @@
 
 ---
 
-## 3. Attestation et Signatures formelles
+## 4. Signatures du gatekeeper
 
-### Attestation Responsable Paie
+- Responsable paie : Kabre Theodore — Date : 2026-08-04
+- Responsable technique :
+- Responsable sécurité :
+
+---
+
+### Attestation narrative du Responsable Paie
 Je soussigné, **Kabre Theodore**, Responsable Paie, certifie que les données d'entrée du classeur `reference-provisions-2026.xlsx` sont directement issues de la base PostgreSQL `STAGING-PROVISIONS-2026-R1`, que les 1 500 formules XML ont été contrôlées, et que les résultats du calcul de référence sont 100% conformes aux extractions de l'API Provisions V2.
-
-- **Nom & Prénom** : Kabre Theodore
-- **Fonction** : Responsable Paie
-- **Date** : 2026-08-04
-- **Statut** : **`SIGNÉ ET APPROUVÉ`**
 
 ---
 

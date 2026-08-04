@@ -13,12 +13,12 @@ services:
     container_name: progitpaie-app
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3500:3000"  # Port 3500 libre pour vos tests locaux et Nginx
+      - "127.0.0.1:3500:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://progitpaie:${DB_PASSWORD:-ProgitpaieSecure2026!}@postgres:5432/progitpaie?schema=public
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-progitpaie_super_secret_jwt_key_2026}
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
     depends_on:
       postgres:
         condition: service_healthy
@@ -35,36 +35,36 @@ services:
     container_name: progitpaie-postgres
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=progitpaie
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-ProgitpaieSecure2026!}
-      - POSTGRES_DB=progitpaie
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - POSTGRES_USER=${POSTGRES_USER:-progitpaie}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
+      - POSTGRES_DB=${POSTGRES_DB:-progitpaie}
     ports:
-      - "127.0.0.1:5433:5432"  # Accessible uniquement en local
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U progitpaie -d progitpaie"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-progitpaie}"]
+      interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - progitpaie-net
 
-  # 3. Cache In-Memory Redis
+  # 3. Cache Redis
   redis:
     image: redis:7-alpine
     container_name: progitpaie-redis
     restart: unless-stopped
     ports:
-      - "127.0.0.1:6380:6379"  # Accessible uniquement en local
+      - "127.0.0.1:6379:6379"
     volumes:
-      - redis_data:/data
+      - redis-data:/data
     networks:
       - progitpaie-net
 
 volumes:
-  postgres_data:
-  redis_data:
+  postgres-data:
+  redis-data:
 
 networks:
   progitpaie-net:
