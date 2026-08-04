@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { Prisma } from "@prisma/client";
 import { ApiResponse } from "@/types";
 
@@ -33,7 +33,7 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<AttendanceResponse>>> {
   try {
-    const user = await requireAuth(request);
+    const user = await requireTenant(request);
     if (user instanceof NextResponse) {
       return user;
     }
@@ -48,6 +48,8 @@ export async function GET(
 
     if (user.role === "employee") {
       where.userId = user.userId;
+    } else {
+      where.user = { companyId: user.companyId };
     }
 
     if (monthParam) {

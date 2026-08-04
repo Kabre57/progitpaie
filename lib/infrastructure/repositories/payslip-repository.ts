@@ -63,6 +63,11 @@ export class PayslipRepository implements IPayslipRepository {
     year: number,
     result: PayslipResult
   ): Promise<any> {
+    const employee = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { companyId: true },
+    });
+    if (!employee) throw new Error("Employé introuvable");
     return prisma.payroll.upsert({
       where: {
         userId_month_year: {
@@ -82,6 +87,7 @@ export class PayslipRepository implements IPayslipRepository {
         updatedAt: new Date(),
       },
       create: {
+        companyId: employee.companyId,
         userId,
         month,
         year,

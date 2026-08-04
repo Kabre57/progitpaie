@@ -82,7 +82,7 @@ export default function DeclarationsPage() {
             <FileSpreadsheet className="text-[var(--neu-accent)]" /> Centre de Déclarations Fiscales (DGI) & Sociales (CNPS)
           </h1>
           <p className="text-[var(--neu-text-secondary)] text-sm mt-1">
-            Formulaires officiels DGI (ITS, FDFP 1.6%, État 301) et CNPS (Appel de cotisations, DISA/DASC) - LOGIPAIE RH.
+            Formulaires officiels DGI (ITS, FDFP 1.6%, État 301) et CNPS (Appel de cotisations, DISA/DASC).
           </p>
         </div>
       </div>

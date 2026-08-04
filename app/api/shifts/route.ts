@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { ApiResponse, CreateShiftBody } from "@/types";
 
 // GET /api/shifts - Get all active shifts
@@ -8,11 +8,14 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
+    const authResult = await requireTenant(request);
+    if (authResult instanceof NextResponse) return authResult;
+
     const { searchParams } = new URL(request.url);
     const includeInactive = searchParams.get("includeInactive") === "true";
 
     const shifts = await prisma.shift.findMany({
-      where: includeInactive ? {} : { isActive: true },
+      where: { companyId: authResult.companyId, ...(includeInactive ? {} : { isActive: true }) },
       orderBy: { name: "asc" },
     });
 
@@ -47,7 +50,7 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -88,7 +91,7 @@ export async function POST(
     }
 
     const existingShift = await prisma.shift.findFirst({
-      where: { name: { equals: body.name.trim(), mode: "insensitive" } },
+      where: { companyId: authResult.companyId, name: { equals: body.name.trim(), mode: "insensitive" } },
     });
 
     if (existingShift) {
@@ -104,6 +107,7 @@ export async function POST(
 
     const shift = await prisma.shift.create({
       data: {
+        companyId: authResult.companyId,
         name: body.name.trim(),
         startTime: body.startTime,
         endTime: body.endTime,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { OvertimeStatus, Prisma } from "@prisma/client";
 import { ApiResponse } from "@/types";
 
@@ -9,7 +9,7 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const user = await requireAuth(request);
+    const user = await requireTenant(request);
     if (user instanceof NextResponse) {
       return user;
     }
@@ -17,7 +17,7 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
 
-    const where: Prisma.OvertimeWhereInput = {};
+    const where: Prisma.OvertimeWhereInput = { companyId: user.companyId };
     if (user.role === "employee") {
       where.userId = user.userId;
     }
@@ -70,7 +70,7 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const user = await requireAuth(request);
+    const user = await requireTenant(request);
     if (user instanceof NextResponse) {
       return user;
     }
@@ -93,6 +93,7 @@ export async function POST(
 
     const overtime = await prisma.overtime.create({
       data: {
+        companyId: user.companyId,
         userId: targetUserId,
         date: new Date(date),
         minutes: parseInt(minutes, 10),

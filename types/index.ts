@@ -170,6 +170,7 @@ export interface JWTPayload {
   userId: string;
   email: string;
   role: UserRole;
+  companyId?: string | null;
 }
 
 // Request body types

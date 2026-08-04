@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { ApiResponse, CreateDepartmentBody } from "@/types";
 
 // GET /api/departments - Get all active departments
@@ -8,11 +8,14 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
+    const authResult = await requireTenant(request);
+    if (authResult instanceof NextResponse) return authResult;
+
     const { searchParams } = new URL(request.url);
     const includeInactive = searchParams.get("includeInactive") === "true";
 
     const departments = await prisma.department.findMany({
-      where: includeInactive ? {} : { isActive: true },
+      where: { companyId: authResult.companyId, ...(includeInactive ? {} : { isActive: true }) },
       include: {
         manager: { select: { id: true, name: true, email: true } },
       },
@@ -51,7 +54,7 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -70,7 +73,7 @@ export async function POST(
     }
 
     const existingDepartment = await prisma.department.findFirst({
-      where: { name: { equals: body.name.trim(), mode: "insensitive" } },
+      where: { companyId: authResult.companyId, name: { equals: body.name.trim(), mode: "insensitive" } },
     });
 
     if (existingDepartment) {
@@ -86,6 +89,7 @@ export async function POST(
 
     const department = await prisma.department.create({
       data: {
+        companyId: authResult.companyId,
         name: body.name.trim(),
         description: body.description?.trim() || "",
         managerId: body.managerId || null,

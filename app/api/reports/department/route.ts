@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { AttendanceStatus } from "@prisma/client";
 import { getCachedReport, cacheReport } from "@/lib/redis";
 import { ApiResponse } from "@/types";
@@ -9,7 +9,7 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const user = await requireAuth(request);
+    const user = await requireTenant(request, "admin");
     if (user instanceof NextResponse) {
       return user;
     }
@@ -18,14 +18,14 @@ export async function GET(
     const month = parseInt(searchParams.get("month") || new Date().getMonth() + 1 + "", 10);
     const year = parseInt(searchParams.get("year") || new Date().getFullYear() + "", 10);
 
-    const cacheKey = `report:dept:${year}:${month}`;
+    const cacheKey = `report:dept:${user.companyId}:${year}:${month}`;
     const cachedData = await getCachedReport(cacheKey);
     if (cachedData) {
       return NextResponse.json({ success: true, data: cachedData }, { status: 200 });
     }
 
     const departments = await prisma.department.findMany({
-      where: { isActive: true },
+      where: { isActive: true, employees: { some: { companyId: user.companyId } } },
     });
 
     const startOfMonth = new Date(year, month - 1, 1);
@@ -38,7 +38,7 @@ export async function GET(
     const departmentReports = await Promise.all(
       departments.map(async (dept) => {
         const employees = await prisma.user.findMany({
-          where: { departmentId: dept.id, isActive: true },
+          where: { departmentId: dept.id, isActive: true, companyId: user.companyId },
           select: { id: true },
         });
 

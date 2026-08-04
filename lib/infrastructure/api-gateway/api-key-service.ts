@@ -29,7 +29,7 @@ export class ApiKeyService {
   /**
    * Génère une nouvelle clé API pour un ERP partenaire
    */
-  public async createApiKey(name: string, permissions: string[] = ["read:all"]): Promise<ApiKeyCreateResult> {
+  public async createApiKey(companyId: string, name: string, permissions: string[] = ["read:all"]): Promise<ApiKeyCreateResult> {
     const randomHex = crypto.randomBytes(24).toString("hex");
     const rawKey = `pk_live_${randomHex}`;
     const keyPrefix = rawKey.substring(0, 12);
@@ -37,6 +37,7 @@ export class ApiKeyService {
 
     const apiKeyRecord = await prisma.apiKey.create({
       data: {
+        companyId,
         name,
         keyHash,
         keyPrefix,
@@ -86,8 +87,9 @@ export class ApiKeyService {
   /**
    * Récupère la liste de toutes les clés API actives
    */
-  public async listApiKeys() {
+  public async listApiKeys(companyId: string) {
     return prisma.apiKey.findMany({
+      where: { companyId },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,

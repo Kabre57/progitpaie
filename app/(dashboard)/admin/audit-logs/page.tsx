@@ -182,12 +182,10 @@ export default function AdminAuditLogsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--neu-text)]">Audit Logs</h1>
-        <p className="text-[var(--neu-text-secondary)]">
-          Track all admin actions and system changes for accountability
-        </p>
-      </div>
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--neu-text)]">Journal d'Audit</h1>
+          <p className="text-sm text-[var(--neu-text-secondary)]">Suivez toutes les actions administratives et modifications système</p>
+        </div>
 
       {/* Filters */}
       <NeuCard variant="flat">
@@ -195,7 +193,7 @@ export default function AdminAuditLogsPage() {
           <div className="flex flex-wrap gap-4 items-end">
             <div className="flex-1 min-w-[200px]">
               <label className="block text-sm font-medium text-[var(--neu-text)] mb-2">
-                Action Type
+                Type d'Action
               </label>
               <NeuSelect
                 value={filters.action}
@@ -205,7 +203,7 @@ export default function AdminAuditLogsPage() {
             </div>
             <div className="flex-1 min-w-[200px]">
               <label className="block text-sm font-medium text-[var(--neu-text)] mb-2">
-                Target Model
+                Modèle Cible
               </label>
               <NeuSelect
                 value={filters.targetModel}
@@ -215,7 +213,7 @@ export default function AdminAuditLogsPage() {
             </div>
             <div className="flex-1 min-w-[200px]">
               <label className="block text-sm font-medium text-[var(--neu-text)] mb-2">
-                From Date
+                Date de début
               </label>
               <NeuInput
                 type="date"
@@ -225,7 +223,7 @@ export default function AdminAuditLogsPage() {
             </div>
             <div className="flex-1 min-w-[200px]">
               <label className="block text-sm font-medium text-[var(--neu-text)] mb-2">
-                To Date
+                Date de fin
               </label>
               <NeuInput
                 type="date"
@@ -255,7 +253,7 @@ export default function AdminAuditLogsPage() {
         <NeuCardHeader>
           <NeuCardTitle className="flex items-center gap-2">
             <ScrollText className="w-5 h-5" />
-            Activity Log
+            Journal des Activités
           </NeuCardTitle>
         </NeuCardHeader>
         <NeuCardContent>
@@ -266,8 +264,8 @@ export default function AdminAuditLogsPage() {
           ) : logs.length === 0 ? (
             <EmptyState
               icon={ScrollText}
-              title="No Audit Logs"
-              description="No activity recorded matching your filters"
+              title="Aucun Journal d'Audit"
+              description="Aucune activité enregistrée ne correspond à vos filtres actuels"
             />
           ) : (
             <>

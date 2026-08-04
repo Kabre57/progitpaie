@@ -168,15 +168,15 @@ export default function ShiftsPage() {
         <div>
           <h1 className="text-3xl font-bold text-[var(--neu-text)] flex items-center gap-3">
             <Clock className="w-8 h-8 text-[var(--neu-accent)]" />
-            Shifts
+            Planning & Horaires
           </h1>
           <p className="text-[var(--neu-text-secondary)] mt-1">
-            Manage employee work shifts
+            Gérer les plannings et heures de travail des employés
           </p>
         </div>
         <NeuButton onClick={() => openModal()} variant="accent">
           <Plus className="w-4 h-4" />
-          Add Shift
+          Ajouter un Planning
         </NeuButton>
       </div>
 
@@ -205,8 +205,8 @@ export default function ShiftsPage() {
           ) : shifts.length === 0 ? (
             <div className="text-center py-12 text-[var(--neu-text-secondary)]">
               <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Aucun planning de travail trouvé</p>
-              <p className="text-sm mt-1">Cliquez sur &quot;Ajouter Planning&quot; pour en créer un</p>
+              <p className="font-semibold text-lg text-[var(--neu-text)]">Aucun planning de travail trouvé</p>
+              <p className="text-sm mt-1">Cliquez sur &quot;Ajouter un Planning&quot; pour en créer un</p>
             </div>
           ) : (
             <List2 
@@ -263,20 +263,20 @@ export default function ShiftsPage() {
           <div className="w-full max-w-md">
             <NeuCard>
               <NeuCardHeader>
-                <NeuCardTitle>{editingShift ? "Edit Shift" : "Add Shift"}</NeuCardTitle>
+                <NeuCardTitle>{editingShift ? "Modifier le Planning" : "Ajouter un Planning"}</NeuCardTitle>
               </NeuCardHeader>
               <form onSubmit={handleSubmit}>
                 <NeuCardContent className="space-y-4">
                   <NeuInput
-                    label="Shift Name"
+                    label="Nom du Planning"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
-                    placeholder="e.g., Morning Shift"
+                    placeholder="ex: Équipe du Matin"
                   />
                   <div className="grid grid-cols-2 gap-4">
                     <NeuInput
-                      label="Start Time"
+                      label="Heure de Début"
                       type="time"
                       value={formData.startTime}
                       onChange={(e) =>
@@ -285,7 +285,7 @@ export default function ShiftsPage() {
                       required
                     />
                     <NeuInput
-                      label="End Time"
+                      label="Heure de Fin"
                       type="time"
                       value={formData.endTime}
                       onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
@@ -294,7 +294,7 @@ export default function ShiftsPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <NeuInput
-                      label="Working Hours"
+                      label="Heures Travaillées"
                       type="number"
                       min={1}
                       max={24}
@@ -308,7 +308,7 @@ export default function ShiftsPage() {
                       required
                     />
                     <NeuInput
-                      label="Late Threshold (min)"
+                      label="Tolérance Retard (min)"
                       type="number"
                       min={0}
                       max={60}
@@ -325,7 +325,7 @@ export default function ShiftsPage() {
                 </NeuCardContent>
                 <div className="flex items-center justify-end gap-3 p-6 pt-0">
                   <NeuButton type="button" variant="ghost" onClick={closeModal}>
-                    Cancel
+                    Annuler
                   </NeuButton>
                   <NeuButton
                     type="submit"
@@ -334,7 +334,7 @@ export default function ShiftsPage() {
                     disabled={!formData.name.trim() || !formData.startTime || !formData.endTime}
                   >
                     <Check className="w-4 h-4 mr-2" />
-                    {editingShift ? "Update" : "Create"}
+                    {editingShift ? "Mettre à jour" : "Créer"}
                   </NeuButton>
                 </div>
               </form>

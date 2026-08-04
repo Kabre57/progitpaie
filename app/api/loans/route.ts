@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth, requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { LoanType, LoanStatus, Prisma } from "@prisma/client";
 import { ApiResponse } from "@/types";
 
@@ -9,7 +9,7 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const user = await requireAuth(request);
+    const user = await requireTenant(request);
     if (user instanceof NextResponse) {
       return user;
     }
@@ -18,7 +18,7 @@ export async function GET(
     const userId = searchParams.get("userId");
     const status = searchParams.get("status");
 
-    const where: Prisma.LoanWhereInput = {};
+    const where: Prisma.LoanWhereInput = { companyId: user.companyId };
     if (user.role === "employee") {
       where.userId = user.userId;
     } else if (userId) {
@@ -69,7 +69,7 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -93,6 +93,7 @@ export async function POST(
 
     const loan = await prisma.loan.create({
       data: {
+        companyId: authResult.companyId,
         userId,
         type: (type || "PRET") as LoanType,
         amount: totalAmount,

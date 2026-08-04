@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PayslipConfigService } from "@/lib/payslip-config-service";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import {
   DEFAULT_PAYSLIP_APPEARANCE,
   DEFAULT_PAYSLIP_LEGAL,
@@ -12,7 +12,7 @@ import {
  */
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) return authResult;
 
     const configService = PayslipConfigService.getInstance();
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const authResult = await requireAdmin(req);
+    const authResult = await requireTenant(req, "admin");
     if (authResult instanceof NextResponse) return authResult;
 
     const body = await req.json();
@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
       if (admin) {
         await prisma.auditLog.create({
           data: {
+            companyId: authResult.companyId,
             performedById: admin.id,
             action: "UPDATE_PAYSLIP_CONFIG",
             targetModel: "Settings",

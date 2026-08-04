@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { AttendanceStatus } from "@prisma/client";
 import { ApiResponse } from "@/types";
 
@@ -16,7 +16,7 @@ export async function POST(
 ): Promise<NextResponse<ApiResponse<ImportResult>>> {
   try {
     // Check admin authorization
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -116,7 +116,9 @@ export async function POST(
       }
 
       try {
-        const user = await prisma.user.findUnique({ where: { employeeId } });
+        const user = await prisma.user.findFirst({
+          where: { employeeId, companyId: authResult.companyId },
+        });
         if (!user) {
           result.skipped++;
           result.errors.push(`Row ${i}: Employee not found (${employeeId})`);
@@ -171,6 +173,7 @@ export async function POST(
 
         await prisma.attendance.create({
           data: {
+            companyId: authResult.companyId,
             userId: user.id,
             date: dateStr,
             checkIn,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { TerminationType } from "@prisma/client";
 import { ApiResponse } from "@/types";
 
@@ -9,12 +9,13 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
 
     const severances = await prisma.severance.findMany({
+      where: { companyId: authResult.companyId },
       orderBy: { createdAt: "desc" },
       include: {
         user: { select: { id: true, name: true, email: true, employeeId: true } },
@@ -53,7 +54,7 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -157,6 +158,7 @@ export async function POST(
 
     const severance = await prisma.severance.create({
       data: {
+        companyId: authResult.companyId,
         userId,
         contractId: activeContract?.id || null,
         terminationType: mappedType,

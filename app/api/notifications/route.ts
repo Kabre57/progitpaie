@@ -4,32 +4,49 @@ import { requireAuth } from "@/lib/middleware-helpers";
 import { NotificationType, Prisma } from "@prisma/client";
 import { incrUnreadNotifications } from "@/lib/redis";
 import { ApiResponse } from "@/types";
+import { requireTenant } from "@/lib/database/tenant-context";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { validateBody } from "@/lib/validate";
+import { createNotificationSchema } from "@/shared/validation/notification.schema";
 
 // POST /api/notifications - Create a notification (internal use)
 export async function POST(
   request: NextRequest
-): Promise<NextResponse<ApiResponse<unknown>>> {
+): Promise<NextResponse> {
   try {
-    const body = await request.json();
-    const { userId, title, message, type, link } = body;
+    const rateLimitResponse = await enforceRateLimit(request, "notifications:create", 30, 60);
+    if (rateLimitResponse) return rateLimitResponse;
 
-    if (!userId || !title || !message) {
+    const tenant = await requireTenant(request, "admin");
+    if (tenant instanceof NextResponse) return tenant;
+
+    const validation = await validateBody(request, createNotificationSchema);
+    if (!validation.success) return validation.response;
+    const { userId, title, message, type, link } = validation.data;
+
+    const recipient = await prisma.user.findFirst({
+      where: { id: userId, companyId: tenant.companyId, isActive: true },
+      select: { id: true },
+    });
+
+    if (!recipient) {
       return NextResponse.json(
         {
           success: false,
-          error: "UserId, title, and message are required",
-          code: "VALIDATION_ERROR",
+          error: "Destinataire introuvable dans votre société",
+          code: "RECIPIENT_NOT_FOUND",
         },
-        { status: 400 }
+        { status: 404 }
       );
     }
 
     const notification = await prisma.notification.create({
       data: {
+        companyId: tenant.companyId,
         userId,
         title,
         message,
-        type: (type || "info") as NotificationType,
+        type: type as NotificationType,
         link: link || null,
         isRead: false,
       },

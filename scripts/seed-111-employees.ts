@@ -70,17 +70,38 @@ const BANKS = [
 ];
 
 async function main() {
-  console.log("🚀 Démarrage de la génération complète des Horaires/Planning & Heures Supplémentaires...");
+  console.log("🚀 Démarrage de la génération complète des 111 Salariés Ivoiriens...");
+
+  // 0. Créer ou récupérer l'entreprise par défaut
+  let defaultCompany = await prisma.company.findFirst();
+  if (!defaultCompany) {
+    defaultCompany = await prisma.company.create({
+      data: {
+        name: "PROGITPAIE SA",
+        sigle: "PROGITPAIE",
+        ccNumber: "CC-2026-CI-998877",
+        cnpsNumber: "CNPS-88776655",
+        address: "Abidjan Plateau, Boulevard Botreau Roussel",
+        city: "Abidjan",
+        phone: "+225 07 00 00 00 00",
+        email: "contact@progitpaie.ci",
+      },
+    });
+  }
 
   // 1. Créer les départements
   const deptMap = new Map<string, string>();
   for (const d of DEPARTMENTS) {
-    const existing = await prisma.department.findFirst({ where: { name: d.name } });
+    const existing = await prisma.department.findFirst({ where: { name: d.name, companyId: defaultCompany.id } });
     if (existing) {
       deptMap.set(d.name, existing.id);
     } else {
       const created = await prisma.department.create({
-        data: { name: d.name, description: d.desc },
+        data: {
+          name: d.name,
+          description: d.desc,
+          companyId: defaultCompany.id,
+        },
       });
       deptMap.set(d.name, created.id);
     }
@@ -89,7 +110,7 @@ async function main() {
   // 2. Créer les Horaires / Shifts de travail
   const shiftList = [];
   for (const s of SHIFTS) {
-    const existing = await prisma.shift.findFirst({ where: { name: s.name } });
+    const existing = await prisma.shift.findFirst({ where: { name: s.name, companyId: defaultCompany.id } });
     if (existing) {
       shiftList.push(existing);
     } else {
@@ -100,6 +121,7 @@ async function main() {
           endTime: s.endTime,
           workingHours: s.workingHours,
           lateThresholdMinutes: s.lateThresholdMinutes,
+          companyId: defaultCompany.id,
         },
       });
       shiftList.push(created);
@@ -150,6 +172,7 @@ async function main() {
         password: hashedPassword,
         role: UserRole.employee,
         employeeId: empCode,
+        companyId: defaultCompany.id,
         departmentId: deptId,
         shiftId: assignedShift.id,
         salary: baseSalary,
@@ -197,6 +220,7 @@ async function main() {
     if (idx % 3 === 0) {
       await prisma.overtime.create({
         data: {
+          companyId: defaultCompany.id,
           userId: emp.id,
           date: new Date(2026, 6, 15),
           minutes: 120, // 2 heures supp (+15%)
@@ -210,6 +234,7 @@ async function main() {
     if (idx % 5 === 0) {
       await prisma.overtime.create({
         data: {
+          companyId: defaultCompany.id,
           userId: emp.id,
           date: new Date(2026, 6, 20),
           minutes: 240, // 4 heures supp (+50%)
@@ -223,6 +248,7 @@ async function main() {
     if (idx % 7 === 0) {
       await prisma.overtime.create({
         data: {
+          companyId: defaultCompany.id,
           userId: emp.id,
           date: new Date(2026, 6, 26),
           minutes: 180, // 3 heures supp (+100%)

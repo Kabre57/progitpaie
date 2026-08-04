@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { LeaveType, LeaveStatus } from "@prisma/client";
 import { ApiResponse } from "@/types";
 import { validateBody } from "@/lib/validate";
@@ -25,7 +25,7 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const user = await requireAuth(request);
+    const user = await requireTenant(request);
     if (user instanceof NextResponse) {
       return user;
     }
@@ -63,6 +63,7 @@ export async function POST(
     // Vérification du chevauchement de congés déjà existants
     const overlapping = await prisma.leave.findFirst({
       where: {
+        companyId: user.companyId,
         userId: user.userId,
         status: { in: [LeaveStatus.pending, LeaveStatus.approved] },
         AND: [{ startDate: { lte: end } }, { endDate: { gte: start } }],
@@ -83,6 +84,7 @@ export async function POST(
     // Création de la demande de congé (Statut 'pending' par défaut pour validation RH)
     const leaveRequest = await prisma.leave.create({
       data: {
+        companyId: user.companyId,
         userId: user.userId,
         leaveType: prismaLeaveType,
         startDate: start,

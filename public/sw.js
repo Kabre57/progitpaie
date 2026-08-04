@@ -1,13 +1,19 @@
-const CACHE_NAME = "progitpaie-v1";
-const OFFLINE_URL = "/offline";
-
+const CACHE_NAME = "progitpaie-v2-public-only";
 const STATIC_ASSETS = [
-  "/",
   "/login",
   "/offline",
   "/logo.png",
   "/manifest.json",
 ];
+
+const PUBLIC_ASSET_PREFIXES = ["/_next/static/", "/_next/image/"];
+
+function isPublicAsset(requestUrl) {
+  const url = new URL(requestUrl);
+  if (url.origin !== self.location.origin) return false;
+  if (STATIC_ASSETS.includes(url.pathname)) return true;
+  return PUBLIC_ASSET_PREFIXES.some((prefix) => url.pathname.startsWith(prefix));
+}
 
 // Installation du Service Worker et mise en cache des assets statiques
 self.addEventListener("install", (event) => {
@@ -40,22 +46,20 @@ self.addEventListener("activate", (event) => {
 // Interception des requêtes HTTP (Network First avec Fallback Cache/Offline)
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  if (!isPublicAsset(event.request.url)) return;
 
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Enregistrer la réponse dans le cache
-        const resClone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
+        if (response.ok && response.type === "basic") {
+          const resClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
+        }
         return response;
       })
       .catch(async () => {
         const cachedResponse = await caches.match(event.request);
         if (cachedResponse) return cachedResponse;
-
-        if (event.request.mode === "navigate") {
-          return caches.match(OFFLINE_URL);
-        }
 
         return new Response("Hors-ligne", { status: 503, statusText: "Service Unavailable" });
       })

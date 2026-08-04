@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import jwt from "jsonwebtoken";
+import { getDefaultCompanyId } from "@/lib/database/tenant-context";
 
 const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_progitpaie";
 
@@ -21,9 +22,11 @@ export async function POST(req: NextRequest) {
     });
 
     if (!user) {
+      const companyId = await getDefaultCompanyId();
       // Création automatique de l'utilisateur avec Google Auth
       user = await prisma.user.create({
         data: {
+          companyId,
           email,
           name: name || email.split("@")[0],
           password: "", // Pas de mot de passe car authentification OAuth Google

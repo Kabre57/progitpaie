@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { Prisma } from "@prisma/client";
 import { ApiResponse } from "@/types";
 
@@ -16,8 +16,14 @@ async function createAuditLog(
   userAgent?: string
 ): Promise<void> {
   try {
+    const actor = await prisma.user.findUnique({
+      where: { id: performedBy },
+      select: { companyId: true },
+    });
+    if (!actor) throw new Error("Auteur du journal d'audit introuvable");
     await prisma.auditLog.create({
       data: {
+        companyId: actor.companyId,
         performedById: performedBy,
         action,
         targetModel,
@@ -39,7 +45,7 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -50,7 +56,7 @@ export async function GET(
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "20", 10);
 
-    const where: Prisma.AuditLogWhereInput = {};
+    const where: Prisma.AuditLogWhereInput = { companyId: authResult.companyId };
     if (action) where.action = action;
     if (targetModel) where.targetModel = targetModel;
 

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { UserRole } from "@prisma/client";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { getDefaultCompanyId } from "@/lib/database/tenant-context";
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,20 +40,21 @@ export async function POST(request: NextRequest) {
 
     // Hash password
     const hashedPassword = await hashPassword(password);
+    const companyId = await getDefaultCompanyId();
 
     // Process department if provided
     let finalDepartmentId: string | null = null;
     if (department) {
       const trimmedDept = department.trim();
       const existingDept = await prisma.department.findFirst({
-        where: { OR: [{ id: trimmedDept }, { name: trimmedDept }] },
+        where: { companyId, OR: [{ id: trimmedDept }, { name: trimmedDept }] },
       });
 
       if (existingDept) {
         finalDepartmentId = existingDept.id;
       } else {
         const newDept = await prisma.department.create({
-          data: { name: trimmedDept },
+          data: { name: trimmedDept, companyId },
         });
         finalDepartmentId = newDept.id;
       }
@@ -61,6 +63,7 @@ export async function POST(request: NextRequest) {
     // Create first user as admin
     const newUser = await prisma.user.create({
       data: {
+        companyId,
         name: name.trim(),
         email: email.toLowerCase().trim(),
         password: hashedPassword,

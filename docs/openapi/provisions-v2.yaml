@@ -1,0 +1,275 @@
+openapi: 3.1.0
+info:
+  title: PROGITPAIE — API Provisions V2
+  version: 2.0.0
+  description: >-
+    Contrat de calcul des provisions de congés et de l'exposition théorique liée à
+    l'indemnité de licenciement. Les données sont isolées par société et ne sont
+    accessibles qu'à un administrateur authentifié.
+servers:
+  - url: /
+    description: Instance courante
+tags:
+  - name: Provisions
+paths:
+  /api/v2/payroll/provisions:
+    get:
+      tags: [Provisions]
+      operationId: getPayrollProvisionsV2
+      summary: Calculer les provisions d'une société
+      description: >-
+        `year` et `asOf` sont mutuellement exclusifs. Sans paramètre, la date de
+        référence est résolue par le serveur. La réponse porte toujours
+        `Cache-Control: private, no-store, max-age=0`.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: year
+          in: query
+          required: false
+          description: Année de référence. Incompatible avec `asOf`.
+          schema:
+            type: integer
+            minimum: 2000
+            maximum: 2100
+        - name: asOf
+          in: query
+          required: false
+          description: Date de référence exacte. Incompatible avec `year`.
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Calcul réalisé avec succès
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: private, no-store, max-age=0
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProvisionSuccessEnvelope"
+        "400":
+          description: Requête ou date de référence invalide
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Session absente, invalide ou révoquée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Rôle administrateur ou tenant requis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Échec interne du calcul
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: rbeas_token
+  schemas:
+    Warning:
+      type: object
+      additionalProperties: false
+      required: [code, message, severity]
+      properties:
+        code: { type: string, minLength: 1 }
+        message: { type: string, minLength: 1 }
+        severity: { type: string, enum: [info, warning, error] }
+    PayrollPeriodUsed:
+      type: object
+      additionalProperties: false
+      required: [year, month, eligibleGross]
+      properties:
+        year: { type: integer, minimum: 2000, maximum: 2100 }
+        month: { type: integer, minimum: 1, maximum: 12 }
+        eligibleGross: { type: number, minimum: 0 }
+    LeaveProvision:
+      type: object
+      additionalProperties: false
+      required:
+        - companyId
+        - userId
+        - employeeName
+        - employeeId
+        - referenceDate
+        - joiningDate
+        - seniorityMonths
+        - effectiveServiceMonths
+        - baseAccruedDays
+        - seniorityBonusDays
+        - openingBalanceDays
+        - carriedForwardDays
+        - consumedDays
+        - compensatedDays
+        - closingBalanceDays
+        - averageMonthlySalary
+        - dailyDivisorUsed
+        - salaryMaintenanceDailyRate
+        - salaryMaintenanceAmount
+        - tenthRulePeriodSalary
+        - tenthRuleAmount
+        - selectedMethod
+        - provisionAmount
+        - salaryMonthsUsed
+        - payrollPeriodsUsed
+        - ruleVersion
+        - warnings
+      properties:
+        companyId: { type: string, minLength: 1 }
+        userId: { type: string, minLength: 1 }
+        employeeName: { type: string, minLength: 1 }
+        employeeId: { type: [string, "null"] }
+        referenceDate: { type: string, format: date-time }
+        joiningDate: { type: string, format: date-time }
+        seniorityMonths: { type: number, minimum: 0 }
+        effectiveServiceMonths: { type: number, minimum: 0 }
+        baseAccruedDays: { type: number, minimum: 0 }
+        seniorityBonusDays: { type: number, minimum: 0 }
+        openingBalanceDays: { type: number }
+        carriedForwardDays: { type: number }
+        consumedDays: { type: number, minimum: 0 }
+        compensatedDays: { type: number, minimum: 0 }
+        closingBalanceDays: { type: number }
+        averageMonthlySalary: { type: number, minimum: 0 }
+        dailyDivisorUsed: { type: integer, enum: [26, 30] }
+        salaryMaintenanceDailyRate: { type: number, minimum: 0 }
+        salaryMaintenanceAmount: { type: number, minimum: 0 }
+        tenthRulePeriodSalary: { type: number, minimum: 0 }
+        tenthRuleAmount: { type: number, minimum: 0 }
+        selectedMethod: { type: string, enum: [TENTH, SALARY_MAINTENANCE] }
+        provisionAmount: { type: number, minimum: 0 }
+        salaryMonthsUsed: { type: integer, minimum: 0, maximum: 12 }
+        payrollPeriodsUsed:
+          type: array
+          items: { $ref: "#/components/schemas/PayrollPeriodUsed" }
+        ruleVersion: { type: string, minLength: 1 }
+        warnings:
+          type: array
+          items: { $ref: "#/components/schemas/Warning" }
+    TerminationBenefit:
+      type: object
+      additionalProperties: false
+      required:
+        - companyId
+        - userId
+        - employeeName
+        - employeeId
+        - referenceDate
+        - seniorityMonths
+        - seniorityYears
+        - averageMonthlySalary
+        - salaryMonthsUsed
+        - firstTrancheMonths
+        - firstTrancheAmount
+        - secondTrancheMonths
+        - secondTrancheAmount
+        - thirdTrancheMonths
+        - thirdTrancheAmount
+        - theoreticalExposure
+        - eligible
+        - calculationBasis
+        - payrollPeriodsUsed
+        - ruleVersion
+        - warnings
+      properties:
+        companyId: { type: string, minLength: 1 }
+        userId: { type: string, minLength: 1 }
+        employeeName: { type: string, minLength: 1 }
+        employeeId: { type: [string, "null"] }
+        referenceDate: { type: string, format: date-time }
+        seniorityMonths: { type: number, minimum: 0 }
+        seniorityYears: { type: string, pattern: '^\d+(\.\d{1,4})?$' }
+        averageMonthlySalary: { type: number, minimum: 0 }
+        salaryMonthsUsed: { type: integer, minimum: 0, maximum: 12 }
+        firstTrancheMonths: { type: number, minimum: 0 }
+        firstTrancheAmount: { type: number, minimum: 0 }
+        secondTrancheMonths: { type: number, minimum: 0 }
+        secondTrancheAmount: { type: number, minimum: 0 }
+        thirdTrancheMonths: { type: number, minimum: 0 }
+        thirdTrancheAmount: { type: number, minimum: 0 }
+        theoreticalExposure: { type: number, minimum: 0 }
+        eligible: { type: boolean }
+        calculationBasis: { type: string, enum: [ACTUAL_PAYROLL, CONTRACT_FALLBACK] }
+        payrollPeriodsUsed:
+          type: array
+          items: { $ref: "#/components/schemas/PayrollPeriodUsed" }
+        ruleVersion: { type: string, minLength: 1 }
+        warnings:
+          type: array
+          items: { $ref: "#/components/schemas/Warning" }
+    DataQuality:
+      type: object
+      additionalProperties: false
+      required: [completeSalaryHistories, incompleteSalaryHistories, contractFallbacks, legacyLeaveBalances]
+      properties:
+        completeSalaryHistories: { type: integer, minimum: 0 }
+        incompleteSalaryHistories: { type: integer, minimum: 0 }
+        contractFallbacks: { type: integer, minimum: 0 }
+        legacyLeaveBalances: { type: integer, minimum: 0 }
+    ProvisionResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - companyId
+        - referenceDate
+        - ruleVersion
+        - calculatedAt
+        - leaveProvisions
+        - terminationBenefits
+        - totalLeaveProvision
+        - totalTerminationExposure
+        - totalExposure
+        - employeesProcessed
+        - employeesWithWarnings
+        - warnings
+        - dataQuality
+      properties:
+        companyId: { type: string, minLength: 1 }
+        referenceDate: { type: string, format: date-time }
+        ruleVersion: { type: string, minLength: 1 }
+        calculatedAt: { type: string, format: date-time }
+        leaveProvisions:
+          type: array
+          items: { $ref: "#/components/schemas/LeaveProvision" }
+        terminationBenefits:
+          type: array
+          items: { $ref: "#/components/schemas/TerminationBenefit" }
+        totalLeaveProvision: { type: number, minimum: 0 }
+        totalTerminationExposure: { type: number, minimum: 0 }
+        totalExposure: { type: number, minimum: 0 }
+        employeesProcessed: { type: integer, minimum: 0 }
+        employeesWithWarnings: { type: integer, minimum: 0 }
+        warnings:
+          type: array
+          items: { $ref: "#/components/schemas/Warning" }
+        dataQuality: { $ref: "#/components/schemas/DataQuality" }
+    ProvisionSuccessEnvelope:
+      type: object
+      additionalProperties: false
+      required: [success, data]
+      properties:
+        success: { type: boolean, const: true }
+        data: { $ref: "#/components/schemas/ProvisionResponse" }
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [success, error]
+      properties:
+        success: { type: boolean, const: false }
+        error: { type: string, minLength: 1 }
+        code: { type: string }

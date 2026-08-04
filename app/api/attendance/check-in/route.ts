@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { AttendanceStatus } from "@prisma/client";
 import { ApiResponse } from "@/types";
 import { acquireLock, releaseLock } from "@/lib/lock";
 import { GeolocationCache } from "@/lib/services/geolocation-cache";
 import { verifyGeofenceFence } from "@/lib/utils/distance-calculator";
+import { validateBody } from "@/lib/validate";
+import { checkInSchema } from "@/lib/validators/attendance.schema";
 
 const geoCache = GeolocationCache.getInstance();
 
@@ -13,36 +15,31 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireTenant(request);
     if (authResult instanceof NextResponse) {
-      return authResult as any;
+      return authResult;
     }
 
-    const currentUserId = (authResult as any).userId || (authResult as any).id || (authResult as any)._id;
-    if (!currentUserId) {
-      return NextResponse.json<any>(
-        { success: false, error: "Utilisateur non identifié" },
-        { status: 401 }
-      );
-    }
+    const currentUserId = authResult.userId;
 
     const lockKey = `checkin:${currentUserId}`;
     const lockToken = await acquireLock(lockKey, 5000).catch(() => "bypass-lock");
 
     try {
-      const body = await request.json().catch(() => ({}));
-      const { latitude, longitude, accuracyMeters = 15, isRemote = false } = body;
+      const validation = await validateBody(request, checkInSchema);
+      if (!validation.success) return validation.response;
+      const { latitude, longitude, accuracyMeters = 15, isRemote = false } = validation.data;
 
       const now = new Date();
       const todayStr = now.toISOString().split("T")[0];
 
       // Récupération de l'employé
-      const employee: any = await prisma.user.findUnique({
-        where: { id: currentUserId },
+      const employee = await prisma.user.findFirst({
+        where: { id: currentUserId, companyId: authResult.companyId },
       });
 
       if (!employee) {
-        return NextResponse.json<any>(
+        return NextResponse.json(
           { success: false, error: "Employé introuvable en base." },
           { status: 404 }
         );
@@ -60,7 +57,7 @@ export async function POST(
 
       if (!isTelework) {
         if (latitude === undefined || longitude === undefined) {
-          return NextResponse.json<any>(
+          return NextResponse.json(
             {
               success: false,
               error: "La géolocalisation GPS est obligatoire pour pointer sur site. Veuillez autoriser le GPS.",
@@ -73,16 +70,16 @@ export async function POST(
         const officeGPS = await geoCache.getCompanyGPS(employee.companyId);
 
         geofenceResult = verifyGeofenceFence({
-          userLat: parseFloat(latitude),
-          userLng: parseFloat(longitude),
-          accuracyMeters: parseFloat(accuracyMeters) || 15,
+          userLat: latitude,
+          userLng: longitude,
+          accuracyMeters,
           officeLat: officeGPS.latitude,
           officeLng: officeGPS.longitude,
           radiusMeters: officeGPS.radiusMeters,
         });
 
         if (!geofenceResult.isWithinFence) {
-          return NextResponse.json<any>(
+          return NextResponse.json(
             {
               success: false,
               error: geofenceResult.message,
@@ -124,7 +121,7 @@ export async function POST(
       });
 
       if (existingToday) {
-        return NextResponse.json<any>(
+        return NextResponse.json(
           {
             success: false,
             error: "Vous avez déjà pointé votre arrivée pour aujourd'hui.",
@@ -139,35 +136,21 @@ export async function POST(
       workStartTime.setHours(8, 30, 0, 0);
       const status: AttendanceStatus = now > workStartTime ? "late" : "present";
 
-      // Insertion robuste gérant le cache du runtime dev Next.js
-      let attendance: any;
-      try {
-        attendance = await prisma.attendance.create({
-          data: {
-            userId: currentUserId,
-            date: todayStr,
-            checkIn: now,
-            status,
-            locationLat: latitude !== undefined ? parseFloat(latitude) : null,
-            locationLng: longitude !== undefined ? parseFloat(longitude) : null,
-            accuracyMeters: accuracyMeters ? parseFloat(accuracyMeters) : null,
-            distanceMeters: geofenceResult.distanceMeters,
-            isWithinFence: geofenceResult.isWithinFence,
-            notes: isTelework ? "Pointage Télétravail / Remote" : "Pointage sur site",
-          } as any,
-        });
-      } catch (insertError) {
-        // Fallback sans les nouveaux champs si le schéma runtime Prisma n'est pas réinvoqué
-        attendance = await prisma.attendance.create({
-          data: {
-            userId: currentUserId,
-            date: todayStr,
-            checkIn: now,
-            status,
-            notes: isTelework ? "Pointage Télétravail / Remote" : "Pointage sur site",
-          },
-        });
-      }
+      const attendance = await prisma.attendance.create({
+        data: {
+          companyId: authResult.companyId,
+          userId: currentUserId,
+          date: todayStr,
+          checkIn: now,
+          status,
+          locationLat: latitude ?? null,
+          locationLng: longitude ?? null,
+          accuracyMeters,
+          distanceMeters: geofenceResult.distanceMeters,
+          isWithinFence: geofenceResult.isWithinFence,
+          notes: isTelework ? "Pointage Télétravail / Remote" : "Pointage sur site",
+        },
+      });
 
       return NextResponse.json({
         success: true,
@@ -179,12 +162,12 @@ export async function POST(
         await releaseLock(lockKey, lockToken).catch(() => {});
       }
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/attendance/check-in error:", error);
-    return NextResponse.json<any>(
+    return NextResponse.json(
       {
         success: false,
-        error: error.message || "Échec du pointage d'arrivée.",
+        error: error instanceof Error ? error.message : "Échec du pointage d'arrivée.",
       },
       { status: 500 }
     );

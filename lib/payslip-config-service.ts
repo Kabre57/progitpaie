@@ -167,6 +167,11 @@ export class PayslipConfigService {
    * la taille JSON. Seule la référence "logoBase64 present" est stockée.
    */
   public async createSnapshot(adminId: string): Promise<string> {
+    const admin = await prisma.user.findUnique({
+      where: { id: adminId },
+      select: { companyId: true },
+    });
+    if (!admin) throw new Error("Administrateur introuvable");
     const appearance = await this.getAppearance();
     const legal = await this.getLegal();
     const rateService = RateService.getInstance();
@@ -183,6 +188,7 @@ export class PayslipConfigService {
 
     const snapshot = await prisma.payslipConfigSnapshot.create({
       data: {
+        companyId: admin.companyId,
         appearanceConfig: appearanceForSnapshot as any,
         legalConfig: legal as any,
         ratesConfig: rates as unknown as any,

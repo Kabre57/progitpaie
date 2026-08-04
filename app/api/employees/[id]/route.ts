@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin, requireAuth } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { hashPassword } from "@/lib/auth";
 import { ApiResponse } from "@/types";
 import { encryptData, decryptData } from "@/lib/crypto";
@@ -11,15 +11,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const user = await requireAuth(request);
+    const user = await requireTenant(request);
     if (user instanceof NextResponse) {
       return user;
     }
 
     const { id } = await params;
 
-    const employee = await prisma.user.findUnique({
-      where: { id },
+    const employee = await prisma.user.findFirst({
+      where: { id, companyId: user.companyId },
       include: {
         department: { select: { id: true, name: true } },
         shift: { select: { id: true, name: true, startTime: true, endTime: true } },
@@ -69,7 +69,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const adminCheck = await requireAdmin(request);
+    const adminCheck = await requireTenant(request, "admin");
     if (adminCheck instanceof NextResponse) {
       return adminCheck;
     }
@@ -157,19 +157,19 @@ export async function PUT(
       delete updateData.department;
       if (deptName !== "") {
         const deptDoc = await prisma.department.findFirst({
-          where: { OR: [{ id: deptName }, { name: deptName }] },
+          where: { companyId: adminCheck.companyId, OR: [{ id: deptName }, { name: deptName }] },
         });
         if (deptDoc) {
           updateData.departmentId = deptDoc.id;
         } else {
-          const newDept = await prisma.department.create({ data: { name: deptName } });
+          const newDept = await prisma.department.create({ data: { name: deptName, companyId: adminCheck.companyId } });
           updateData.departmentId = newDept.id;
         }
       }
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id },
+      where: { id, companyId: adminCheck.companyId },
       data: updateData,
       include: {
         department: { select: { id: true, name: true } },
@@ -206,7 +206,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const adminCheck = await requireAdmin(request);
+    const adminCheck = await requireTenant(request, "admin");
     if (adminCheck instanceof NextResponse) {
       return adminCheck;
     }

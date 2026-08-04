@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { hashPassword } from "@/lib/auth";
 import { UserRole } from "@prisma/client";
 import { ApiResponse } from "@/types";
@@ -24,7 +24,7 @@ export async function POST(
 ): Promise<NextResponse<ApiResponse<ImportResult>>> {
   try {
     // Check admin authorization
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -149,7 +149,7 @@ export async function POST(
         let finalDepartmentId: string | null = null;
         if (department) {
           const deptDoc = await prisma.department.findFirst({
-            where: { OR: [{ id: department }, { name: department }] },
+            where: { companyId: authResult.companyId, OR: [{ id: department }, { name: department }] },
           });
           if (deptDoc) {
             finalDepartmentId = deptDoc.id;
@@ -160,7 +160,7 @@ export async function POST(
         let finalShiftId: string | null = null;
         if (shift) {
           const shiftDoc = await prisma.shift.findFirst({
-            where: { OR: [{ id: shift }, { name: shift }] },
+            where: { companyId: authResult.companyId, OR: [{ id: shift }, { name: shift }] },
           });
           if (shiftDoc) {
             finalShiftId = shiftDoc.id;
@@ -170,6 +170,7 @@ export async function POST(
         // Create user
         await prisma.user.create({
           data: {
+            companyId: authResult.companyId,
             name,
             email,
             password: hashedPassword,

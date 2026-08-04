@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { RateService } from "@/lib/rate-service";
 import { DEFAULT_PAYROLL_RATES } from "@/lib/rates-config";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 
 /**
  * GET /api/settings/rates
@@ -10,7 +10,7 @@ import { requireAdmin } from "@/lib/middleware-helpers";
  */
 export async function GET(request: Request) {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) return authResult;
 
     const rateService = RateService.getInstance();
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
  */
 export async function POST(req: Request) {
   try {
-    const authResult = await requireAdmin(req);
+    const authResult = await requireTenant(req, "admin");
     if (authResult instanceof NextResponse) return authResult;
 
     const body = await req.json();
@@ -88,6 +88,7 @@ export async function POST(req: Request) {
       if (admin) {
         await prisma.auditLog.create({
           data: {
+            companyId: authResult.companyId,
             performedById: admin.id,
             action: "UPDATE_PAYROLL_RATES",
             targetModel: "Settings",

@@ -4,6 +4,11 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
+  const company = await prisma.company.upsert({
+    where: { id: "progitpaie-default-001" },
+    update: { name: "PROGITPAIE", isMain: true, isActive: true },
+    create: { id: "progitpaie-default-001", name: "PROGITPAIE", isMain: true, isActive: true },
+  });
   const email = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
   const password = process.env.SEED_ADMIN_PASSWORD;
   const name = process.env.SEED_ADMIN_NAME?.trim() || "Administrateur PROGITPAIE";
@@ -31,6 +36,7 @@ async function main() {
 
   const admin = await prisma.user.create({
     data: {
+      companyId: company.id,
       name,
       email,
       password: hashedPassword,

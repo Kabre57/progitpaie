@@ -145,12 +145,12 @@ export default function DepartmentsPage() {
             Departments
           </h1>
           <p className="text-[var(--neu-text-secondary)] mt-1">
-            Manage company departments
+            Gérer les départements de l'entreprise
           </p>
         </div>
         <NeuButton onClick={() => openModal()} variant="accent">
           <Plus className="w-4 h-4" />
-          Add Department
+          Ajouter un Département
         </NeuButton>
       </div>
 
@@ -169,7 +169,7 @@ export default function DepartmentsPage() {
       {/* Departments Table */}
       <NeuCard>
         <NeuCardHeader>
-          <NeuCardTitle>All Departments</NeuCardTitle>
+          <NeuCardTitle>Tous les Départements</NeuCardTitle>
         </NeuCardHeader>
         <NeuCardContent>
           {isLoading ? (
@@ -179,21 +179,21 @@ export default function DepartmentsPage() {
           ) : departments.length === 0 ? (
             <div className="text-center py-12 text-[var(--neu-text-secondary)]">
               <Building2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No departments found</p>
-              <p className="text-sm mt-1">Click &quot;Add Department&quot; to create one</p>
+              <p className="font-semibold text-lg text-[var(--neu-text)]">Aucun département trouvé</p>
+              <p className="text-sm mt-1">Cliquez sur &quot;Ajouter un Département&quot; pour en créer un</p>
             </div>
           ) : (
             <List2 
               items={departments.map((dept) => ({
                 icon: <Building2 className="w-5 h-5 text-[var(--neu-accent)]" />,
                 title: dept.name,
-                category: "DEPARTMENT",
-                description: dept.description || "No description provided.",
+                category: "DÉPARTEMENT",
+                description: dept.description || "Aucune description fournie.",
                 onClick: () => openModal(dept),
                 status: (
                   <div className="flex items-center gap-3">
                     <NeuBadge variant={dept.isActive ? ("success" as const) : ("default" as const)}>
-                      {dept.isActive ? "Active" : "Inactive"}
+                      {dept.isActive ? "Actif" : "Inactif"}
                     </NeuBadge>
                     <NeuButton
                       size="icon"
@@ -221,41 +221,39 @@ export default function DepartmentsPage() {
             <NeuCard>
               <NeuCardHeader>
                 <NeuCardTitle>
-                  {editingDepartment ? "Edit Department" : "Add Department"}
+                  {editingDepartment ? "Modifier le Département" : "Ajouter un Département"}
                 </NeuCardTitle>
               </NeuCardHeader>
               <form onSubmit={handleSubmit}>
                 <NeuCardContent className="space-y-4">
                   <NeuInput
-                    label="Department Name"
+                    label="Nom du Département"
                     value={formData.name}
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
                     required
-                    placeholder="e.g., Engineering"
+                    placeholder="ex: Ingénierie & IT"
                   />
                   <NeuInput
-                    label="Description (Optional)"
+                    label="Description (Optionnelle)"
                     value={formData.description}
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
-                    placeholder="Brief description of the department"
+                    placeholder="Brève description du département"
                   />
                 </NeuCardContent>
                 <div className="flex items-center justify-end gap-3 p-6 pt-0">
                   <NeuButton type="button" variant="ghost" onClick={closeModal}>
-                    Cancel
+                    Annuler
                   </NeuButton>
-                  <NeuButton
-                    type="submit"
-                    variant="accent"
-                    loading={isSubmitting}
-                    disabled={!formData.name.trim()}
-                  >
-                    <Check className="w-4 h-4 mr-2" />
-                    {editingDepartment ? "Update" : "Create"}
+                  <NeuButton type="submit" variant="accent" disabled={isSubmitting}>
+                    {isSubmitting
+                      ? "Enregistrement..."
+                      : editingDepartment
+                      ? "Mettre à jour"
+                      : "Créer"}
                   </NeuButton>
                 </div>
               </form>

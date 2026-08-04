@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { ContractType, EmployeeCategory, Prisma } from "@prisma/client";
 import { ApiResponse } from "@/types";
 
@@ -9,7 +9,7 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -19,7 +19,7 @@ export async function GET(
     const type = searchParams.get("type");
     const status = searchParams.get("status") || "active";
 
-    const where: Prisma.ContractWhereInput = {};
+    const where: Prisma.ContractWhereInput = { companyId: authResult.companyId };
     if (userId) where.userId = userId;
     if (type) where.type = type as ContractType;
     if (status) where.status = status;
@@ -67,7 +67,7 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -100,12 +100,13 @@ export async function POST(
 
     // Désactiver les anciens contrats actifs de cet employé
     await prisma.contract.updateMany({
-      where: { userId, status: "active" },
+      where: { userId, companyId: authResult.companyId, status: "active" },
       data: { status: "expired" },
     });
 
     const contract = await prisma.contract.create({
       data: {
+        companyId: authResult.companyId,
         userId,
         type: (type || "CDI") as ContractType,
         category: (category || "employe") as EmployeeCategory,
@@ -126,7 +127,7 @@ export async function POST(
 
     // Mettre à jour le salaire et les indemnités sur la fiche employé (User)
     await prisma.user.update({
-      where: { id: userId },
+      where: { id: userId, companyId: authResult.companyId },
       data: {
         salary: parseFloat(baseSalary),
         sursalaire: sursalaire ? parseFloat(sursalaire) : 0,

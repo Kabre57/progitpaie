@@ -5,19 +5,19 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { ApiKeyService } from "@/lib/infrastructure/api-gateway/api-key-service";
 
 const apiKeyService = new ApiKeyService();
 
 export async function GET(request: NextRequest): Promise<Response> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
 
-    const keys = await apiKeyService.listApiKeys();
+    const keys = await apiKeyService.listApiKeys(authResult.companyId);
     return NextResponse.json({
       success: true,
       keys,
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
 export async function POST(request: NextRequest): Promise<Response> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
-    const result = await apiKeyService.createApiKey(body.name, body.permissions || ["read:all"]);
+    const result = await apiKeyService.createApiKey(authResult.companyId, body.name, body.permissions || ["read:all"]);
 
     return NextResponse.json({
       success: true,

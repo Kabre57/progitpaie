@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { ApiResponse } from "@/types";
 
 // GET /api/reports/analytics - Indicateurs RH & Analytics de masse salariale
@@ -8,17 +8,20 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
 
     const [totalEmployees, activeEmployees, departments, contracts, payrolls] = await Promise.all([
-      prisma.user.count(),
-      prisma.user.count({ where: { isActive: true } }),
-      prisma.department.findMany({ select: { name: true, _count: { select: { employees: true } } } }),
-      prisma.contract.findMany({ where: { status: "active" }, select: { type: true, category: true } }),
-      prisma.payroll.findMany({ orderBy: [{ year: "desc" }, { month: "desc" }], take: 12 }),
+      prisma.user.count({ where: { companyId: authResult.companyId } }),
+      prisma.user.count({ where: { isActive: true, companyId: authResult.companyId } }),
+      prisma.department.findMany({
+        where: { employees: { some: { companyId: authResult.companyId } } },
+        select: { name: true, _count: { select: { employees: { where: { companyId: authResult.companyId } } } } },
+      }),
+      prisma.contract.findMany({ where: { status: "active", user: { companyId: authResult.companyId } }, select: { type: true, category: true } }),
+      prisma.payroll.findMany({ where: { user: { companyId: authResult.companyId } }, orderBy: [{ year: "desc" }, { month: "desc" }], take: 12 }),
     ]);
 
     // Répartition des contrats

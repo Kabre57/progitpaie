@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { AttendanceStatus } from "@prisma/client";
 import { ApiResponse } from "@/types";
 
@@ -8,7 +8,7 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const user = await requireAuth(request);
+    const user = await requireTenant(request, "admin");
     if (user instanceof NextResponse) {
       return user;
     }
@@ -22,6 +22,7 @@ export async function GET(
 
     const records = await prisma.attendance.findMany({
       where: {
+        user: { companyId: user.companyId },
         userId: user.userId,
         date: {
           gte: startOfMonth.toISOString().split("T")[0],

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { LeaveStatus, Prisma } from "@prisma/client";
 import { ApiResponse } from "@/types";
 
@@ -8,7 +8,7 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -20,7 +20,7 @@ export async function GET(
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "20", 10);
 
-    const where: Prisma.LeaveWhereInput = {};
+    const where: Prisma.LeaveWhereInput = { user: { companyId: authResult.companyId } };
 
     if (status) {
       where.status = status as LeaveStatus;
@@ -34,7 +34,7 @@ export async function GET(
     }
 
     if (department) {
-      where.user = { departmentId: department };
+      where.user = { companyId: authResult.companyId, departmentId: department };
     }
 
     const skip = (page - 1) * limit;

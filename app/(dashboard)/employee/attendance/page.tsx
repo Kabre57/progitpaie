@@ -53,6 +53,17 @@ export default function EmployeeAttendancePage() {
     }
   };
 
+  const getStatusBadgeLabel = (status: string) => {
+    switch (status) {
+      case "present": return "Présent";
+      case "late": return "En Retard";
+      case "absent": return "Absent";
+      case "half-day": return "Demi-Journée";
+      case "on-leave": return "En Congé";
+      default: return status;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -64,7 +75,7 @@ export default function EmployeeAttendancePage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold">My Attendance History</h2>
+        <h2 className="text-2xl font-bold text-[var(--neu-text)]">Mon Historique de Pointages</h2>
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <select
             value={month}
@@ -73,7 +84,7 @@ export default function EmployeeAttendancePage() {
           >
             {Array.from({ length: 12 }, (_, i) => (
               <option key={i + 1} value={i + 1}>
-                {new Date(0, i).toLocaleString("en-US", { month: "long" })}
+                {new Date(0, i).toLocaleString("fr-FR", { month: "long" })}
               </option>
             ))}
           </select>
@@ -94,35 +105,25 @@ export default function EmployeeAttendancePage() {
           {records.length === 0 ? (
             <EmptyState
               icon={ClipboardCheck}
-              title="No attendance records"
-              description="No attendance records found for this month."
+              title="Aucun historique de pointage"
+              description="Aucun pointage enregistré trouvé pour ce mois."
             />
           ) : (
             <List2 
               items={records.map((record) => ({
                 icon: <Calendar className="w-5 h-5 text-[var(--neu-accent)]" />,
-                title: new Date(record.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
-                category: "LOGGED ATTENDANCE",
+                title: new Date(record.date).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+                category: "POINTAGE D'ARRIVÉE",
                 description: (
                   <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-3">
-                      <span className="flex items-center gap-1 opacity-70">
-                        <Clock className="w-3.5 h-3.5" />
-                        {record.checkIn ? new Date(record.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "-"}
-                      </span>
-                      <span>→</span>
-                      <span className="flex items-center gap-1 opacity-70">
-                        {record.checkOut ? new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "-"}
-                      </span>
-                      <span className="ml-2 font-bold text-[var(--neu-accent)]">
-                        {record.hoursWorked?.toFixed(1) || "0"}h
-                      </span>
-                    </div>
+                    <span className="font-bold text-[var(--neu-accent)]">
+                      {record.hoursWorked?.toFixed(1) || "0"}h de Travail
+                    </span>
                   </div>
                 ),
                 status: (
                   <NeuBadge variant={getStatusBadgeVariant(record.status)}>
-                    {record.status}
+                    {getStatusBadgeLabel(record.status)}
                   </NeuBadge>
                 )
               }))}

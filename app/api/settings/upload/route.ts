@@ -5,7 +5,7 @@ import {
   LOGO_ALLOWED_MIME_TYPES,
   LOGO_MAGIC_NUMBERS,
 } from "@/lib/payslip-config";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
 /**
@@ -21,7 +21,7 @@ import { enforceRateLimit } from "@/lib/rate-limit";
  */
 export async function POST(req: NextRequest) {
   try {
-    const authResult = await requireAdmin(req);
+    const authResult = await requireTenant(req, "admin");
     if (authResult instanceof NextResponse) return authResult;
     const rateLimitResponse = await enforceRateLimit(req, "payslip-logo-upload", 10, 60);
     if (rateLimitResponse) return rateLimitResponse;
@@ -101,6 +101,7 @@ export async function POST(req: NextRequest) {
       if (admin) {
         await prisma.auditLog.create({
           data: {
+            companyId: authResult.companyId,
             performedById: admin.id,
             action: "UPLOAD_PAYSLIP_LOGO",
             targetModel: "Settings",
@@ -142,7 +143,7 @@ export async function POST(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   try {
-    const authResult = await requireAdmin(req);
+    const authResult = await requireTenant(req, "admin");
     if (authResult instanceof NextResponse) return authResult;
     const configService = PayslipConfigService.getInstance();
     await configService.updateAppearance({ logoBase64: undefined });

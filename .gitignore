@@ -27,6 +27,7 @@
 .env.local
 .env.production
 .seed.env
+/backups/
 
 # debug
 npm-debug.log*

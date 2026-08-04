@@ -1,0 +1,388 @@
+{
+  "success": true,
+  "data": {
+    "companyId": "validation-tenant-b-2026-r1",
+    "referenceDate": "2026-08-03T23:59:59.999Z",
+    "ruleVersion": "CI-CCI-1977-PROVISIONS-2026.2",
+    "calculatedAt": "2026-08-04T12:22:49.227Z",
+    "leaveProvisions": [
+      {
+        "companyId": "validation-tenant-b-2026-r1",
+        "userId": "validation-tenant-b-2026-r1-2026-B01-employee",
+        "employeeName": "STAGING-PROVISIONS-2026-R1 B01",
+        "employeeId": "VAL26-B-B01",
+        "referenceDate": "2026-08-03T23:59:59.999Z",
+        "joiningDate": "2021-01-01T00:00:00.000Z",
+        "seniorityMonths": 67,
+        "effectiveServiceMonths": 7.17,
+        "baseAccruedDays": 15.77,
+        "seniorityBonusDays": 1,
+        "openingBalanceDays": 0,
+        "carriedForwardDays": 0,
+        "consumedDays": 0,
+        "compensatedDays": 0,
+        "closingBalanceDays": 17,
+        "averageMonthlySalary": 200000,
+        "dailyDivisorUsed": 26,
+        "salaryMaintenanceDailyRate": 7692,
+        "salaryMaintenanceAmount": 130769,
+        "tenthRulePeriodSalary": 1600000,
+        "tenthRuleAmount": 160000,
+        "selectedMethod": "TENTH",
+        "provisionAmount": 160000,
+        "salaryMonthsUsed": 8,
+        "payrollPeriodsUsed": [
+          {
+            "year": 2026,
+            "month": 8,
+            "eligibleGross": 200000
+          },
+          {
+            "year": 2026,
+            "month": 7,
+            "eligibleGross": 200000
+          },
+          {
+            "year": 2026,
+            "month": 6,
+            "eligibleGross": 200000
+          },
+          {
+            "year": 2026,
+            "month": 5,
+            "eligibleGross": 200000
+          },
+          {
+            "year": 2026,
+            "month": 4,
+            "eligibleGross": 200000
+          },
+          {
+            "year": 2026,
+            "month": 3,
+            "eligibleGross": 200000
+          },
+          {
+            "year": 2026,
+            "month": 2,
+            "eligibleGross": 200000
+          },
+          {
+            "year": 2026,
+            "month": 1,
+            "eligibleGross": 200000
+          }
+        ],
+        "ruleVersion": "CI-CCI-1977-PROVISIONS-2026.2",
+        "warnings": [
+          {
+            "code": "INCOMPLETE_SALARY_HISTORY",
+            "message": "La moyenne repose sur 8 mois au lieu de 12.",
+            "severity": "warning"
+          },
+          {
+            "code": "INCOMPLETE_SALARY_HISTORY",
+            "message": "La moyenne repose sur 8 mois au lieu de 12.",
+            "severity": "warning"
+          },
+          {
+            "code": "INCOMPLETE_SALARY_HISTORY",
+            "message": "La moyenne repose sur 8 mois au lieu de 12.",
+            "severity": "warning"
+          }
+        ]
+      },
+      {
+        "companyId": "validation-tenant-b-2026-r1",
+        "userId": "validation-tenant-b-2026-r1-2026-B02-employee",
+        "employeeName": "STAGING-PROVISIONS-2026-R1 B02",
+        "employeeId": "VAL26-B-B02",
+        "referenceDate": "2026-08-03T23:59:59.999Z",
+        "joiningDate": "2014-01-01T00:00:00.000Z",
+        "seniorityMonths": 151,
+        "effectiveServiceMonths": 7.17,
+        "baseAccruedDays": 15.77,
+        "seniorityBonusDays": 2,
+        "openingBalanceDays": 0,
+        "carriedForwardDays": 0,
+        "consumedDays": 0,
+        "compensatedDays": 0,
+        "closingBalanceDays": 18,
+        "averageMonthlySalary": 230000,
+        "dailyDivisorUsed": 26,
+        "salaryMaintenanceDailyRate": 8846,
+        "salaryMaintenanceAmount": 159231,
+        "tenthRulePeriodSalary": 1840000,
+        "tenthRuleAmount": 184000,
+        "selectedMethod": "TENTH",
+        "provisionAmount": 184000,
+        "salaryMonthsUsed": 8,
+        "payrollPeriodsUsed": [
+          {
+            "year": 2026,
+            "month": 8,
+            "eligibleGross": 230000
+          },
+          {
+            "year": 2026,
+            "month": 7,
+            "eligibleGross": 230000
+          },
+          {
+            "year": 2026,
+            "month": 6,
+            "eligibleGross": 230000
+          },
+          {
+            "year": 2026,
+            "month": 5,
+            "eligibleGross": 230000
+          },
+          {
+            "year": 2026,
+            "month": 4,
+            "eligibleGross": 230000
+          },
+          {
+            "year": 2026,
+            "month": 3,
+            "eligibleGross": 230000
+          },
+          {
+            "year": 2026,
+            "month": 2,
+            "eligibleGross": 230000
+          },
+          {
+            "year": 2026,
+            "month": 1,
+            "eligibleGross": 230000
+          }
+        ],
+        "ruleVersion": "CI-CCI-1977-PROVISIONS-2026.2",
+        "warnings": [
+          {
+            "code": "INCOMPLETE_SALARY_HISTORY",
+            "message": "La moyenne repose sur 8 mois au lieu de 12.",
+            "severity": "warning"
+          },
+          {
+            "code": "INCOMPLETE_SALARY_HISTORY",
+            "message": "La moyenne repose sur 8 mois au lieu de 12.",
+            "severity": "warning"
+          },
+          {
+            "code": "INCOMPLETE_SALARY_HISTORY",
+            "message": "La moyenne repose sur 8 mois au lieu de 12.",
+            "severity": "warning"
+          }
+        ]
+      }
+    ],
+    "terminationBenefits": [
+      {
+        "companyId": "validation-tenant-b-2026-r1",
+        "userId": "validation-tenant-b-2026-r1-2026-B01-employee",
+        "employeeName": "STAGING-PROVISIONS-2026-R1 B01",
+        "employeeId": "VAL26-B-B01",
+        "referenceDate": "2026-08-03T23:59:59.999Z",
+        "seniorityMonths": 67,
+        "seniorityYears": "5.5833",
+        "averageMonthlySalary": 200000,
+        "salaryMonthsUsed": 8,
+        "firstTrancheMonths": 60,
+        "firstTrancheAmount": 300000,
+        "secondTrancheMonths": 7,
+        "secondTrancheAmount": 40833,
+        "thirdTrancheMonths": 0,
+        "thirdTrancheAmount": 0,
+        "theoreticalExposure": 340833,
+        "eligible": true,
+        "calculationBasis": "ACTUAL_PAYROLL",
+        "payrollPeriodsUsed": [
+          {
+            "year": 2026,
+            "month": 8,
+            "eligibleGross": 200000
+          },
+          {
+            "year": 2026,
+            "month": 7,
+            "eligibleGross": 200000
+          },
+          {
+            "year": 2026,
+            "month": 6,
+            "eligibleGross": 200000
+          },
+          {
+            "year": 2026,
+            "month": 5,
+            "eligibleGross": 200000
+          },
+          {
+            "year": 2026,
+            "month": 4,
+            "eligibleGross": 200000
+          },
+          {
+            "year": 2026,
+            "month": 3,
+            "eligibleGross": 200000
+          },
+          {
+            "year": 2026,
+            "month": 2,
+            "eligibleGross": 200000
+          },
+          {
+            "year": 2026,
+            "month": 1,
+            "eligibleGross": 200000
+          }
+        ],
+        "ruleVersion": "CI-CCI-1977-PROVISIONS-2026.2",
+        "warnings": [
+          {
+            "code": "INCOMPLETE_SALARY_HISTORY",
+            "message": "La moyenne repose sur 8 mois au lieu de 12.",
+            "severity": "warning"
+          },
+          {
+            "code": "INCOMPLETE_SALARY_HISTORY",
+            "message": "La moyenne repose sur 8 mois au lieu de 12.",
+            "severity": "warning"
+          },
+          {
+            "code": "INCOMPLETE_SALARY_HISTORY",
+            "message": "La moyenne repose sur 8 mois au lieu de 12.",
+            "severity": "warning"
+          }
+        ]
+      },
+      {
+        "companyId": "validation-tenant-b-2026-r1",
+        "userId": "validation-tenant-b-2026-r1-2026-B02-employee",
+        "employeeName": "STAGING-PROVISIONS-2026-R1 B02",
+        "employeeId": "VAL26-B-B02",
+        "referenceDate": "2026-08-03T23:59:59.999Z",
+        "seniorityMonths": 151,
+        "seniorityYears": "12.5833",
+        "averageMonthlySalary": 230000,
+        "salaryMonthsUsed": 8,
+        "firstTrancheMonths": 60,
+        "firstTrancheAmount": 345000,
+        "secondTrancheMonths": 60,
+        "secondTrancheAmount": 402500,
+        "thirdTrancheMonths": 31,
+        "thirdTrancheAmount": 237667,
+        "theoreticalExposure": 985167,
+        "eligible": true,
+        "calculationBasis": "ACTUAL_PAYROLL",
+        "payrollPeriodsUsed": [
+          {
+            "year": 2026,
+            "month": 8,
+            "eligibleGross": 230000
+          },
+          {
+            "year": 2026,
+            "month": 7,
+            "eligibleGross": 230000
+          },
+          {
+            "year": 2026,
+            "month": 6,
+            "eligibleGross": 230000
+          },
+          {
+            "year": 2026,
+            "month": 5,
+            "eligibleGross": 230000
+          },
+          {
+            "year": 2026,
+            "month": 4,
+            "eligibleGross": 230000
+          },
+          {
+            "year": 2026,
+            "month": 3,
+            "eligibleGross": 230000
+          },
+          {
+            "year": 2026,
+            "month": 2,
+            "eligibleGross": 230000
+          },
+          {
+            "year": 2026,
+            "month": 1,
+            "eligibleGross": 230000
+          }
+        ],
+        "ruleVersion": "CI-CCI-1977-PROVISIONS-2026.2",
+        "warnings": [
+          {
+            "code": "INCOMPLETE_SALARY_HISTORY",
+            "message": "La moyenne repose sur 8 mois au lieu de 12.",
+            "severity": "warning"
+          },
+          {
+            "code": "INCOMPLETE_SALARY_HISTORY",
+            "message": "La moyenne repose sur 8 mois au lieu de 12.",
+            "severity": "warning"
+          },
+          {
+            "code": "INCOMPLETE_SALARY_HISTORY",
+            "message": "La moyenne repose sur 8 mois au lieu de 12.",
+            "severity": "warning"
+          }
+        ]
+      }
+    ],
+    "totalLeaveProvision": 344000,
+    "totalTerminationExposure": 1326000,
+    "totalExposure": 1670000,
+    "employeesProcessed": 2,
+    "employeesWithWarnings": 2,
+    "warnings": [
+      {
+        "code": "INCOMPLETE_SALARY_HISTORY",
+        "message": "La moyenne repose sur 8 mois au lieu de 12.",
+        "severity": "warning"
+      },
+      {
+        "code": "INCOMPLETE_SALARY_HISTORY",
+        "message": "La moyenne repose sur 8 mois au lieu de 12.",
+        "severity": "warning"
+      },
+      {
+        "code": "INCOMPLETE_SALARY_HISTORY",
+        "message": "La moyenne repose sur 8 mois au lieu de 12.",
+        "severity": "warning"
+      },
+      {
+        "code": "INCOMPLETE_SALARY_HISTORY",
+        "message": "La moyenne repose sur 8 mois au lieu de 12.",
+        "severity": "warning"
+      },
+      {
+        "code": "INCOMPLETE_SALARY_HISTORY",
+        "message": "La moyenne repose sur 8 mois au lieu de 12.",
+        "severity": "warning"
+      },
+      {
+        "code": "INCOMPLETE_SALARY_HISTORY",
+        "message": "La moyenne repose sur 8 mois au lieu de 12.",
+        "severity": "warning"
+      }
+    ],
+    "dataQuality": {
+      "completeSalaryHistories": 0,
+      "incompleteSalaryHistories": 2,
+      "contractFallbacks": 0,
+      "legacyLeaveBalances": 0
+    }
+  }
+}

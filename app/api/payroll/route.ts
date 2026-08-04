@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { LeaveType, LeaveStatus, AttendanceStatus, PayrollStatus, Prisma } from "@prisma/client";
 import { ApiResponse, GeneratePayrollBody } from "@/types";
 import { calculatePayrollTaxes } from "@/lib/payroll-tax";
@@ -11,7 +11,7 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -31,18 +31,16 @@ export async function POST(
     }
 
     // Récupérer l'ID de l'admin pour la traçabilité
-    const admin = await prisma.user.findFirst({
-      where: { role: "admin" },
-      select: { id: true },
-    });
-    const adminId = admin?.id || "system";
+    const adminId = authResult.userId;
 
     // Créer un snapshot immutable de la configuration pour ce lot de paie
     const configService = PayslipConfigService.getInstance();
     const configSnapshotId = await configService.createSnapshot(adminId);
 
     // Get all active employees
-    const employees = await prisma.user.findMany({ where: { isActive: true } });
+    const employees = await prisma.user.findMany({
+      where: { isActive: true, companyId: authResult.companyId },
+    });
     const results = [];
     const errors = [];
 
@@ -127,6 +125,7 @@ export async function POST(
 
         const payroll = await prisma.payroll.create({
           data: {
+            companyId: authResult.companyId,
             userId: employee.id,
             month,
             year,
@@ -192,7 +191,7 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -202,7 +201,7 @@ export async function GET(
     const year = parseInt(searchParams.get("year") || "0", 10);
     const status = searchParams.get("status");
 
-    const where: Prisma.PayrollWhereInput = {};
+    const where: Prisma.PayrollWhereInput = { user: { companyId: authResult.companyId } };
 
     if (month) where.month = month;
     if (year) where.year = year;

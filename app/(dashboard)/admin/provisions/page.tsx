@@ -1,256 +1,107 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/components/ui/neu-card";
-import { NeuButton } from "@/components/ui/neu-button";
+import { useState } from "react";
+import { Calculator, RefreshCw } from "lucide-react";
 import { NeuBadge } from "@/components/ui/neu-badge";
-import { Calculator, Calendar, UserCheck, ShieldAlert, RefreshCw } from "lucide-react";
-
-interface LeaveProvision {
-  userId: string;
-  name: string;
-  employeeId: string;
-  joiningDate: string;
-  grossMonthly: number;
-  leaveDaysAccrued: number;
-  provisionAmount: number;
-}
-
-interface RetirementProvision {
-  userId: string;
-  name: string;
-  employeeId: string;
-  joiningDate: string;
-  seniorityYears: string;
-  grossMonthly: number;
-  provisionAmount: number;
-}
-
+import { NeuButton } from "@/components/ui/neu-button";
 import { NeuPagination } from "@/components/ui/neu-pagination";
+import { LeaveProvisionTable } from "@/components/payroll/provisions/leave-provision-table";
+import { ProvisionErrorState } from "@/components/payroll/provisions/provision-error-state";
+import { ProvisionPageSkeleton } from "@/components/payroll/provisions/provision-page-skeleton";
+import { ProvisionSummary } from "@/components/payroll/provisions/provision-summary";
+import { ProvisionWarningList } from "@/components/payroll/provisions/provision-warning-list";
+import { TerminationBenefitTable } from "@/components/payroll/provisions/termination-benefit-table";
+import { usePayrollProvisions } from "@/lib/hooks/use-payroll-provisions";
+import type { ProvisionResponse, ProvisionResponseV2 } from "@/shared/types/contracts/provision.contract";
+
+const ITEMS_PER_PAGE = 10;
+type ActiveTab = "leaves" | "termination";
+
+interface ContentState {
+  activeTab: ActiveTab;
+  setActiveTab: (tab: ActiveTab) => void;
+  currentPageLeaves: number;
+  setCurrentPageLeaves: (page: number) => void;
+  currentPageTermination: number;
+  setCurrentPageTermination: (page: number) => void;
+}
+
+function Tabs({ activeTab, setActiveTab }: Pick<ContentState, "activeTab" | "setActiveTab">) {
+  return <div className="flex gap-2 border-b border-[var(--neu-border)] pb-2">
+    <NeuButton variant={activeTab === "leaves" ? "accent" : "ghost"} onClick={() => setActiveTab("leaves")}>Congés payés</NeuButton>
+    <NeuButton variant={activeTab === "termination" ? "accent" : "ghost"} onClick={() => setActiveTab("termination")}>Indemnités de licenciement</NeuButton>
+  </div>;
+}
+
+function EmptyState() {
+  return <div className="rounded-xl border border-[var(--neu-border)] p-10 text-center text-[var(--neu-text-secondary)]">Aucune donnée de provision disponible pour cette période.</div>;
+}
+
+function V2Content({ data, state }: { data: ProvisionResponseV2; state: ContentState }) {
+  const leavePages = Math.ceil(data.leaveProvisions.length / ITEMS_PER_PAGE);
+  const terminationPages = Math.ceil(data.terminationBenefits.length / ITEMS_PER_PAGE);
+  const leaves = data.leaveProvisions.slice((state.currentPageLeaves - 1) * ITEMS_PER_PAGE, state.currentPageLeaves * ITEMS_PER_PAGE);
+  const terminations = data.terminationBenefits.slice((state.currentPageTermination - 1) * ITEMS_PER_PAGE, state.currentPageTermination * ITEMS_PER_PAGE);
+  const empty = data.leaveProvisions.length === 0 && data.terminationBenefits.length === 0;
+
+  return <>
+    <div className="flex flex-wrap gap-2 text-xs"><NeuBadge variant="accent">Règles {data.ruleVersion}</NeuBadge><NeuBadge variant="info">Référence {new Date(data.referenceDate).toLocaleDateString("fr-FR")}</NeuBadge><NeuBadge variant="default">{data.employeesProcessed} employés</NeuBadge></div>
+    <ProvisionWarningList warnings={data.warnings} title="Alertes globales de calcul" />
+    <ProvisionSummary totalLeaveProvision={data.totalLeaveProvision} totalTerminationExposure={data.totalTerminationExposure} totalExposure={data.totalExposure} />
+    <div className="grid grid-cols-2 gap-3 rounded-lg border border-[var(--neu-border)] bg-[var(--neu-surface-light)] p-3 text-xs md:grid-cols-4">
+      <div>Historiques complets <strong>{data.dataQuality.completeSalaryHistories}</strong></div><div>Historiques incomplets <strong>{data.dataQuality.incompleteSalaryHistories}</strong></div>
+      <div>Fallbacks contractuels <strong>{data.dataQuality.contractFallbacks}</strong></div><div>Soldes hérités <strong>{data.dataQuality.legacyLeaveBalances}</strong></div>
+    </div>
+    {empty ? <EmptyState /> : <><Tabs activeTab={state.activeTab} setActiveTab={state.setActiveTab} />
+      {state.activeTab === "leaves" ? <><LeaveProvisionTable apiVersion="v2" rows={leaves} /><NeuPagination currentPage={state.currentPageLeaves} totalPages={leavePages} totalItems={data.leaveProvisions.length} itemsPerPage={ITEMS_PER_PAGE} onPageChange={state.setCurrentPageLeaves} /></>
+        : <><TerminationBenefitTable apiVersion="v2" rows={terminations} /><NeuPagination currentPage={state.currentPageTermination} totalPages={terminationPages} totalItems={data.terminationBenefits.length} itemsPerPage={ITEMS_PER_PAGE} onPageChange={state.setCurrentPageTermination} /></>}
+    </>}
+  </>;
+}
+
+function LegacyContent({ data, state }: { data: ProvisionResponse; state: ContentState }) {
+  const leavePages = Math.ceil(data.leaveProvisions.length / ITEMS_PER_PAGE);
+  const terminationPages = Math.ceil(data.retirementProvisions.length / ITEMS_PER_PAGE);
+  const leaves = data.leaveProvisions.slice((state.currentPageLeaves - 1) * ITEMS_PER_PAGE, state.currentPageLeaves * ITEMS_PER_PAGE);
+  const terminations = data.retirementProvisions.slice((state.currentPageTermination - 1) * ITEMS_PER_PAGE, state.currentPageTermination * ITEMS_PER_PAGE);
+  const empty = data.leaveProvisions.length === 0 && data.retirementProvisions.length === 0;
+
+  return <>
+    <div role="status" className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm text-blue-200">Mode de compatibilité actif — les détails de calcul et les alertes de qualité ne sont pas disponibles.</div>
+    <ProvisionSummary totalLeaveProvision={data.totalLeaveProvision} totalTerminationExposure={data.totalRetirementProvision} totalExposure={data.total} />
+    {empty ? <EmptyState /> : <><Tabs activeTab={state.activeTab} setActiveTab={state.setActiveTab} />
+      {state.activeTab === "leaves" ? <><LeaveProvisionTable apiVersion="legacy" rows={leaves} /><NeuPagination currentPage={state.currentPageLeaves} totalPages={leavePages} totalItems={data.leaveProvisions.length} itemsPerPage={ITEMS_PER_PAGE} onPageChange={state.setCurrentPageLeaves} /></>
+        : <><TerminationBenefitTable apiVersion="legacy" rows={terminations} /><NeuPagination currentPage={state.currentPageTermination} totalPages={terminationPages} totalItems={data.retirementProvisions.length} itemsPerPage={ITEMS_PER_PAGE} onPageChange={state.setCurrentPageTermination} /></>}
+    </>}
+  </>;
+}
 
 export default function ProvisionsPage() {
-  const [year, setYear] = useState(new Date().getFullYear());
-  const [activeTab, setActiveTab] = useState<"leaves" | "retirement">("leaves");
-  const [leaveProvisions, setLeaveProvisions] = useState<LeaveProvision[]>([]);
-  const [totalLeave, setTotalLeave] = useState(0);
-  const [retirementProvisions, setRetirementProvisions] = useState<RetirementProvision[]>([]);
-  const [totalRetirement, setTotalRetirement] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: Math.max(1, currentYear - 2023) }, (_, index) => currentYear - index);
+  const [year, setYear] = useState(currentYear);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("leaves");
   const [currentPageLeaves, setCurrentPageLeaves] = useState(1);
-  const [currentPageRetirement, setCurrentPageRetirement] = useState(1);
-  const itemsPerPage = 10;
+  const [currentPageTermination, setCurrentPageTermination] = useState(1);
+  const provisions = usePayrollProvisions({ year });
+  const state: ContentState = { activeTab, setActiveTab, currentPageLeaves, setCurrentPageLeaves, currentPageTermination, setCurrentPageTermination };
 
-  const fetchProvisions = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/payroll/provisions?year=${year}`);
-      const json = await res.json();
-      if (json.success) {
-        setLeaveProvisions(json.data.leaveProvisions || []);
-        setTotalLeave(json.data.totalLeaveProvision || 0);
-        setRetirementProvisions(json.data.retirementProvisions || []);
-        setTotalRetirement(json.data.totalRetirementProvision || 0);
-      }
-    } catch (err) {
-      console.error("Fetch provisions error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [year]);
+  const changeYear = (nextYear: number) => {
+    setYear(nextYear);
+    setCurrentPageLeaves(1);
+    setCurrentPageTermination(1);
+  };
 
-  useEffect(() => {
-    fetchProvisions();
-  }, [fetchProvisions]);
+  if (provisions.isPending) return <ProvisionPageSkeleton />;
+  if (provisions.isError) return <ProvisionErrorState error={provisions.error} onRetry={() => void provisions.refresh()} />;
+  if (!provisions.data) return <ProvisionPageSkeleton />;
 
-  const totalLeavePages = Math.ceil(leaveProvisions.length / itemsPerPage);
-  const paginatedLeaveProvisions = leaveProvisions.slice(
-    (currentPageLeaves - 1) * itemsPerPage,
-    currentPageLeaves * itemsPerPage
-  );
-
-  const totalRetirementPages = Math.ceil(retirementProvisions.length / itemsPerPage);
-  const paginatedRetirementProvisions = retirementProvisions.slice(
-    (currentPageRetirement - 1) * itemsPerPage,
-    currentPageRetirement * itemsPerPage
-  );
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--neu-text)] flex items-center gap-2">
-            <Calculator className="text-[var(--neu-accent)]" /> Provisions pour Congés & Fin de Carrière  
-          </h1>
-          <p className="text-[var(--neu-text-secondary)] text-sm mt-1">
-            Calcul des engagements sociaux de l'entreprise (Provisions Congés Payés & Indemnités de Retraite).
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <select
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            className="px-3 py-1.5 rounded-lg bg-[var(--neu-surface-light)] border border-[var(--neu-border)] text-sm font-bold text-[var(--neu-text)] outline-none"
-          >
-            {[2024, 2025, 2026, 2027].map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-
-          <NeuButton onClick={fetchProvisions} variant="ghost" size="sm">
-            <RefreshCw className="w-4 h-4 mr-1" /> Actualiser
-          </NeuButton>
-        </div>
-      </div>
-
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <NeuCard>
-          <NeuCardContent className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-lg">
-                <Calendar className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-[var(--neu-text-secondary)] uppercase">Total Provision Congés (37)</div>
-                <div className="text-xl font-extrabold text-[var(--neu-text)]">
-                  {totalLeave.toLocaleString()} FCFA
-                </div>
-              </div>
-            </div>
-            <NeuBadge variant="success">37-PROVISION CONGÉS</NeuBadge>
-          </NeuCardContent>
-        </NeuCard>
-
-        <NeuCard>
-          <NeuCardContent className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-indigo-500/10 text-indigo-500 rounded-lg">
-                <ShieldAlert className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-[var(--neu-text-secondary)] uppercase">Total Provision Retraite (38)</div>
-                <div className="text-xl font-extrabold text-[var(--neu-text)]">
-                  {totalRetirement.toLocaleString()} FCFA
-                </div>
-              </div>
-            </div>
-            <NeuBadge variant="info">38-PROVISION RETRAITE</NeuBadge>
-          </NeuCardContent>
-        </NeuCard>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-[var(--neu-border)] pb-2">
-        <NeuButton
-          variant={activeTab === "leaves" ? "accent" : "ghost"}
-          onClick={() => setActiveTab("leaves")}
-        >
-          Provisions Congés Payés (37)
-        </NeuButton>
-        <NeuButton
-          variant={activeTab === "retirement" ? "accent" : "ghost"}
-          onClick={() => setActiveTab("retirement")}
-        >
-          Provisions Retraite (38)
-        </NeuButton>
-      </div>
-
-      {/* Content Table */}
-      {activeTab === "leaves" ? (
-        <NeuCard>
-          <NeuCardHeader className="p-4 border-b border-[var(--neu-border)]">
-            <NeuCardTitle className="text-lg font-bold">37PROVISION POUR CONGÉS PAYÉS NON PRIS</NeuCardTitle>
-          </NeuCardHeader>
-          <NeuCardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-[var(--neu-border)] bg-[var(--neu-surface-light)] text-[var(--neu-text-secondary)] uppercase text-[11px] font-semibold tracking-wider">
-                  <th className="px-4 py-3">Matricule</th>
-                  <th className="px-4 py-3">Nom & Prénoms</th>
-                  <th className="px-4 py-3">Date d'Embauche</th>
-                  <th className="px-4 py-3 text-right">Salaire Brut Mensuel Moyen</th>
-                  <th className="px-4 py-3 text-right">Jours Acquéris</th>
-                  <th className="px-4 py-3 text-right">Provision Congés (FCFA)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--neu-border)] text-xs">
-                {paginatedLeaveProvisions.map((row) => (
-                  <tr key={row.userId} className="hover:bg-[var(--neu-surface-light)] transition-colors">
-                    <td className="px-4 py-3 font-mono font-bold text-[var(--neu-accent)]">{row.employeeId}</td>
-                    <td className="px-4 py-3 font-bold text-[var(--neu-text)]">{row.name}</td>
-                    <td className="px-4 py-3 font-mono text-[var(--neu-text-secondary)]">
-                      {new Date(row.joiningDate).toLocaleDateString("fr-FR")}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-[var(--neu-text)]">
-                      {row.grossMonthly.toLocaleString()} FCFA
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-amber-500">{row.leaveDaysAccrued} Jours</td>
-                    <td className="px-4 py-3 text-right font-mono font-extrabold text-emerald-500">
-                      {row.provisionAmount.toLocaleString()} FCFA
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </NeuCardContent>
-          <NeuPagination
-            currentPage={currentPageLeaves}
-            totalPages={totalLeavePages}
-            totalItems={leaveProvisions.length}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPageLeaves}
-          />
-        </NeuCard>
-      ) : (
-        <NeuCard>
-          <NeuCardHeader className="p-4 border-b border-[var(--neu-border)]">
-            <NeuCardTitle className="text-lg font-bold">38-PROVISION POUR PENSION RETRAITE & INDEMNITÉ DE FIN DE CARRIÈRE</NeuCardTitle>
-          </NeuCardHeader>
-          <NeuCardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-[var(--neu-border)] bg-[var(--neu-surface-light)] text-[var(--neu-text-secondary)] uppercase text-[11px] font-semibold tracking-wider">
-                  <th className="px-4 py-3">Matricule</th>
-                  <th className="px-4 py-3">Nom & Prénoms</th>
-                  <th className="px-4 py-3">Date d'Embauche</th>
-                  <th className="px-4 py-3 text-right">Ancienneté</th>
-                  <th className="px-4 py-3 text-right">Salaire Brut Mensuel</th>
-                  <th className="px-4 py-3 text-right">Provision Retraite (FCFA)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--neu-border)] text-xs">
-                {paginatedRetirementProvisions.map((row) => (
-                  <tr key={row.userId} className="hover:bg-[var(--neu-surface-light)] transition-colors">
-                    <td className="px-4 py-3 font-mono font-bold text-[var(--neu-accent)]">{row.employeeId}</td>
-                    <td className="px-4 py-3 font-bold text-[var(--neu-text)]">{row.name}</td>
-                    <td className="px-4 py-3 font-mono text-[var(--neu-text-secondary)]">
-                      {new Date(row.joiningDate).toLocaleDateString("fr-FR")}
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-indigo-400">{row.seniorityYears} ans</td>
-                    <td className="px-4 py-3 text-right font-mono text-[var(--neu-text)]">
-                      {row.grossMonthly.toLocaleString()} FCFA
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono font-extrabold text-indigo-500">
-                      {row.provisionAmount.toLocaleString()} FCFA
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </NeuCardContent>
-          <NeuPagination
-            currentPage={currentPageRetirement}
-            totalPages={totalRetirementPages}
-            totalItems={retirementProvisions.length}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPageRetirement}
-          />
-        </NeuCard>
-      )}
-    </div>
-  );
+  return <div className="space-y-6">
+    <header className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+      <div><h1 className="flex items-center gap-2 text-2xl font-bold text-[var(--neu-text)]"><Calculator className="text-[var(--neu-accent)]" aria-hidden="true" /> Provisions et engagements sociaux</h1><p className="mt-1 text-sm text-[var(--neu-text-secondary)]">Congés payés et indemnités de licenciement selon les règles ivoiriennes.</p></div>
+      <div className="flex items-center gap-3"><select aria-label="Année de référence" value={year} onChange={(event) => changeYear(Number(event.target.value))} className="rounded-lg border border-[var(--neu-border)] bg-[var(--neu-surface-light)] px-3 py-1.5 text-sm font-bold text-[var(--neu-text)]">{years.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+        <NeuButton onClick={() => void provisions.refresh()} disabled={provisions.isFetching} variant="ghost" size="sm"><RefreshCw className={`h-4 w-4 ${provisions.isFetching ? "animate-spin" : ""}`} aria-hidden="true" />{provisions.isFetching ? "Actualisation…" : "Actualiser"}</NeuButton></div>
+    </header>
+    {provisions.data.apiVersion === "v2" ? <V2Content data={provisions.data.data} state={state} /> : <LegacyContent data={provisions.data.data} state={state} />}
+  </div>;
 }

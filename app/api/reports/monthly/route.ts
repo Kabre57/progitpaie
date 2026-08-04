@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { AttendanceStatus } from "@prisma/client";
 import { getCachedReport, cacheReport } from "@/lib/redis";
 import { ApiResponse } from "@/types";
@@ -9,7 +9,7 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const user = await requireAuth(request);
+    const user = await requireTenant(request, "admin");
     if (user instanceof NextResponse) {
       return user;
     }
@@ -18,7 +18,7 @@ export async function GET(
     const month = parseInt(searchParams.get("month") || new Date().getMonth() + 1 + "", 10);
     const year = parseInt(searchParams.get("year") || new Date().getFullYear() + "", 10);
 
-    const cacheKey = `report:monthly:${year}:${month}`;
+    const cacheKey = `report:monthly:${user.companyId}:${year}:${month}`;
     const cachedData = await getCachedReport(cacheKey);
     if (cachedData) {
       return NextResponse.json({ success: true, data: cachedData }, { status: 200 });
@@ -29,6 +29,7 @@ export async function GET(
 
     const records = await prisma.attendance.findMany({
       where: {
+        user: { companyId: user.companyId },
         date: {
           gte: startOfMonth.toISOString().split("T")[0],
           lte: endOfMonth.toISOString().split("T")[0],

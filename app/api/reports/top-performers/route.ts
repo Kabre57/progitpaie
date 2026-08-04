@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { AttendanceStatus } from "@prisma/client";
 import { getCachedReport, cacheReport } from "@/lib/redis";
 import { ApiResponse } from "@/types";
@@ -9,7 +9,7 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const user = await requireAuth(request);
+    const user = await requireTenant(request, "admin");
     if (user instanceof NextResponse) {
       return user;
     }
@@ -19,7 +19,7 @@ export async function GET(
     const year = parseInt(searchParams.get("year") || new Date().getFullYear() + "", 10);
     const limit = parseInt(searchParams.get("limit") || "10", 10);
 
-    const cacheKey = `report:top-performers:${year}:${month}:${limit}`;
+    const cacheKey = `report:top-performers:${user.companyId}:${year}:${month}:${limit}`;
     const cachedData = await getCachedReport(cacheKey);
     if (cachedData) {
       return NextResponse.json({ success: true, data: cachedData }, { status: 200 });
@@ -33,7 +33,7 @@ export async function GET(
     const workingDays = 26;
 
     const employees = await prisma.user.findMany({
-      where: { isActive: true },
+      where: { isActive: true, companyId: user.companyId },
       select: {
         id: true,
         name: true,

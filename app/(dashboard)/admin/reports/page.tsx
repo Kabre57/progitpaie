@@ -170,9 +170,9 @@ export default function AdminReportsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--neu-text)]">Reports & Analytics</h1>
+          <h1 className="text-2xl font-bold text-[var(--neu-text)]">Rapports & Statistiques</h1>
           <p className="text-[var(--neu-text-secondary)]">
-            Comprehensive attendance insights and performance metrics
+            Analyses détaillées de la présence et métriques de performance RH
           </p>
         </div>
 
@@ -202,28 +202,28 @@ export default function AdminReportsPage() {
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <NeuStatCard
-          title="Total Employees"
+          title="Total Employés"
           value={todayStats?.totalEmployees || 0}
           icon={<Users className="w-6 h-6" />}
           trend="neutral"
           trendValue="0%"
         />
         <NeuStatCard
-          title="Present Today"
+          title="Présents Aujourd'hui"
           value={todayStats?.presentToday || 0}
           icon={<CheckCircle className="w-6 h-6" />}
           trend="up"
           trendValue="0%"
         />
         <NeuStatCard
-          title="Absent Today"
+          title="Absents Aujourd'hui"
           value={todayStats?.absentToday || 0}
           icon={<XCircle className="w-6 h-6" />}
           trend="down"
           trendValue="0%"
         />
         <NeuStatCard
-          title="On Leave Today"
+          title="En Congé Aujourd'hui"
           value={todayStats?.onLeaveToday || 0}
           icon={<Calendar className="w-6 h-6" />}
           trend="neutral"
@@ -236,7 +236,7 @@ export default function AdminReportsPage() {
         {/* Monthly Bar Chart */}
         <NeuCard>
           <NeuCardHeader>
-            <NeuCardTitle>Monthly Attendance Overview</NeuCardTitle>
+            <NeuCardTitle>Aperçu Mensuel des Présences</NeuCardTitle>
           </NeuCardHeader>
           <NeuCardContent>
             {monthlyData.length > 0 ? (
@@ -244,8 +244,8 @@ export default function AdminReportsPage() {
             ) : (
               <EmptyState
                 icon={BarChart2}
-                title="No Data"
-                description="No attendance records found for this month"
+                title="Aucune Donnée"
+                description="Aucun pointage trouvé pour ce mois"
               />
             )}
           </NeuCardContent>
@@ -254,7 +254,7 @@ export default function AdminReportsPage() {
         {/* Department Pie Chart */}
         <NeuCard>
           <NeuCardHeader>
-            <NeuCardTitle>Department Distribution</NeuCardTitle>
+            <NeuCardTitle>Répartition par Département</NeuCardTitle>
           </NeuCardHeader>
           <NeuCardContent>
             {departmentData.length > 0 ? (
@@ -262,8 +262,8 @@ export default function AdminReportsPage() {
             ) : (
               <EmptyState
                 icon={Users}
-                title="No Data"
-                description="No department data available"
+                title="Aucune Donnée"
+                description="Aucune donnée de département disponible"
               />
             )}
           </NeuCardContent>
@@ -273,7 +273,7 @@ export default function AdminReportsPage() {
       {/* Trend Chart */}
       <NeuCard>
         <NeuCardHeader>
-          <NeuCardTitle>6-Month Attendance Trend</NeuCardTitle>
+          <NeuCardTitle>Tendance de Présence sur 6 Mois</NeuCardTitle>
         </NeuCardHeader>
         <NeuCardContent>
           {trendData.length > 0 ? (
@@ -281,8 +281,8 @@ export default function AdminReportsPage() {
           ) : (
             <EmptyState
               icon={BarChart2}
-              title="No Trend Data"
-              description="Insufficient data for trend analysis"
+              title="Aucune Donnée de Tendance"
+              description="Données insuffisantes pour l'analyse des tendances"
             />
           )}
         </NeuCardContent>
@@ -291,20 +291,20 @@ export default function AdminReportsPage() {
       {/* Top Performers Table */}
       <NeuCard>
         <NeuCardHeader>
-          <NeuCardTitle>Top Performers</NeuCardTitle>
+          <NeuCardTitle>Meilleurs Employés (Ponctualité & Présence)</NeuCardTitle>
         </NeuCardHeader>
         <NeuCardContent>
           {topPerformers.length > 0 ? (
             <NeuTable>
               <NeuTableHeader>
                 <NeuTableRow>
-                  <NeuTableHead>Rank</NeuTableHead>
-                  <NeuTableHead>Employee</NeuTableHead>
-                  <NeuTableHead>Department</NeuTableHead>
-                  <NeuTableHead>Present Days</NeuTableHead>
-                  <NeuTableHead>Late Days</NeuTableHead>
-                  <NeuTableHead>Attendance Rate</NeuTableHead>
-                  <NeuTableHead>Punctuality</NeuTableHead>
+                  <NeuTableHead>Rang</NeuTableHead>
+                  <NeuTableHead>Employé</NeuTableHead>
+                  <NeuTableHead>Département</NeuTableHead>
+                  <NeuTableHead>Jours Présents</NeuTableHead>
+                  <NeuTableHead>Retards</NeuTableHead>
+                  <NeuTableHead>Taux de Présence</NeuTableHead>
+                  <NeuTableHead>Ponctualité</NeuTableHead>
                 </NeuTableRow>
               </NeuTableHeader>
               <NeuTableBody>
@@ -350,8 +350,8 @@ export default function AdminReportsPage() {
           ) : (
             <EmptyState
               icon={Users}
-              title="No Performers Data"
-              description="No employee performance data available for this period"
+              title="Aucune Donnée de Performance"
+              description="Aucune donnée d'employé disponible pour la période sélectionnée"
             />
           )}
         </NeuCardContent>

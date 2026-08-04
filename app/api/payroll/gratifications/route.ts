@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 
 // GET /api/payroll/gratifications?year=2026
 export async function GET(request: NextRequest): Promise<Response> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     const year = parseInt(searchParams.get("year") || new Date().getFullYear() + "", 10);
 
     const employees = await prisma.user.findMany({
-      where: { isActive: true },
+      where: { isActive: true, companyId: authResult.companyId },
       select: {
         id: true,
         name: true,

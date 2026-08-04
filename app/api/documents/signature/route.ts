@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
   try {
-    const authResult = await requireAdmin(req);
-    if ("status" in authResult && authResult.status !== 200) {
-      return authResult;
-    }
+    const authResult = await requireTenant(req, "admin");
+    if (authResult instanceof NextResponse) return authResult;
 
     const { documentId, signatureDataUrl, signerName } = await req.json();
 
@@ -26,8 +24,9 @@ export async function POST(req: NextRequest) {
     // Journal d'audit d'authentification juridique de la signature
     await prisma.auditLog.create({
       data: {
+        companyId: authResult.companyId,
         action: "DOCUMENT_SIGNED",
-        performedById: (authResult as any).user?.id || "SYSTEM_ADMIN",
+        performedById: authResult.userId,
         targetModel: "Document",
         targetId: documentId || "DOC-GENERIC",
         newValues: {

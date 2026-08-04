@@ -1,105 +1,163 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsPDF } from "jspdf";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
+import { validateBody } from "@/lib/validate";
+import { documentGenerationSchema, type DocumentGenerationInput } from "@/shared/validation/document.schema";
+import type { DocumentType } from "@/shared/types/contracts/document.contract";
 import { generateContractHTML } from "@/lib/templates/documents/contract-templates";
 import { generateWorkAttestationHTML } from "@/lib/templates/documents/attestation-templates";
 import { generateSeveranceHTML } from "@/lib/templates/documents/severance-templates";
+import { PDFDocumentFactory } from "@/lib/infrastructure/pdf/pdf-document-factory";
 
-export async function POST(req: NextRequest) {
+type EmployeeDocumentRecord = Prisma.UserGetPayload<{
+  include: { company: true; department: true };
+}>;
+
+function jsonObject(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
+function htmlToText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function textPdf(title: string, body: string): Buffer {
+  const document = new jsPDF();
+  document.setFont("helvetica", "bold");
+  document.setFontSize(16);
+  document.text(title, 105, 20, { align: "center" });
+  document.setFont("helvetica", "normal");
+  document.setFontSize(10);
+  const lines = document.splitTextToSize(body, 180) as string[];
+  document.text(lines, 15, 35);
+  return Buffer.from(document.output("arraybuffer"));
+}
+
+function employeeHtml(input: DocumentGenerationInput, employee: EmployeeDocumentRecord): { title: string; html: string } {
+  const companyName = employee.company?.name ?? "PROGITPAIE";
+  const companyAddress = employee.company?.address ?? "Abidjan, Côte d'Ivoire";
+  const name = input.customName ?? employee.name;
+  const jobTitle = input.customJobTitle ?? employee.jobTitle ?? "Salarié";
+  const startDate = input.startDate ?? employee.joiningDate.toLocaleDateString("fr-FR");
+
+  if (input.docType === "contract") {
+    return {
+      title: "Contrat de travail",
+      html: generateContractHTML({
+        companyName, companyAddress, employeeName: name,
+        employeeAddress: employee.address ?? "Abidjan",
+        employeeNationality: employee.nationality ?? "Ivoirienne",
+        jobTitle, contractType: employee.contractType ?? "CDI", startDate,
+        endDate: input.endDate,
+        baseSalary: input.customSalary ?? employee.salary,
+        transportAllowance: employee.transportAllowance,
+        housingAllowance: employee.housingAllowance,
+      }),
+    };
+  }
+
+  if (["attestation", "certificat", "attestation_conge"].includes(input.docType)) {
+    return {
+      title: input.docType === "attestation_conge" ? "Attestation de congé" : "Attestation de travail",
+      html: input.customBodyText ?? generateWorkAttestationHTML({
+        companyName, companyAddress, employeeName: name, jobTitle, startDate,
+        leaveStartDate: input.startDate, leaveEndDate: input.endDate,
+      }),
+    };
+  }
+
+  return {
+    title: "Solde de tout compte",
+    html: input.customBodyText ?? generateSeveranceHTML({
+      companyName, employeeName: name, jobTitle,
+      leaveBalanceAmount: 0, noticeAllowance: 0, severancePay: 0, totalAmount: 0,
+    }),
+  };
+}
+
+export async function POST(request: NextRequest): Promise<Response> {
   try {
-    // Vérification des droits administrateur
-    const authResult = await requireAdmin(req);
-    if ("status" in authResult && authResult.status !== 200) {
-      return authResult;
+    const tenant = await requireTenant(request, "admin");
+    if (tenant instanceof NextResponse) return tenant;
+
+    const validation = await validateBody(request, documentGenerationSchema);
+    if (!validation.success) return validation.response;
+    const input = validation.data;
+    const targetUserId = input.userId ?? input.employeeId;
+
+    const company = await prisma.company.findUnique({ where: { id: tenant.companyId } });
+    if (!company) {
+      return NextResponse.json({ success: false, error: "Société introuvable" }, { status: 404 });
     }
 
-    const body = await req.json();
-    const { documentType, employeeId, companyId, customFields } = body;
+    let pdf: Buffer;
+    const declarationTypes: Partial<Record<DocumentType, string>> = {
+      declaration_its: "declaration_its", its: "declaration_its",
+      declaration_cnps: "declaration_cnps", cnps: "declaration_cnps",
+      declaration_fdfp: "declaration_fdfp", fdfp: "declaration_fdfp",
+      rns: "rns",
+    };
+    const declarationType = declarationTypes[input.docType];
 
-    if (!documentType || !employeeId) {
-      return NextResponse.json(
-        { success: false, error: "documentType et employeeId sont requis." },
-        { status: 400 }
-      );
+    if (declarationType && input.docType !== "rns") {
+      pdf = PDFDocumentFactory.createDocument({
+        docType: declarationType,
+        month: input.month ?? 1,
+        year: input.year ?? new Date().getFullYear(),
+        companyName: company.name,
+        companyAddress: company.address ?? "",
+        taxNumber: company.taxNumber ?? "",
+        cnpsNumber: company.cnpsNumber ?? "",
+        itsData: jsonObject(input.itsData),
+        cnpsData: jsonObject(input.cnpsData),
+        fdfpData: jsonObject(input.fdfpData),
+      });
+    } else if (["payslip", "bulletin"].includes(input.docType)) {
+      const payroll = await prisma.payroll.findFirst({
+        where: { userId: targetUserId, month: input.month, year: input.year, user: { companyId: tenant.companyId } },
+        include: { user: true },
+      });
+      if (!payroll) return NextResponse.json({ success: false, error: "Bulletin introuvable" }, { status: 404 });
+      pdf = textPdf("BULLETIN DE PAIE", `${payroll.user.name} - ${input.month}/${input.year}\nSalaire brut: ${payroll.grossSalary} FCFA\nRetenues: ${payroll.totalDeductions} FCFA\nNet à payer: ${payroll.netSalary} FCFA`);
+    } else if (input.docType === "ordre_virement") {
+      pdf = textPdf("ORDRE DE VIREMENT", `Banque: ${input.bankName ?? "Non renseignée"}\nPériode: ${input.month}/${input.year}\nMontant total: ${input.totalAmount ?? 0} FCFA`);
+    } else if (input.docType === "rns") {
+      const employee = await prisma.user.findFirst({ where: { id: targetUserId, companyId: tenant.companyId } });
+      if (!employee) return NextResponse.json({ success: false, error: "Salarié introuvable" }, { status: 404 });
+      pdf = textPdf("RELEVÉ NOMINATIF DES SALAIRES", `${input.customName ?? employee.name}\n${JSON.stringify(input.rnsData ?? [], null, 2)}`);
+    } else {
+      const employee = await prisma.user.findFirst({
+        where: { id: targetUserId, companyId: tenant.companyId },
+        include: { company: true, department: true },
+      });
+      if (!employee) return NextResponse.json({ success: false, error: "Salarié introuvable" }, { status: 404 });
+      const document = employeeHtml(input, employee);
+      pdf = textPdf(document.title.toUpperCase(), htmlToText(document.html));
     }
 
-    // Récupération des données du salarié et de la société
-    const employee = await prisma.user.findUnique({
-      where: { id: employeeId },
-      include: { company: true, department: true },
-    });
-
-    if (!employee) {
-      return NextResponse.json(
-        { success: false, error: "Salarié introuvable." },
-        { status: 404 }
-      );
-    }
-
-    const companyName = employee.company?.name || "PROGITPAIE S.A.";
-    const companyAddress = employee.company?.address || "Abidjan, Côte d'Ivoire";
-
-    let htmlContent = "";
-
-    switch (documentType.toUpperCase()) {
-      case "CONTRACT_CDI":
-      case "CONTRACT_CDD":
-        htmlContent = generateContractHTML({
-          companyName,
-          companyAddress,
-          employeeName: employee.name,
-          employeeAddress: employee.address || "Abidjan",
-          employeeNationality: employee.nationality || "Ivoirienne",
-          jobTitle: (employee as any).position || employee.role || "Salarié",
-          contractType: documentType.includes("CDD") ? "CDD" : "CDI",
-          startDate: (employee as any).hireDate ? new Date((employee as any).hireDate).toLocaleDateString("fr-FR") : new Date().toLocaleDateString("fr-FR"),
-          baseSalary: (employee as any).baseSalary || 200000,
-          transportAllowance: customFields?.transportAllowance || 30000,
-          housingAllowance: customFields?.housingAllowance || 0,
-        });
-        break;
-
-      case "WORK_ATTESTATION":
-        htmlContent = generateWorkAttestationHTML({
-          companyName,
-          companyAddress,
-          employeeName: employee.name,
-          jobTitle: (employee as any).position || employee.role || "Salarié",
-          startDate: (employee as any).hireDate ? new Date((employee as any).hireDate).toLocaleDateString("fr-FR") : new Date().toLocaleDateString("fr-FR"),
-        });
-        break;
-
-      case "SEVERANCE_STC":
-        htmlContent = generateSeveranceHTML({
-          companyName,
-          employeeName: employee.name,
-          jobTitle: (employee as any).position || employee.role || "Salarié",
-          leaveBalanceAmount: customFields?.leaveBalanceAmount || 150000,
-          noticeAllowance: customFields?.noticeAllowance || 200000,
-          severancePay: customFields?.severancePay || 350000,
-          totalAmount: (customFields?.leaveBalanceAmount || 150000) + (customFields?.noticeAllowance || 200000) + (customFields?.severancePay || 350000),
-        });
-        break;
-
-      default:
-        return NextResponse.json(
-          { success: false, error: `Type de document non supporté: ${documentType}` },
-          { status: 400 }
-        );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        documentType,
-        htmlContent,
-        generatedAt: new Date().toISOString(),
+    return new Response(new Uint8Array(pdf), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${input.docType}-${Date.now()}.pdf"`,
+        "Cache-Control": "no-store, private",
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Document Generation Error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur interne lors de la génération." },
+      { success: false, error: error instanceof Error ? error.message : "Erreur interne lors de la génération" },
       { status: 500 }
     );
   }

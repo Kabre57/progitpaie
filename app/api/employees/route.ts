@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { hashPassword } from "@/lib/auth";
 import { UserRole, Prisma } from "@prisma/client";
 import { ApiResponse } from "@/types";
 import { decryptData } from "@/lib/crypto";
+import { prismaWithTenant } from "@/lib/database/prisma-extension";
 
 // Helper function to generate unique employee ID
-async function generateEmployeeId(): Promise<string> {
-  const count = await prisma.user.count();
+async function generateEmployeeId(companyId: string): Promise<string> {
+  const count = await prisma.user.count({ where: { companyId } });
   const nextNumber = count + 1;
   return `EMP-${String(nextNumber).padStart(3, "0")}`;
 }
@@ -18,10 +19,11 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const adminCheck = await requireAdmin(request);
+    const adminCheck = await requireTenant(request, "admin");
     if (adminCheck instanceof NextResponse) {
       return adminCheck;
     }
+    const tenantDb = prismaWithTenant(adminCheck.companyId);
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
@@ -30,7 +32,7 @@ export async function GET(
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "50", 10);
 
-    const where: Prisma.UserWhereInput = {};
+    const where: Prisma.UserWhereInput = { companyId: adminCheck.companyId };
 
     if (search) {
       where.OR = [
@@ -52,7 +54,7 @@ export async function GET(
     const skip = (page - 1) * limit;
 
     const [users, total] = await Promise.all([
-      prisma.user.findMany({
+      tenantDb.user.findMany({
         where,
         select: {
           id: true,
@@ -104,7 +106,7 @@ export async function GET(
         skip,
         take: limit,
       }),
-      prisma.user.count({ where }),
+      tenantDb.user.count({ where }),
     ]);
 
     const formattedUsers = users.map((u) => ({
@@ -128,12 +130,12 @@ export async function GET(
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Get employees error:", error);
     return NextResponse.json<ApiResponse<never>>(
       {
         success: false,
-        error: error.message || "Internal server error",
+        error: error instanceof Error ? error.message : "Internal server error",
         code: "SERVER_ERROR",
       },
       { status: 500 }
@@ -146,14 +148,14 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const adminCheck = await requireAdmin(request);
+    const adminCheck = await requireTenant(request, "admin");
     if (adminCheck instanceof NextResponse) {
       return adminCheck;
     }
 
     const body = await request.json();
     const { 
-      name, email, password, department, shift, salary, sursalaire, joiningDate,
+      name, email, password, department, salary, sursalaire, joiningDate,
       civility, gender, birthDate, birthPlace, idCardType, idCardNumber, nationality,
       maritalStatus, childrenCount, address, phone, contractType, contractSignDate,
       cddDurationMonths, exitDate, direction, service, jobTitle, jobCode, regime,
@@ -187,19 +189,19 @@ export async function POST(
     }
 
     const hashedPassword = await hashPassword(password || "123456");
-    const employeeId = body.employeeId || (await generateEmployeeId());
+    const employeeId = body.employeeId || (await generateEmployeeId(adminCheck.companyId));
 
     let finalDepartmentId: string | null = null;
     if (department) {
       const trimmedDept = String(department).trim();
       const deptDoc = await prisma.department.findFirst({
-        where: { OR: [{ id: trimmedDept }, { name: trimmedDept }] },
+        where: { companyId: adminCheck.companyId, OR: [{ id: trimmedDept }, { name: trimmedDept }] },
       });
       if (deptDoc) {
         finalDepartmentId = deptDoc.id;
       } else {
         const newDept = await prisma.department.create({
-          data: { name: trimmedDept },
+          data: { name: trimmedDept, companyId: adminCheck.companyId },
         });
         finalDepartmentId = newDept.id;
       }
@@ -211,6 +213,7 @@ export async function POST(
         email: email.toLowerCase().trim(),
         password: hashedPassword,
         role: UserRole.employee,
+        companyId: adminCheck.companyId,
         employeeId,
         departmentId: finalDepartmentId,
         salary: Number(salary) || 0,
@@ -258,12 +261,12 @@ export async function POST(
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Create employee error:", error);
     return NextResponse.json<ApiResponse<never>>(
       {
         success: false,
-        error: error.message || "Internal server error",
+        error: error instanceof Error ? error.message : "Internal server error",
         code: "SERVER_ERROR",
       },
       { status: 500 }
@@ -276,7 +279,7 @@ export async function PUT(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const adminCheck = await requireAdmin(request);
+    const adminCheck = await requireTenant(request, "admin");
     if (adminCheck instanceof NextResponse) {
       return adminCheck;
     }
@@ -296,7 +299,7 @@ export async function PUT(
       );
     }
 
-    const existingUser = await prisma.user.findUnique({ where: { id: userId } });
+    const existingUser = await prisma.user.findFirst({ where: { id: userId, companyId: adminCheck.companyId } });
     if (!existingUser) {
       return NextResponse.json<ApiResponse<never>>(
         {
@@ -366,12 +369,12 @@ export async function PUT(
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Update employee error:", error);
     return NextResponse.json<ApiResponse<never>>(
       {
         success: false,
-        error: error.message || "Internal server error",
+        error: error instanceof Error ? error.message : "Internal server error",
         code: "SERVER_ERROR",
       },
       { status: 500 }

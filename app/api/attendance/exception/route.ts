@@ -6,11 +6,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 
 export async function POST(request: NextRequest): Promise<Response> {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireTenant(request);
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -32,6 +32,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     const attendance = await prisma.attendance.upsert({
       where: { userId_date: { userId: authResult.userId, date: todayStr } },
       create: {
+        companyId: authResult.companyId,
         userId: authResult.userId,
         date: todayStr,
         checkIn: now,
