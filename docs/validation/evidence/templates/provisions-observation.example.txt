@@ -1,0 +1,10 @@
+status=PASS
+started_at=YYYY-MM-DDTHH:MM:SSZ
+ended_at=YYYY-MM-DDTHH:MM:SSZ
+elapsed_hours=168
+legacy_calls=0
+tenant_incidents=0
+critical_errors=0
+p95_ms=0
+logs_sha256=SHA256_CORPUS_LOGS
+verified_by=OPERATEUR_HUMAIN

@@ -1,0 +1,8 @@
+status=DEPLOYED
+api_version=v2
+environment=production
+deployed_at=YYYY-MM-DDTHH:MM:SSZ
+commit=SHA_GIT_COMPLET
+image_digest=DIGEST_IMMUABLE
+health_status=PASS
+verified_by=OPERATEUR_HUMAIN
