@@ -1,72 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { requireTenant } from "@/lib/database/tenant-context";
+import { PrismaReportRepository } from "@/lib/infrastructure/repositories/prisma/PrismaReportRepository";
+import { GetHRReportAnalyticsUseCase } from "@/lib/application/report/use-cases/GetHRReportAnalyticsUseCase";
 import { ApiResponse } from "@/types";
 
-// GET /api/reports/analytics - Indicateurs RH & Analytics de masse salariale
-export async function GET(
-  request: NextRequest
-): Promise<NextResponse<ApiResponse<unknown>>> {
+const repository = new PrismaReportRepository();
+const useCase = new GetHRReportAnalyticsUseCase(repository);
+
+const DEPRECATION_HEADERS: Record<string, string> = {
+  Deprecated: "true",
+  Deprecation: "true",
+  Link: '</api/v2/reports/analytics>; rel="successor-version"',
+  "Cache-Control": "private, no-store, max-age=0",
+};
+
+function withDeprecation<T>(response: NextResponse<T>): NextResponse<T> {
+  Object.entries(DEPRECATION_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+  return response;
+}
+
+// GET /api/reports/analytics - Indicateurs RH (Legacy Adaptateur V1 -> V2)
+export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request, "admin");
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
+    if (authResult instanceof NextResponse) return withDeprecation(authResult);
 
-    const [totalEmployees, activeEmployees, departments, contracts, payrolls] = await Promise.all([
-      prisma.user.count({ where: { companyId: authResult.companyId } }),
-      prisma.user.count({ where: { isActive: true, companyId: authResult.companyId } }),
-      prisma.department.findMany({
-        where: { employees: { some: { companyId: authResult.companyId } } },
-        select: { name: true, _count: { select: { employees: { where: { companyId: authResult.companyId } } } } },
-      }),
-      prisma.contract.findMany({ where: { status: "active", user: { companyId: authResult.companyId } }, select: { type: true, category: true } }),
-      prisma.payroll.findMany({ where: { user: { companyId: authResult.companyId } }, orderBy: [{ year: "desc" }, { month: "desc" }], take: 12 }),
-    ]);
-
-    // Répartition des contrats
-    const contractTypes = {
-      CDI: contracts.filter((c) => c.type === "CDI").length,
-      CDD: contracts.filter((c) => c.type === "CDD").length,
-      STAGE: contracts.filter((c) => c.type === "STAGE").length,
-      FREELANCE: contracts.filter((c) => c.type === "FREELANCE").length,
-    };
-
-    // Masse salariale totale du dernier mois
-    const lastMonthPayrolls = payrolls.slice(0, activeEmployees);
-    const totalGrossPayroll = lastMonthPayrolls.reduce((sum, p) => sum + (p.grossSalary || 0), 0);
-    const totalNetPayroll = lastMonthPayrolls.reduce((sum, p) => sum + (p.netSalary || 0), 0);
-    const totalTaxSocialCost = lastMonthPayrolls.reduce((sum, p) => sum + (p.itsTax || 0) + (p.igrTax || 0) + (p.cnpsEmployer || 0) + (p.fdfpTax || 0), 0);
-
-    const responseData = {
-      totalEmployees,
-      activeEmployees,
-      inactiveEmployees: totalEmployees - activeEmployees,
-      departmentBreakdown: departments.map((d) => ({ name: d.name, count: d._count.employees })),
-      contractTypes,
-      lastMonthCosts: {
-        totalGrossPayroll: Math.round(totalGrossPayroll),
-        totalNetPayroll: Math.round(totalNetPayroll),
-        totalTaxSocialCost: Math.round(totalTaxSocialCost),
-      },
-    };
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: responseData,
-      },
-      { status: 200 }
-    );
-  } catch (error) {
+    const data = await useCase.execute(authResult.companyId);
+    return withDeprecation(NextResponse.json({ success: true, data }, { status: 200 }));
+  } catch (error: any) {
     console.error("Get HR analytics error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to fetch HR analytics",
-        code: "SERVER_ERROR",
-      },
-      { status: 500 }
+    return withDeprecation(
+      NextResponse.json(
+        { success: false, error: "Failed to fetch HR analytics", code: "SERVER_ERROR" },
+        { status: 500 }
+      )
     );
   }
 }
