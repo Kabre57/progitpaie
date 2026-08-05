@@ -1,168 +1,106 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { ContractType, EmployeeCategory, Prisma } from "@prisma/client";
+import { PrismaContractRepository } from "@/lib/infrastructure/repositories/prisma/PrismaContractRepository";
+import { ListContractsUseCase } from "@/lib/application/contract/use-cases/ListGetContractUseCase";
+import { CreateContractUseCase } from "@/lib/application/contract/use-cases/CreateContractUseCase";
+import { createContractSchema, listContractsQuerySchema } from "@/shared/validation/contract-v2.schema";
 import { ApiResponse } from "@/types";
 
-// GET /api/contracts - Liste tous les contrats
-export async function GET(
-  request: NextRequest
-): Promise<NextResponse<ApiResponse<unknown>>> {
+const repository = new PrismaContractRepository();
+const listUseCase = new ListContractsUseCase(repository);
+const createUseCase = new CreateContractUseCase(repository);
+
+const DEPRECATION_HEADERS: Record<string, string> = {
+  Deprecated: "true",
+  Deprecation: "true",
+  Link: '</api/v2/contracts>; rel="successor-version"',
+  "Cache-Control": "private, no-store, max-age=0",
+};
+
+function withDeprecation<T>(response: NextResponse<T>): NextResponse<T> {
+  Object.entries(DEPRECATION_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+  return response;
+}
+
+// GET /api/contracts - List contracts (Legacy Adaptateur V1 -> V2)
+export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request, "admin");
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
+    if (authResult instanceof NextResponse) return withDeprecation(authResult);
 
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
-    const type = searchParams.get("type");
-    const status = searchParams.get("status") || "active";
+    const parseResult = listContractsQuerySchema.safeParse(Object.fromEntries(searchParams.entries()));
+    if (!parseResult.success) {
+      return withDeprecation(
+        NextResponse.json(
+          { success: false, error: "Invalid query parameters", code: "VALIDATION_ERROR" },
+          { status: 400 }
+        )
+      );
+    }
 
-    const where: Prisma.ContractWhereInput = { companyId: authResult.companyId };
-    if (userId) where.userId = userId;
-    if (type) where.type = type as ContractType;
-    if (status) where.status = status;
-
-    const contracts = await prisma.contract.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      include: {
-        user: { select: { id: true, name: true, email: true, employeeId: true } },
-      },
+    const contracts = await listUseCase.execute({
+      companyId: authResult.companyId,
+      userId: parseResult.data.userId,
+      type: parseResult.data.type,
+      status: parseResult.data.status,
     });
 
-    const formattedContracts = contracts.map((c) => ({
+    const legacyData = contracts.map((c) => ({
       ...c,
       _id: c.id,
-      userId: c.userId,
-      user: {
-        ...c.user,
-        _id: c.user.id,
-      },
+      userId: c.user ? { ...c.user, _id: c.user.id } : c.userId,
     }));
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: formattedContracts,
-      },
-      { status: 200 }
-    );
-  } catch (error) {
+    return withDeprecation(NextResponse.json({ success: true, data: legacyData }, { status: 200 }));
+  } catch (error: any) {
     console.error("Get contracts error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to fetch contracts",
-        code: "SERVER_ERROR",
-      },
-      { status: 500 }
+    return withDeprecation(
+      NextResponse.json(
+        { success: false, error: "Failed to fetch contracts", code: "SERVER_ERROR" },
+        { status: 500 }
+      )
     );
   }
 }
 
-// POST /api/contracts - Créer un nouveau contrat de travail
-export async function POST(
-  request: NextRequest
-): Promise<NextResponse<ApiResponse<unknown>>> {
+// POST /api/contracts - Create contract (Legacy Adaptateur V1 -> V2)
+export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request, "admin");
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
+    if (authResult instanceof NextResponse) return withDeprecation(authResult);
 
-    const body = await request.json();
-    const {
-      userId,
-      type,
-      category,
-      jobTitle,
-      startDate,
-      endDate,
-      probationPeriodMonths,
-      baseSalary,
-      sursalaire,
-      transportAllowance,
-      housingAllowance,
-    } = body;
-
-    if (!userId || !jobTitle || !startDate || baseSalary === undefined) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Employé, Intitulé du poste, Date de début et Salaire de base sont requis",
-          code: "VALIDATION_ERROR",
-        },
-        { status: 400 }
+    const body = await request.json().catch(() => ({}));
+    const parseResult = createContractSchema.safeParse(body);
+    if (!parseResult.success) {
+      return withDeprecation(
+        NextResponse.json(
+          { success: false, error: "Invalid contract data", code: "VALIDATION_ERROR" },
+          { status: 400 }
+        )
       );
     }
 
-    // Désactiver les anciens contrats actifs de cet employé
-    await prisma.contract.updateMany({
-      where: { userId, companyId: authResult.companyId, status: "active" },
-      data: { status: "expired" },
+    const contract = await createUseCase.execute({
+      companyId: authResult.companyId,
+      ...parseResult.data,
     });
 
-    const contract = await prisma.contract.create({
-      data: {
-        companyId: authResult.companyId,
-        userId,
-        type: (type || "CDI") as ContractType,
-        category: (category || "employe") as EmployeeCategory,
-        jobTitle: jobTitle.trim(),
-        startDate: new Date(startDate),
-        endDate: endDate ? new Date(endDate) : null,
-        probationPeriodMonths: probationPeriodMonths || 0,
-        baseSalary: parseFloat(baseSalary),
-        sursalaire: sursalaire ? parseFloat(sursalaire) : 0,
-        transportAllowance: transportAllowance ? parseFloat(transportAllowance) : 0,
-        housingAllowance: housingAllowance ? parseFloat(housingAllowance) : 0,
-        status: "active",
-      },
-      include: {
-        user: { select: { id: true, name: true, email: true, employeeId: true } },
-      },
-    });
-
-    // Mettre à jour le salaire et les indemnités sur la fiche employé (User)
-    await prisma.user.update({
-      where: { id: userId, companyId: authResult.companyId },
-      data: {
-        salary: parseFloat(baseSalary),
-        sursalaire: sursalaire ? parseFloat(sursalaire) : 0,
-        transportAllowance: transportAllowance ? parseFloat(transportAllowance) : 0,
-        housingAllowance: housingAllowance ? parseFloat(housingAllowance) : 0,
-      },
-    });
-
-    const responseData = {
+    const legacyData = {
       ...contract,
       _id: contract.id,
-      userId: contract.userId,
-      user: {
-        ...contract.user,
-        _id: contract.user.id,
-      },
     };
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: responseData,
-        message: "Contrat de travail créé avec succès",
-      },
-      { status: 201 }
+    return withDeprecation(
+      NextResponse.json({ success: true, data: legacyData, message: "Contract created successfully" }, { status: 201 })
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Create contract error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to create contract",
-        code: "SERVER_ERROR",
-      },
-      { status: 500 }
+    return withDeprecation(
+      NextResponse.json(
+        { success: false, error: error.message || "Failed to create contract", code: "SERVER_ERROR" },
+        { status: 400 }
+      )
     );
   }
 }
