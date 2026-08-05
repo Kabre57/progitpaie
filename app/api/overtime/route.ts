@@ -1,135 +1,107 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { OvertimeStatus, Prisma } from "@prisma/client";
+import { PrismaOvertimeRepository } from "@/lib/infrastructure/repositories/prisma/PrismaOvertimeRepository";
+import { ListOvertimeUseCase } from "@/lib/application/overtime/use-cases/ListApproveOvertimeUseCase";
+import { CreateOvertimeUseCase } from "@/lib/application/overtime/use-cases/CreateOvertimeUseCase";
+import { createOvertimeSchema, listOvertimeQuerySchema } from "@/shared/validation/overtime-v2.schema";
 import { ApiResponse } from "@/types";
 
-// GET /api/overtime - Liste des heures supplémentaires
-export async function GET(
-  request: NextRequest
-): Promise<NextResponse<ApiResponse<unknown>>> {
+const repository = new PrismaOvertimeRepository();
+const listUseCase = new ListOvertimeUseCase(repository);
+const createUseCase = new CreateOvertimeUseCase(repository);
+
+const DEPRECATION_HEADERS: Record<string, string> = {
+  Deprecated: "true",
+  Deprecation: "true",
+  Link: '</api/v2/overtime>; rel="successor-version"',
+  "Cache-Control": "private, no-store, max-age=0",
+};
+
+function withDeprecation<T>(response: NextResponse<T>): NextResponse<T> {
+  Object.entries(DEPRECATION_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+  return response;
+}
+
+// GET /api/overtime - List overtime (Legacy Adaptateur V1 -> V2)
+export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const user = await requireTenant(request);
-    if (user instanceof NextResponse) {
-      return user;
-    }
+    const authResult = await requireTenant(request);
+    if (authResult instanceof NextResponse) return withDeprecation(authResult);
 
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get("status");
-
-    const where: Prisma.OvertimeWhereInput = { companyId: user.companyId };
-    if (user.role === "employee") {
-      where.userId = user.userId;
+    const parseResult = listOvertimeQuerySchema.safeParse(Object.fromEntries(searchParams.entries()));
+    if (!parseResult.success) {
+      return withDeprecation(
+        NextResponse.json(
+          { success: false, error: "Invalid query parameters", code: "VALIDATION_ERROR" },
+          { status: 400 }
+        )
+      );
     }
-    if (status) {
-      where.status = status as OvertimeStatus;
-    }
 
-    const overtimes = await prisma.overtime.findMany({
-      where,
-      orderBy: { date: "desc" },
-      include: {
-        user: { select: { id: true, name: true, email: true, employeeId: true } },
-        approvedBy: { select: { id: true, name: true } },
-      },
+    const overtimes = await listUseCase.execute({
+      companyId: authResult.companyId,
+      userId: parseResult.data.userId || (authResult.role === "employee" ? authResult.userId : undefined),
+      status: parseResult.data.status,
+      startDate: parseResult.data.startDate,
+      endDate: parseResult.data.endDate,
     });
 
-    const formattedOvertimes = overtimes.map((o) => ({
+    const legacyData = overtimes.map((o) => ({
       ...o,
       _id: o.id,
-      userId: { ...o.user, _id: o.user.id },
-      approvedBy: o.approvedBy ? { ...o.approvedBy, _id: o.approvedBy.id } : null,
+      userId: o.user ? { ...o.user, _id: o.user.id } : o.userId,
     }));
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: formattedFormatted(formattedOvertimes),
-      },
-      { status: 200 }
-    );
-  } catch (error) {
+    return withDeprecation(NextResponse.json({ success: true, data: legacyData }, { status: 200 }));
+  } catch (error: any) {
     console.error("Get overtime error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to fetch overtime records",
-        code: "SERVER_ERROR",
-      },
-      { status: 500 }
+    return withDeprecation(
+      NextResponse.json(
+        { success: false, error: "Failed to fetch overtime records", code: "SERVER_ERROR" },
+        { status: 500 }
+      )
     );
   }
 }
 
-function formattedFormatted(data: any) {
-  return data;
-}
-
-// POST /api/overtime - Soumission / Saisie d'heures supplémentaires
-export async function POST(
-  request: NextRequest
-): Promise<NextResponse<ApiResponse<unknown>>> {
+// POST /api/overtime - Create overtime (Legacy Adaptateur V1 -> V2)
+export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const user = await requireTenant(request);
-    if (user instanceof NextResponse) {
-      return user;
-    }
+    const authResult = await requireTenant(request, "admin");
+    if (authResult instanceof NextResponse) return withDeprecation(authResult);
 
-    const body = await request.json();
-    const { userId, date, minutes, rate, reason } = body;
-
-    const targetUserId = user.role === "admin" && userId ? userId : user.userId;
-
-    if (!date || !minutes || !reason) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Date, Nombre de minutes et Motif sont requis",
-          code: "VALIDATION_ERROR",
-        },
-        { status: 400 }
+    const body = await request.json().catch(() => ({}));
+    const parseResult = createOvertimeSchema.safeParse(body);
+    if (!parseResult.success) {
+      return withDeprecation(
+        NextResponse.json(
+          { success: false, error: "Invalid overtime data", code: "VALIDATION_ERROR" },
+          { status: 400 }
+        )
       );
     }
 
-    const overtime = await prisma.overtime.create({
-      data: {
-        companyId: user.companyId,
-        userId: targetUserId,
-        date: new Date(date),
-        minutes: parseInt(minutes, 10),
-        rate: rate ? parseFloat(rate) : 1.15, // 15% par défaut
-        reason: reason.trim(),
-        status: user.role === "admin" ? OvertimeStatus.approved : OvertimeStatus.pending,
-        approvedById: user.role === "admin" ? user.userId : null,
-      },
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-      },
+    const overtime = await createUseCase.execute({
+      companyId: authResult.companyId,
+      ...parseResult.data,
     });
 
-    const responseData = {
+    const legacyData = {
       ...overtime,
       _id: overtime.id,
-      userId: { ...overtime.user, _id: overtime.user.id },
     };
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: responseData,
-        message: "Heures supplémentaires enregistrées avec succès",
-      },
-      { status: 201 }
+    return withDeprecation(
+      NextResponse.json({ success: true, data: legacyData, message: "Overtime created successfully" }, { status: 201 })
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Create overtime error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to submit overtime",
-        code: "SERVER_ERROR",
-      },
-      { status: 500 }
+    return withDeprecation(
+      NextResponse.json(
+        { success: false, error: error.message || "Failed to create overtime", code: "SERVER_ERROR" },
+        { status: 400 }
+      )
     );
   }
 }
