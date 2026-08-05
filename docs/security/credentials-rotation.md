@@ -97,3 +97,5 @@ git clone https://github.com/Kabre57/progitpaie.git
 - Le seed de 111 salariés génère des données personnelles, bancaires et CNPS fictives ainsi qu'un secret de test commun ; il est réservé à une base isolée de développement ou de staging explicitement identifiée.
 - Si les E2E V2 nécessitent des salariés, les exécuter sur cette base isolée et qualifier les preuves comme `staging`, sans les mélanger aux preuves production.
 - Le plan production continue avec l'artefact V2 réel, les contrôles E2E autorisés, l'observation de 168 heures, le rollback staging et le gatekeeper pre-removal `13/13`.
+- Observation production démarrée le `2026-08-05T01:58:11Z` sur le commit distant courant ; les métadonnées et le corpus de logs sont conservés sous `observation-20260805T015811Z/` avec permissions restreintes.
+- Cette observation est en cours et ne constitue pas encore une preuve de 168 heures, de zéro appel legacy ou de réussite du gatekeeper.
