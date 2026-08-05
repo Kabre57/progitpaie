@@ -82,4 +82,6 @@ git clone https://github.com/Kabre57/progitpaie.git
 - Cause : les migrations Prisma n'étaient pas exécutées par Compose avant le démarrage de l'application. Un service `migrate` bloquant applique désormais `prisma migrate deploy` avant `app`.
 - Nouveau déploiement VPS confirmé : `progitpaie-migrate-1` s'est terminé avant le démarrage de `progitpaie-app`, ce qui valide la condition `service_completed_successfully` et l'application des migrations.
 - La preuve fournie ne contient pas encore de `--dry-run` ni d'exécution de la rotation : aucune rotation de `ENCRYPTION_KEY` n'est déclarée comme réalisée.
-- **Statut distant : ROTATION EN ATTENTE.** Le déploiement et l'application des migrations sont confirmés par le compte-rendu fourni ; les étapes 6 à 9 restent à valider par l'opérateur habilité.
+- Contrôle à blanc VPS confirmé : `Starting ENCRYPTION_KEY rotation (dry run)`, puis `Found 0 users; 0 records and 0 fields require rotation.` Aucun changement n'a été écrit.
+- Ce résultat doit être interprété comme une base actuellement vide, pas comme une preuve de ré-encryption. Si des employés sont censés exister, l'opération doit s'arrêter pour vérifier la cible `DATABASE_URL` et l'état de la base avant toute nouvelle action.
+- **Statut distant : ROTATION EN ATTENTE.** Le déploiement, les migrations et le contrôle à blanc sont confirmés ; l'opérateur doit valider que la base vide est attendue, effectuer le contrôle de santé, puis consigner l'exécution finale.
