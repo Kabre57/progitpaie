@@ -55,7 +55,7 @@ git clone https://github.com/Kabre57/progitpaie.git
 4. Reconstruire et démarrer la stack. Le service `migrate` applique les migrations Prisma avant d'autoriser le démarrage de `app` :
    `docker compose --env-file /etc/progitpaie/production.env up -d --build`
 5. Vérifier que le service `migrate` est terminé avec le code 0 avant toute rotation :
-   `docker compose --env-file /etc/progitpaie/production.env ps`
+   `docker compose --env-file /etc/progitpaie/production.env ps -a migrate`
 6. Exécuter d'abord le contrôle sans écriture :
    `docker compose --env-file /etc/progitpaie/production.env exec -T app node /app/scripts/rotate-encryption-key.js --dry-run`
 7. Si le contrôle est conforme, exécuter la rotation transactionnelle :
@@ -80,4 +80,6 @@ git clone https://github.com/Kabre57/progitpaie.git
 - Correctif ajouté dans le code : compilation du script pendant le build Docker, exécution native par `node`, injection explicite des variables de chiffrement dans Compose, et mise à jour atomique sans logs de nom ou d'e-mail.
 - Après déploiement de ce correctif, l'image a démarré mais la rotation a atteint une base sans table `public.users`. Aucun enregistrement n'a été modifié.
 - Cause : les migrations Prisma n'étaient pas exécutées par Compose avant le démarrage de l'application. Un service `migrate` bloquant applique désormais `prisma migrate deploy` avant `app`.
-- **Statut distant : EN ATTENTE.** Le correctif n'est pas une preuve de déploiement ni de rotation exécutée sur le VPS. Les étapes 5 à 9 doivent être validées par l'opérateur habilité après déploiement.
+- Nouveau déploiement VPS confirmé : `progitpaie-migrate-1` s'est terminé avant le démarrage de `progitpaie-app`, ce qui valide la condition `service_completed_successfully` et l'application des migrations.
+- La preuve fournie ne contient pas encore de `--dry-run` ni d'exécution de la rotation : aucune rotation de `ENCRYPTION_KEY` n'est déclarée comme réalisée.
+- **Statut distant : ROTATION EN ATTENTE.** Le déploiement et l'application des migrations sont confirmés par le compte-rendu fourni ; les étapes 6 à 9 restent à valider par l'opérateur habilité.
