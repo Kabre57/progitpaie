@@ -8,36 +8,22 @@ import { ApiResponse } from "@/types";
 const repository = new PrismaAttendanceRepository();
 const listUseCase = new ListAttendanceUseCase(repository);
 
-const DEPRECATION_HEADERS: Record<string, string> = {
-  Deprecated: "true",
-  Deprecation: "true",
-  Link: '</api/v2/attendance>; rel="successor-version"',
-  "Cache-Control": "private, no-store, max-age=0",
-};
-
-function withDeprecation<T>(response: NextResponse<T>): NextResponse<T> {
-  Object.entries(DEPRECATION_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
-  return response;
-}
-
-// GET /api/attendance - List attendance records (Legacy Adaptateur V1 -> V2)
+// GET /api/v2/attendance - Liste des pointages (V2 Clean Architecture)
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request);
-    if (authResult instanceof NextResponse) return withDeprecation(authResult);
+    if (authResult instanceof NextResponse) return authResult;
 
     const { searchParams } = new URL(request.url);
     const parseResult = listAttendanceQuerySchema.safeParse(Object.fromEntries(searchParams.entries()));
     if (!parseResult.success) {
-      return withDeprecation(
-        NextResponse.json(
-          { success: false, error: "Invalid query parameters", code: "VALIDATION_ERROR" },
-          { status: 400 }
-        )
+      return NextResponse.json(
+        { success: false, error: "Paramètres de requête invalides", code: "VALIDATION_ERROR" },
+        { status: 400 }
       );
     }
 
-    const attendanceList = await listUseCase.execute({
+    const data = await listUseCase.execute({
       companyId: authResult.companyId,
       userId: parseResult.data.userId || (authResult.role === "employee" ? authResult.userId : undefined),
       startDate: parseResult.data.startDate,
@@ -46,20 +32,12 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       departmentId: parseResult.data.departmentId,
     });
 
-    const legacyData = attendanceList.map((a) => ({
-      ...a,
-      _id: a.id,
-      userId: a.user ? { ...a.user, _id: a.user.id } : a.userId,
-    }));
-
-    return withDeprecation(NextResponse.json({ success: true, data: legacyData }, { status: 200 }));
+    return NextResponse.json({ success: true, data }, { status: 200 });
   } catch (error: any) {
-    console.error("Get attendance error:", error);
-    return withDeprecation(
-      NextResponse.json(
-        { success: false, error: "Failed to fetch attendance records", code: "SERVER_ERROR" },
-        { status: 500 }
-      )
+    console.error("GET /api/v2/attendance error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Erreur interne", code: "SERVER_ERROR" },
+      { status: 500 }
     );
   }
 }

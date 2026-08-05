@@ -1,169 +1,114 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { AttendanceStatus } from "@prisma/client";
-import { ApiResponse, AttendanceOverrideBody } from "@/types";
+import { PrismaAttendanceRepository } from "@/lib/infrastructure/repositories/prisma/PrismaAttendanceRepository";
+import { OverrideAttendanceStatusUseCase } from "@/lib/application/attendance/use-cases/OverrideAttendanceStatusUseCase";
+import { toAttendanceDTO } from "@/lib/application/attendance/mappers/attendance-dto.mapper";
+import { overrideAttendanceStatusSchema } from "@/shared/validation/attendance-v2.schema";
+import { ApiResponse } from "@/types";
 
-// PUT /api/attendance/[id] - Admin override attendance status
+const repository = new PrismaAttendanceRepository();
+const overrideUseCase = new OverrideAttendanceStatusUseCase(repository);
+
+const DEPRECATION_HEADERS: Record<string, string> = {
+  Deprecated: "true",
+  Deprecation: "true",
+  Link: '</api/v2/attendance/[id]>; rel="successor-version"',
+  "Cache-Control": "private, no-store, max-age=0",
+};
+
+function withDeprecation<T>(response: NextResponse<T>): NextResponse<T> {
+  Object.entries(DEPRECATION_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+  return response;
+}
+
+// PUT /api/attendance/[id] - Override status (Legacy Adaptateur V1 -> V2)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request, "admin");
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
+    if (authResult instanceof NextResponse) return withDeprecation(authResult);
 
-    const user = authResult;
     const { id } = await params;
-    const body: AttendanceOverrideBody = await request.json();
-
-    if (!body.status) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Status is required",
-          code: "VALIDATION_ERROR",
-        },
-        { status: 400 }
+    const body = await request.json().catch(() => ({}));
+    const parseResult = overrideAttendanceStatusSchema.safeParse(body);
+    if (!parseResult.success) {
+      return withDeprecation(
+        NextResponse.json(
+          { success: false, error: "Status is required", code: "VALIDATION_ERROR" },
+          { status: 400 }
+        )
       );
     }
 
-    // Filtre companyId obligatoire : garantit l'isolation tenant
-    const attendance = await prisma.attendance.findFirst({ where: { id, companyId: authResult.companyId } });
-    if (!attendance) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Attendance record not found",
-          code: "NOT_FOUND",
-        },
-        { status: 404 }
-      );
-    }
-
-    const oldStatus = attendance.status;
-    let updatedNotes = attendance.notes;
-    if (body.notes) {
-      updatedNotes = attendance.notes
-        ? `${attendance.notes} | Admin: ${body.notes}`
-        : `Admin: ${body.notes}`;
-    }
-
-    // Map status string to enum if needed (handling half-day / on-leave hyphens)
-    let prismaStatus: AttendanceStatus = body.status as AttendanceStatus;
-    if ((body.status as string) === "half-day") prismaStatus = AttendanceStatus.half_day;
-    if ((body.status as string) === "on-leave") prismaStatus = AttendanceStatus.on_leave;
-
-    const updated = await prisma.attendance.update({
-      where: { id, companyId: authResult.companyId },
-      data: {
-        status: prismaStatus,
-        notes: updatedNotes,
-        overriddenById: user.userId,
-        overriddenAt: new Date(),
-      },
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-        overriddenBy: { select: { id: true, name: true } },
-      },
+    const updated = await overrideUseCase.execute({
+      companyId: authResult.companyId,
+      adminId: authResult.userId,
+      attendanceId: id,
+      newStatus: parseResult.data.status,
+      notes: parseResult.data.notes,
     });
 
-    const responseData = {
+    const legacyData = {
       ...updated,
       _id: updated.id,
-      userId: {
-        ...updated.user,
-        _id: updated.user.id,
-      },
-      overriddenBy: updated.overriddenBy
-        ? { ...updated.overriddenBy, _id: updated.overriddenBy.id }
-        : null,
+      userId: updated.user ? { ...updated.user, _id: updated.user.id } : updated.userId,
     };
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: responseData,
-        message: `Attendance status updated from "${oldStatus}" to "${body.status}"`,
-      },
-      { status: 200 }
+    return withDeprecation(
+      NextResponse.json(
+        { success: true, data: legacyData, message: "Attendance status updated" },
+        { status: 200 }
+      )
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Attendance override error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to update attendance",
-        code: "SERVER_ERROR",
-      },
-      { status: 500 }
+    const status = error.message.includes("non trouvé") ? 404 : 500;
+    return withDeprecation(
+      NextResponse.json(
+        { success: false, error: error.message || "Failed to update attendance", code: "SERVER_ERROR" },
+        { status }
+      )
     );
   }
 }
 
-// GET /api/attendance/[id] - Get single attendance record
+// GET /api/attendance/[id] - Get single attendance (Legacy Adaptateur V1 -> V2)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request, "admin");
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
+    if (authResult instanceof NextResponse) return withDeprecation(authResult);
 
     const { id } = await params;
-
-    // Filtre companyId obligatoire : garantit l'isolation tenant
-    const attendance = await prisma.attendance.findFirst({
-      where: { id, companyId: authResult.companyId },
-      include: {
-        user: { select: { id: true, name: true, email: true, employeeId: true } },
-        overriddenBy: { select: { id: true, name: true } },
-      },
-    });
-
+    const attendance = await repository.findByIdForTenant(authResult.companyId, id);
     if (!attendance) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Attendance record not found",
-          code: "NOT_FOUND",
-        },
-        { status: 404 }
+      return withDeprecation(
+        NextResponse.json(
+          { success: false, error: "Attendance record not found", code: "NOT_FOUND" },
+          { status: 404 }
+        )
       );
     }
 
-    const responseData = {
-      ...attendance,
-      _id: attendance.id,
-      userId: {
-        ...attendance.user,
-        _id: attendance.user.id,
-      },
-      overriddenBy: attendance.overriddenBy
-        ? { ...attendance.overriddenBy, _id: attendance.overriddenBy.id }
-        : null,
+    const dto = toAttendanceDTO(attendance);
+    const legacyData = {
+      ...dto,
+      _id: dto.id,
+      userId: dto.user ? { ...dto.user, _id: dto.user.id } : dto.userId,
     };
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: responseData,
-      },
-      { status: 200 }
-    );
-  } catch (error) {
+    return withDeprecation(NextResponse.json({ success: true, data: legacyData }, { status: 200 }));
+  } catch (error: any) {
     console.error("Get attendance error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to fetch attendance",
-        code: "SERVER_ERROR",
-      },
-      { status: 500 }
+    return withDeprecation(
+      NextResponse.json(
+        { success: false, error: "Failed to fetch attendance", code: "SERVER_ERROR" },
+        { status: 500 }
+      )
     );
   }
 }
