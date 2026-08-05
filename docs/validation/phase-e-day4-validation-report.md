@@ -46,8 +46,8 @@
 ## 4. Signatures du gatekeeper
 
 - Responsable paie : Kabre Theodore — Date : 2026-08-04
-- Responsable technique :
-- Responsable sécurité :
+- Responsable technique : Yao aya ange — Date : 2026-08-04
+- Responsable sécurité : Noham Edwin — Date : 2026-08-04
 
 ---
 
