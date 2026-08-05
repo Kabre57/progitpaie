@@ -7,37 +7,23 @@ import { ApiResponse } from "@/types";
 const repository = new PrismaDeclarationRepository();
 const itsUseCase = new GetItsDeclarationUseCase(repository);
 
-const DEPRECATION_HEADERS: Record<string, string> = {
-  Deprecated: "true",
-  Deprecation: "true",
-  Link: '</api/v2/declarations/its>; rel="successor-version"',
-  "Cache-Control": "private, no-store, max-age=0",
-};
-
-function withDeprecation<T>(response: NextResponse<T>): NextResponse<T> {
-  Object.entries(DEPRECATION_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
-  return response;
-}
-
-// GET /api/declarations/its - Déclaration ITS (Legacy Adaptateur V1 -> V2)
+// GET /api/v2/declarations/its - Déclaration Fiscale ITS (V2 Clean Architecture)
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request, "admin");
-    if (authResult instanceof NextResponse) return withDeprecation(authResult);
+    if (authResult instanceof NextResponse) return authResult;
 
     const { searchParams } = new URL(request.url);
     const month = parseInt(searchParams.get("month") || new Date().getMonth() + 1 + "", 10);
     const year = parseInt(searchParams.get("year") || new Date().getFullYear() + "", 10);
 
     const data = await itsUseCase.execute(authResult.companyId, month, year);
-    return withDeprecation(NextResponse.json({ success: true, data }, { status: 200 }));
+    return NextResponse.json({ success: true, data }, { status: 200 });
   } catch (error: any) {
-    console.error("Get ITS declaration error:", error);
-    return withDeprecation(
-      NextResponse.json(
-        { success: false, error: "Failed to generate ITS declaration", code: "SERVER_ERROR" },
-        { status: 500 }
-      )
+    console.error("GET /api/v2/declarations/its error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Erreur serveur", code: "SERVER_ERROR" },
+      { status: 500 }
     );
   }
 }
