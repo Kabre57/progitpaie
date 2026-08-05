@@ -8,23 +8,10 @@ import { ApiResponse } from "@/types";
 const repository = new PrismaAccountingRepository();
 const useCase = new GetPayrollJournalUseCase(repository);
 
-const DEPRECATION_HEADERS: Record<string, string> = {
-  Deprecated: "true",
-  Deprecation: "true",
-  Link: '</api/v2/accounting/export>; rel="successor-version"',
-  "Cache-Control": "private, no-store, max-age=0",
-};
-
-function withDeprecation(response: NextResponse): NextResponse {
-  Object.entries(DEPRECATION_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
-  return response;
-}
-
-// GET /api/accounting/export - Exporter le journal comptable (Legacy Adaptateur V1 -> V2)
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const authResult = await requireTenant(request, "admin");
-    if (authResult instanceof NextResponse) return withDeprecation(authResult);
+    if (authResult instanceof NextResponse) return authResult;
 
     const { searchParams } = new URL(request.url);
     const month = parseInt(searchParams.get("month") || new Date().getMonth() + 1 + "", 10);
@@ -61,22 +48,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
 
-    const res = new NextResponse(buf, {
+    return new NextResponse(buf, {
       status: 200,
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition": `attachment; filename="journal-comptable-${data.period}.xlsx"`,
       },
     });
-
-    return withDeprecation(res);
   } catch (error: any) {
-    console.error("Export accounting error:", error);
-    return withDeprecation(
-      NextResponse.json(
-        { success: false, error: "Failed to export accounting journal", code: "SERVER_ERROR" },
-        { status: 500 }
-      )
+    console.error("GET /api/v2/accounting/export error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Erreur lors de l'exportation", code: "SERVER_ERROR" },
+      { status: 500 }
     );
   }
 }
