@@ -12,11 +12,25 @@ function noStore(response: NextResponse): NextResponse {
 }
 
 export async function GET(request: NextRequest): Promise<Response> {
+  const startedAt = Date.now();
+  const logRequest = (status: number): void => {
+    console.info("[PROVISIONS_V2_REQUEST]", JSON.stringify({
+      status,
+      durationMs: Date.now() - startedAt,
+    }));
+  };
+
   const tenant = await requireTenant(request, "admin");
-  if (tenant instanceof NextResponse) return noStore(tenant);
+  if (tenant instanceof NextResponse) {
+    logRequest(tenant.status);
+    return noStore(tenant);
+  }
 
   const validation = validateQuery(request, provisionV2QuerySchema);
-  if (!validation.success) return noStore(validation.response);
+  if (!validation.success) {
+    logRequest(validation.response.status);
+    return noStore(validation.response);
+  }
 
   try {
     const referenceDate = resolveProvisionReferenceDate(validation.data);
@@ -24,17 +38,20 @@ export async function GET(request: NextRequest): Promise<Response> {
       companyId: tenant.companyId,
       referenceDate,
     });
+    logRequest(200);
     return noStore(NextResponse.json({
       success: true,
       data: mapProvisionResultToV2DTO(result),
     }));
   } catch (error) {
     if (error instanceof RangeError) {
+      logRequest(400);
       return noStore(NextResponse.json(
         { success: false, error: error.message, code: "INVALID_REFERENCE_DATE" },
         { status: 400 }
       ));
     }
+    logRequest(500);
     console.error("GET /api/v2/payroll/provisions error:", error);
     return noStore(NextResponse.json(
       { success: false, error: "Impossible de calculer les provisions", code: "PROVISION_CALCULATION_ERROR" },
