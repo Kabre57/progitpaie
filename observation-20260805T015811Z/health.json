@@ -1,0 +1,1 @@
+{"status":"healthy","timestamp":"2026-08-05T01:58:11.560Z","latencyMs":36,"checks":{"database":{"status":"up","latencyMs":36},"memory":{"heapUsedMb":43,"heapTotalMb":47,"rssMb":117},"uptimeSeconds":2684}}

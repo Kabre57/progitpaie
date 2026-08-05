@@ -1,0 +1,5 @@
+NAME                   IMAGE                COMMAND                  SERVICE    CREATED          STATUS                      PORTS
+progitpaie-app         progitpaie-app       "docker-entrypoint.s…"   app        44 minutes ago   Up 44 minutes               127.0.0.1:3500->3000/tcp
+progitpaie-migrate-1   progitpaie-migrate   "docker-entrypoint.s…"   migrate    44 minutes ago   Exited (0) 44 minutes ago   
+progitpaie-postgres    postgres:15-alpine   "docker-entrypoint.s…"   postgres   7 hours ago      Up 7 hours (healthy)        127.0.0.1:5433->5432/tcp
+progitpaie-redis       redis:7-alpine       "docker-entrypoint.s…"   redis      6 hours ago      Up 6 hours                  127.0.0.1:6379->6379/tcp

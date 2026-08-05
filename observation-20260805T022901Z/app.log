@@ -1,0 +1,6 @@
+2026-08-05T02:15:09.700431209Z ▲ Next.js 16.2.1
+2026-08-05T02:15:09.700847676Z - Local:         http://localhost:3000
+2026-08-05T02:15:09.702673092Z - Network:       http://0.0.0.0:3000
+2026-08-05T02:15:09.702692886Z ✓ Ready in 0ms
+2026-08-05T02:16:06.456839630Z ✅ Redis connected successfully
+2026-08-05T02:27:42.819782665Z [PROVISIONS_V2_REQUEST] {"status":401,"durationMs":2}
