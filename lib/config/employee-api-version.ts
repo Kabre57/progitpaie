@@ -2,10 +2,10 @@ export type EmployeeApiVersion = "v1" | "v2";
 
 export function getEmployeeApiVersion(): EmployeeApiVersion {
   const envVersion = process.env.NEXT_PUBLIC_EMPLOYEE_API_VERSION?.toLowerCase();
-  if (envVersion === "v2" || envVersion === "2") {
-    return "v2";
+  if (envVersion === "v1" || envVersion === "1") {
+    return "v1";
   }
-  return "v1";
+  return "v2";
 }
 
 export function getEmployeeEndpoint(path: string = ""): string {

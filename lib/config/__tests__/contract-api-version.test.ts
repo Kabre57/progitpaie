@@ -7,15 +7,15 @@ describe("Contract API Version Feature Flag Config", () => {
     process.env.NEXT_PUBLIC_CONTRACT_API_VERSION = originalEnv;
   });
 
-  it("retourne 'v1' par défaut si la variable n'est pas définie", () => {
+  it("retourne 'v2' par défaut si la variable n'est pas définie", () => {
     delete process.env.NEXT_PUBLIC_CONTRACT_API_VERSION;
-    expect(getContractApiVersion()).toBe("v1");
-    expect(getContractEndpoint()).toBe("/api/contracts");
-  });
-
-  it("retourne 'v2' lorsque NEXT_PUBLIC_CONTRACT_API_VERSION=v2", () => {
-    process.env.NEXT_PUBLIC_CONTRACT_API_VERSION = "v2";
     expect(getContractApiVersion()).toBe("v2");
     expect(getContractEndpoint()).toBe("/api/v2/contracts");
+  });
+
+  it("retourne 'v1' lorsque NEXT_PUBLIC_CONTRACT_API_VERSION=v1", () => {
+    process.env.NEXT_PUBLIC_CONTRACT_API_VERSION = "v1";
+    expect(getContractApiVersion()).toBe("v1");
+    expect(getContractEndpoint()).toBe("/api/contracts");
   });
 });

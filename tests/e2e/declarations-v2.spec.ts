@@ -13,9 +13,8 @@ test.describe("Qualification E2E — Module Declarations V2", () => {
     expect([200, 401, 403]).toContain(itsRes.status());
   });
 
-  test("2. Endpoint V1 : Entêtes Deprecated présents sur l'adaptateur V1", async ({ request }) => {
+  test("2. Endpoint V1 interne : Doit retourner 404 Not Found suite à la suppression", async ({ request }) => {
     const v1Res = await request.get(`${baseUrl}/api/declarations/cnps?month=1&year=2026`);
-    expect(v1Res.headers()["deprecated"]).toBe("true");
-    expect(v1Res.headers()["link"]).toContain("/api/v2/declarations/cnps");
+    expect(v1Res.status()).toBe(404);
   });
 });

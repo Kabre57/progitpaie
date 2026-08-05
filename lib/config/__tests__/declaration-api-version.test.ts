@@ -7,15 +7,15 @@ describe("Declaration API Version Feature Flag Config", () => {
     process.env.NEXT_PUBLIC_DECLARATION_API_VERSION = originalEnv;
   });
 
-  it("retourne 'v1' par défaut si la variable n'est pas définie", () => {
+  it("retourne 'v2' par défaut si la variable n'est pas définie", () => {
     delete process.env.NEXT_PUBLIC_DECLARATION_API_VERSION;
-    expect(getDeclarationApiVersion()).toBe("v1");
-    expect(getDeclarationEndpoint()).toBe("/api/declarations");
-  });
-
-  it("retourne 'v2' lorsque NEXT_PUBLIC_DECLARATION_API_VERSION=v2", () => {
-    process.env.NEXT_PUBLIC_DECLARATION_API_VERSION = "v2";
     expect(getDeclarationApiVersion()).toBe("v2");
     expect(getDeclarationEndpoint()).toBe("/api/v2/declarations");
+  });
+
+  it("retourne 'v1' lorsque NEXT_PUBLIC_DECLARATION_API_VERSION=v1", () => {
+    process.env.NEXT_PUBLIC_DECLARATION_API_VERSION = "v1";
+    expect(getDeclarationApiVersion()).toBe("v1");
+    expect(getDeclarationEndpoint()).toBe("/api/declarations");
   });
 });

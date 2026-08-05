@@ -2,10 +2,10 @@ export type ReportApiVersion = "v1" | "v2";
 
 export function getReportApiVersion(): ReportApiVersion {
   const envVersion = process.env.NEXT_PUBLIC_REPORT_API_VERSION?.toLowerCase();
-  if (envVersion === "v2" || envVersion === "2") {
-    return "v2";
+  if (envVersion === "v1" || envVersion === "1") {
+    return "v1";
   }
-  return "v1";
+  return "v2";
 }
 
 export function getReportEndpoint(path: string = ""): string {

@@ -9,9 +9,8 @@ test.describe("Qualification E2E — Module Contracts V2", () => {
     expect([200, 401, 403]).toContain(v2Res.status());
   });
 
-  test("2. Endpoint V1 : Entêtes Deprecated présents sur l'adaptateur V1", async ({ request }) => {
+  test("2. Endpoint V1 interne : Doit retourner 404 Not Found suite à la suppression", async ({ request }) => {
     const v1Res = await request.get(`${baseUrl}/api/contracts`);
-    expect(v1Res.headers()["deprecated"]).toBe("true");
-    expect(v1Res.headers()["link"]).toContain("/api/v2/contracts");
+    expect(v1Res.status()).toBe(404);
   });
 });

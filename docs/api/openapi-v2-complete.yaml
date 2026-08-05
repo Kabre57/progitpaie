@@ -1,0 +1,123 @@
+openapi: 3.0.3
+info:
+  title: PROGITPAIE API V2 - Clean Architecture
+  description: Spécification officielle complète des Endpoints V2 pour le système de gestion de la paie et des RH en Côte d'Ivoire.
+  version: 2.0.0
+servers:
+  - url: https://progitpaie.online/api/v2
+    description: Production Server
+  - url: http://localhost:3000/api/v2
+    description: Local Environment
+
+paths:
+  /payroll/provisions:
+    get:
+      summary: Calcule et retourne les provisions de congés payés & 13ème mois
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Calculations réussies
+  /payroll/calculate:
+    post:
+      summary: Calcule le bulletin de paie mensuel
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Paie calculée
+  /attendance:
+    get:
+      summary: Liste les pointages de présence
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Liste des pointages
+  /attendance/check-in:
+    post:
+      summary: Effectue le pointage d'arrivée (Horodatage + Géolocalisation)
+      security:
+        - BearerAuth: []
+      responses:
+        '201':
+          description: Pointage enregistré
+  /employees:
+    get:
+      summary: Liste les employés de la société
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Liste des employés
+  /leaves:
+    get:
+      summary: Liste les demandes de congés
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Demandes de congés
+  /overtime:
+    get:
+      summary: Liste les déclarations d'heures supplémentaires
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Heures supplémentaires
+  /contracts:
+    get:
+      summary: Liste les contrats de travail
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Contrats de travail
+  /loans:
+    get:
+      summary: Liste les prêts et avances
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Prêts et avances
+  /severance:
+    get:
+      summary: Liste les soldes de tout compte
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Soldes de tout compte
+  /declarations/cnps:
+    get:
+      summary: Déclaration d'appel de cotisation CNPS
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Rapport CNPS
+  /accounting/journal:
+    get:
+      summary: Journal d'écritures comptables de paie SYSCOHADA
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Ecritures comptables
+  /reports/analytics:
+    get:
+      summary: Indicateurs analytiques RH et masse salariale
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Métriques analytiques
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
