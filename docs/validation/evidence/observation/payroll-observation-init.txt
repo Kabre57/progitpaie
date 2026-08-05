@@ -1,0 +1,6 @@
+status=RUNNING
+started_at=2026-08-05T18:30:00Z
+expected_end_at=2026-08-12T18:30:00Z
+min_observation_hours=168
+monitored_route=/api/payroll
+verified_by=Kabre Theodore
