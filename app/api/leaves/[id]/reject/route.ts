@@ -1,101 +1,61 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { LeaveStatus } from "@prisma/client";
-import { ApiResponse, ApproveLeaveBody } from "@/types";
-import { createNotification } from "@/lib/notifications";
+import { PrismaLeaveRepository } from "@/lib/infrastructure/repositories/prisma/PrismaLeaveRepository";
+import { RejectLeaveUseCase } from "@/lib/application/leave/use-cases/ApproveRejectLeaveUseCase";
+import { leaveDecisionSchema } from "@/shared/validation/leave-v2.schema";
+import { ApiResponse } from "@/types";
 
+const repository = new PrismaLeaveRepository();
+const rejectUseCase = new RejectLeaveUseCase(repository);
+
+const DEPRECATION_HEADERS: Record<string, string> = {
+  Deprecated: "true",
+  Deprecation: "true",
+  Link: '</api/v2/leaves/[id]/reject>; rel="successor-version"',
+  "Cache-Control": "private, no-store, max-age=0",
+};
+
+function withDeprecation<T>(response: NextResponse<T>): NextResponse<T> {
+  Object.entries(DEPRECATION_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+  return response;
+}
+
+// PUT /api/leaves/[id]/reject - Reject leave (Legacy Adaptateur V1 -> V2)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request, "admin");
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
+    if (authResult instanceof NextResponse) return withDeprecation(authResult);
 
     const { id } = await params;
-    const body: ApproveLeaveBody = await request.json().catch(() => ({}));
+    const body = await request.json().catch(() => ({}));
+    const parseResult = leaveDecisionSchema.safeParse(body);
 
-    // Filtre companyId obligatoire : garantit l'isolation tenant
-    const leave = await prisma.leave.findFirst({ where: { id, companyId: authResult.companyId } });
-    if (!leave) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Demande de congé non trouvée",
-          code: "NOT_FOUND",
-        },
-        { status: 404 }
-      );
-    }
-
-    if (leave.status !== LeaveStatus.pending) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Cette demande de congé a déjà le statut : ${leave.status}`,
-          code: "INVALID_STATUS",
-        },
-        { status: 400 }
-      );
-    }
-
-    await prisma.leave.update({
-      where: { id },
-      data: {
-        status: LeaveStatus.rejected,
-        approvedById: authResult.userId,
-        adminComment: body.adminComment || "",
-      },
+    const updated = await rejectUseCase.execute({
+      companyId: authResult.companyId,
+      adminId: authResult.userId,
+      leaveId: id,
+      comment: parseResult.success ? parseResult.data.comment : undefined,
     });
 
-    // Notification utilisateur en Français
-    await createNotification({
-      userId: leave.userId,
-      title: "Demande de congé refusée",
-      message: `Votre demande de congé pour la période du ${new Date(leave.startDate).toLocaleDateString("fr-FR")} au ${new Date(leave.endDate).toLocaleDateString("fr-FR")} a été refusée par l'administration.${body.adminComment ? ` Motif : ${body.adminComment}` : ""}`,
-      type: "error",
-      link: "/employee/leaves",
-    });
+    const legacyData = {
+      ...updated,
+      _id: updated.id,
+    };
 
-    const populatedLeave = await prisma.leave.findFirst({
-      where: { id, companyId: authResult.companyId },
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-        approvedBy: { select: { id: true, name: true } },
-      },
-    });
-
-    const responseData = populatedLeave
-      ? {
-          ...populatedLeave,
-          _id: populatedLeave.id,
-          userId: { ...populatedLeave.user, _id: populatedLeave.user.id },
-          approvedBy: populatedLeave.approvedBy
-            ? { ...populatedLeave.approvedBy, _id: populatedLeave.approvedBy.id }
-            : null,
-        }
-      : null;
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: responseData,
-        message: "Demande de congé refusée avec succès",
-      },
-      { status: 200 }
+    return withDeprecation(
+      NextResponse.json({ success: true, data: legacyData, message: "Leave application rejected" }, { status: 200 })
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Reject leave error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Erreur lors du refus de la demande de congé",
-        code: "SERVER_ERROR",
-      },
-      { status: 500 }
+    const status = error.message.includes("non trouvée") ? 404 : 500;
+    return withDeprecation(
+      NextResponse.json(
+        { success: false, error: error.message || "Failed to reject leave application", code: "SERVER_ERROR" },
+        { status }
+      )
     );
   }
 }
