@@ -142,7 +142,7 @@ else
 fi
 
 ROLLBACK_DOC="docs/rollback/provisions-legacy-rollback.md"
-if [[ -f "$ROLLBACK_DOC" ]] && grep -q "Statut test : VALIDATED" "$ROLLBACK_DOC"; then
+if [[ -f "$ROLLBACK_DOC" ]] && grep -Eq "(Status: VALIDATED|Statut test : VALIDATED)" "$ROLLBACK_DOC"; then
   pass "ROLLBACK_TESTE" "procédure validée ($ROLLBACK_DOC)"
 else
   fail "ROLLBACK_TESTE" "preuve absente, incomplète ou non VALIDATED : $ROLLBACK_DOC"

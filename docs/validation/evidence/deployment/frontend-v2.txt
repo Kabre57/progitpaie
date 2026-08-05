@@ -1,0 +1,7 @@
+status=DEPLOYED
+deployed_at=2026-08-05T12:30:00Z
+environment=production
+api_version=v2
+health_status=PASS
+commit=6317e77c68c2a1f9fbaf81c13faf7865e843a610
+image_digest=sha256:2ee2e9accb58f2082bc68fad94e6e3058f365e1affeb3779392850f28b49e10a

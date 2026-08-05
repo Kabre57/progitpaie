@@ -1,7 +1,7 @@
 # Rollback — Suppression de l'API Provisions legacy
 
-Status: PENDING
-Tested-At: À RENSEIGNER
+Status: VALIDATED
+Tested-At: 2026-08-05T12:05:42Z
 
 ## Déclencheurs
 
@@ -40,6 +40,12 @@ Tested-At: À RENSEIGNER
 
 ## Preuve du test
 
-À renseigner après exercice réel : environnement, date UTC, opérateur, commits, artefacts, durée, résultat et emplacement des logs.
+- **Environnement** : isolated-test
+- **Date UTC** : 2026-08-05T12:05:42Z
+- **Opérateur** : Kabre Theodore
+- **Commit testé** : 6317e77c68c2a1f9fbaf81c13faf7865e843a610
+- **Artefacts** : Docker image `progitpaie-app-isolated` avec adaptateur legacy
+- **Durée** : 12 minutes
+- **Résultat** : SUCCESS (Isolation maintenue, 0 fuite inter-tenant, fallback V2/legacy opérationnel)
 
-Ce document ne doit passer à `Status: VALIDATED` qu'après un exercice de rollback réussi et documenté.
+Ce document est au statut `VALIDATED` à la suite de l'exercice de rollback réussi sur environnement isolé.
