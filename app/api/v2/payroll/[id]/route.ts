@@ -4,7 +4,6 @@ import { PrismaPayrollRepository } from "@/lib/infrastructure/repositories/prism
 import { PrismaNotificationAdapter } from "@/lib/infrastructure/repositories/prisma/PrismaNotificationAdapter";
 import { UpdatePayrollBonusesUseCase } from "@/lib/application/payroll/use-cases/UpdatePayrollBonuses";
 import { FinalizePayrollUseCase } from "@/lib/application/payroll/use-cases/FinalizePayroll";
-import { toLegacyPayrollDTO } from "@/lib/application/payroll/mappers/payroll-dto.mapper";
 import { updatePayrollBonusesSchema } from "@/shared/validation/payroll-v2.schema";
 import { ApiResponse } from "@/types";
 
@@ -13,14 +12,7 @@ const notificationAdapter = new PrismaNotificationAdapter();
 const updateBonusesUseCase = new UpdatePayrollBonusesUseCase(repository);
 const finalizeUseCase = new FinalizePayrollUseCase(repository, notificationAdapter);
 
-const DEPRECATION_HEADERS = {
-  Deprecated: "true",
-  Deprecation: "true",
-  Link: '</api/v2/payroll>; rel="successor-version"',
-  "Cache-Control": "private, no-store, max-age=0",
-};
-
-// PUT /api/payroll/[id] - Update payroll (Legacy Adaptateur V1 -> V2)
+// PUT /api/v2/payroll/[id] - Modifier les primes d'un bulletin
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -34,32 +26,32 @@ export async function PUT(
     const parseResult = updatePayrollBonusesSchema.safeParse(body);
     if (!parseResult.success) {
       return NextResponse.json(
-        { success: false, error: "Invalid bonuses amount", code: "VALIDATION_ERROR" },
-        { status: 400, headers: DEPRECATION_HEADERS }
+        { success: false, error: "Montant des primes invalide", code: "VALIDATION_ERROR" },
+        { status: 400 }
       );
     }
 
-    const payroll = await updateBonusesUseCase.execute({
+    const data = await updateBonusesUseCase.execute({
       companyId: authResult.companyId,
       payrollId: id,
       bonuses: parseResult.data.bonuses,
     });
 
     return NextResponse.json(
-      { success: true, data: toLegacyPayrollDTO(payroll), message: "Payroll updated successfully" },
-      { status: 200, headers: DEPRECATION_HEADERS }
+      { success: true, data, message: "Bulletin de paie mis à jour" },
+      { status: 200 }
     );
   } catch (error: any) {
-    console.error("Update payroll error:", error);
+    console.error("PUT /api/v2/payroll/[id] error:", error);
     const status = error.message.includes("non trouvé") ? 404 : 400;
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to update payroll", code: "SERVER_ERROR" },
-      { status, headers: DEPRECATION_HEADERS }
+      { success: false, error: error.message || "Erreur de mise à jour", code: "SERVER_ERROR" },
+      { status }
     );
   }
 }
 
-// PATCH /api/payroll/[id] - Finalize payroll (Legacy Adaptateur V1 -> V2)
+// PATCH /api/v2/payroll/[id] - Finaliser un bulletin
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -69,21 +61,21 @@ export async function PATCH(
     if (authResult instanceof NextResponse) return authResult;
 
     const { id } = await params;
-    const payroll = await finalizeUseCase.execute({
+    const data = await finalizeUseCase.execute({
       companyId: authResult.companyId,
       payrollId: id,
     });
 
     return NextResponse.json(
-      { success: true, data: toLegacyPayrollDTO(payroll), message: "Payroll finalized successfully" },
-      { status: 200, headers: DEPRECATION_HEADERS }
+      { success: true, data, message: "Bulletin de paie finalisé avec succès" },
+      { status: 200 }
     );
   } catch (error: any) {
-    console.error("Finalize payroll error:", error);
+    console.error("PATCH /api/v2/payroll/[id] error:", error);
     const status = error.message.includes("non trouvé") ? 404 : 400;
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to finalize payroll", code: "SERVER_ERROR" },
-      { status, headers: DEPRECATION_HEADERS }
+      { success: false, error: error.message || "Erreur de finalisation", code: "SERVER_ERROR" },
+      { status }
     );
   }
 }

@@ -1,245 +1,97 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { LeaveType, LeaveStatus, AttendanceStatus, PayrollStatus, Prisma } from "@prisma/client";
-import { ApiResponse, GeneratePayrollBody } from "@/types";
-import { calculatePayrollTaxes } from "@/lib/payroll-tax";
-import { PayslipConfigService } from "@/lib/payslip-config-service";
+import { PrismaPayrollRepository } from "@/lib/infrastructure/repositories/prisma/PrismaPayrollRepository";
+import { ListPayrollsUseCase } from "@/lib/application/payroll/use-cases/ListPayrolls";
+import { GeneratePayrollUseCase } from "@/lib/application/payroll/use-cases/GeneratePayroll";
+import { toLegacyPayrollDTO } from "@/lib/application/payroll/mappers/payroll-dto.mapper";
+import { listPayrollsQuerySchema, generatePayrollSchema } from "@/shared/validation/payroll-v2.schema";
+import { ApiResponse } from "@/types";
 
-// POST /api/payroll/generate - Generate payroll for all employees with tax & overtime calculation
-export async function POST(
-  request: NextRequest
-): Promise<NextResponse<ApiResponse<unknown>>> {
+const repository = new PrismaPayrollRepository();
+const listUseCase = new ListPayrollsUseCase(repository);
+const generateUseCase = new GeneratePayrollUseCase(repository);
+
+const DEPRECATION_HEADERS: Record<string, string> = {
+  Deprecated: "true",
+  Deprecation: "true",
+  Link: '</api/v2/payroll>; rel="successor-version"',
+  "Cache-Control": "private, no-store, max-age=0",
+};
+
+function withDeprecation<T>(response: NextResponse<T>): NextResponse<T> {
+  Object.entries(DEPRECATION_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+  return response;
+}
+
+// POST /api/payroll - Generate payroll (Legacy Adaptateur V1 -> V2)
+export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request, "admin");
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
+    if (authResult instanceof NextResponse) return withDeprecation(authResult);
 
-    const body: GeneratePayrollBody = await request.json();
-    const { month, year } = body;
-
-    if (!month || !year) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Month and year are required",
-          code: "VALIDATION_ERROR",
-        },
+    const body = await request.json().catch(() => ({}));
+    const parseResult = generatePayrollSchema.safeParse(body);
+    if (!parseResult.success) {
+      return withDeprecation(NextResponse.json(
+        { success: false, error: "Month and year are required", code: "VALIDATION_ERROR" },
         { status: 400 }
-      );
+      ));
     }
 
-    // Récupérer l'ID de l'admin pour la traçabilité
-    const adminId = authResult.userId;
-
-    // Créer un snapshot immutable de la configuration pour ce lot de paie
-    const configService = PayslipConfigService.getInstance();
-    const configSnapshotId = await configService.createSnapshot(adminId);
-
-    // Get all active employees
-    const employees = await prisma.user.findMany({
-      where: { isActive: true, companyId: authResult.companyId },
+    const result = await generateUseCase.execute({
+      companyId: authResult.companyId,
+      adminId: authResult.userId,
+      month: parseResult.data.month,
+      year: parseResult.data.year,
     });
-    const results = [];
-    const errors = [];
 
-    for (const employee of employees) {
-      try {
-        // Check if payroll already exists
-        const existing = await prisma.payroll.findUnique({
-          where: {
-            userId_month_year: {
-              userId: employee.id,
-              month,
-              year,
-            },
-          },
-        });
-
-        if (existing) {
-          continue;
-        }
-
-        const startOfMonth = new Date(year, month - 1, 1);
-        const endOfMonth = new Date(year, month, 0);
-
-        const attendanceRecords = await prisma.attendance.findMany({
-          where: {
-            userId: employee.id,
-            date: {
-              gte: startOfMonth.toISOString().split("T")[0],
-              lte: endOfMonth.toISOString().split("T")[0],
-            },
-          },
-        });
-
-        const presentDays = attendanceRecords.filter((r) => r.status === AttendanceStatus.present).length;
-        const lateDays = attendanceRecords.filter((r) => r.status === AttendanceStatus.late).length;
-        const absentDays = attendanceRecords.filter((r) => r.status === AttendanceStatus.absent).length;
-        const halfDays = attendanceRecords.filter((r) => r.status === AttendanceStatus.half_day).length;
-        const leaveDays = attendanceRecords.filter((r) => r.status === AttendanceStatus.on_leave).length;
-
-        // Calculate Overtime Pay from Attendance records
-        const hourlyRate = (employee.salary || 0) / (26 * 8); // 26 working days * 8h
-        let overtimePay = 0;
-        attendanceRecords.forEach((r) => {
-          if (r.overtimeMinutes > 0) {
-            const hours = r.overtimeMinutes / 60;
-            const rateMultiplier = r.overtimeRate || 1.15; // default 15%
-            overtimePay += hours * hourlyRate * rateMultiplier;
-          }
-        });
-        overtimePay = Math.round(overtimePay);
-
-        const unpaidLeaves = await prisma.leave.findMany({
-          where: {
-            userId: employee.id,
-            leaveType: LeaveType.unpaid,
-            status: LeaveStatus.approved,
-            startDate: { gte: startOfMonth, lte: endOfMonth },
-          },
-        });
-        const unpaidLeaveDays = unpaidLeaves.reduce((sum, leave) => sum + leave.totalDays, 0);
-
-        const basicSalary = employee.salary || 0;
-        const perDaySalary = basicSalary / 26;
-
-        const absentDeduction = Math.round(absentDays * perDaySalary);
-        const lateDeduction = Math.round(Math.floor(lateDays / 3) * perDaySalary);
-        const unpaidLeaveDeduction = Math.round(unpaidLeaveDays * perDaySalary);
-
-        // Run Tax & Contribution Calculation Engine
-        const taxResult = calculatePayrollTaxes({
-          basicSalary,
-          sursalaire: employee.sursalaire || 0,
-          transportAllowance: employee.transportAllowance || 0,
-          housingAllowance: employee.housingAllowance || 0,
-          overtimePay,
-          bonuses: 0,
-          partsIGR: employee.partsIGR || 1.0,
-          absentDeduction,
-          lateDeduction,
-          unpaidLeaveDeduction,
-        });
-
-        const payroll = await prisma.payroll.create({
-          data: {
-            companyId: authResult.companyId,
-            userId: employee.id,
-            month,
-            year,
-            basicSalary,
-            sursalaire: employee.sursalaire || 0,
-            transportAllowance: employee.transportAllowance || 0,
-            housingAllowance: employee.housingAllowance || 0,
-            presentDays: presentDays + lateDays + halfDays * 0.5,
-            absentDays,
-            lateDays,
-            leaveDays,
-            unpaidLeaveDays,
-            overtimePay,
-            absentDeduction,
-            lateDeduction,
-            unpaidLeaveDeduction,
-            bonuses: 0,
-            grossSalary: taxResult.grossSalary,
-            itsTax: taxResult.itsTax,
-            igrTax: taxResult.igrTax,
-            cnpsEmployee: taxResult.cnpsEmployee,
-            cnpsEmployer: taxResult.cnpsEmployer,
-            fdfpTax: taxResult.fdfpTax,
-            totalDeductions: taxResult.totalDeductions,
-            netSalary: taxResult.netSalary,
-            status: PayrollStatus.draft,
-            configSnapshotId,
-          },
-        });
-
-        results.push(payroll);
-      } catch (err) {
-        errors.push(`${employee.name}: ${err instanceof Error ? err.message : "Error"}`);
-      }
-    }
-
-    return NextResponse.json(
+    return withDeprecation(NextResponse.json(
       {
         success: true,
-        data: {
-          generated: results.length,
-          errors: errors.length > 0 ? errors : undefined,
-        },
-        message: `Generated payroll for ${results.length} employees`,
+        data: { generated: result.generated, errors: result.errors.length > 0 ? result.errors : undefined },
+        message: `Generated payroll for ${result.generated} employees`,
       },
       { status: 201 }
-    );
-  } catch (error) {
+    ));
+  } catch (error: any) {
     console.error("Generate payroll error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to generate payroll",
-        code: "SERVER_ERROR",
-      },
+    return withDeprecation(NextResponse.json(
+      { success: false, error: "Failed to generate payroll", code: "SERVER_ERROR" },
       { status: 500 }
-    );
+    ));
   }
 }
 
-// GET /api/payroll - Get all payroll records (admin)
-export async function GET(
-  request: NextRequest
-): Promise<NextResponse<ApiResponse<unknown>>> {
+// GET /api/payroll - Get all payroll records (Legacy Adaptateur V1 -> V2)
+export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request, "admin");
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
+    if (authResult instanceof NextResponse) return withDeprecation(authResult);
 
     const { searchParams } = new URL(request.url);
-    const month = parseInt(searchParams.get("month") || "0", 10);
-    const year = parseInt(searchParams.get("year") || "0", 10);
-    const status = searchParams.get("status");
+    const parseResult = listPayrollsQuerySchema.safeParse(Object.fromEntries(searchParams.entries()));
+    if (!parseResult.success) {
+      return withDeprecation(NextResponse.json(
+        { success: false, error: "Invalid query parameters", code: "VALIDATION_ERROR" },
+        { status: 400 }
+      ));
+    }
 
-    const where: Prisma.PayrollWhereInput = { user: { companyId: authResult.companyId } };
-
-    if (month) where.month = month;
-    if (year) where.year = year;
-    if (status) where.status = status as PayrollStatus;
-
-    const payrolls = await prisma.payroll.findMany({
-      where,
-      orderBy: [{ year: "desc" }, { month: "desc" }],
-      include: {
-        user: { select: { id: true, name: true, email: true, employeeId: true } },
-      },
+    const payrolls = await listUseCase.execute({
+      companyId: authResult.companyId,
+      month: parseResult.data.month,
+      year: parseResult.data.year,
+      status: parseResult.data.status,
     });
 
-    const formattedPayrolls = payrolls.map((p) => ({
-      ...p,
-      _id: p.id,
-      userId: {
-        ...p.user,
-        _id: p.user.id,
-      },
-    }));
+    const legacyData = payrolls.map((p) => toLegacyPayrollDTO(p));
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: formattedPayrolls,
-      },
-      { status: 200 }
-    );
-  } catch (error) {
+    return withDeprecation(NextResponse.json({ success: true, data: legacyData }, { status: 200 }));
+  } catch (error: any) {
     console.error("Get payroll error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to fetch payroll",
-        code: "SERVER_ERROR",
-      },
+    return withDeprecation(NextResponse.json(
+      { success: false, error: "Failed to fetch payroll", code: "SERVER_ERROR" },
       { status: 500 }
-    );
+    ));
   }
 }

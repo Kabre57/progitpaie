@@ -2,21 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenant } from "@/lib/database/tenant-context";
 import { PrismaPayrollRepository } from "@/lib/infrastructure/repositories/prisma/PrismaPayrollRepository";
 import { ListMyPayrollsUseCase } from "@/lib/application/payroll/use-cases/ListMyPayrolls";
-import { toLegacyPayrollDTO } from "@/lib/application/payroll/mappers/payroll-dto.mapper";
 import { listPayrollsQuerySchema } from "@/shared/validation/payroll-v2.schema";
 import { ApiResponse } from "@/types";
 
 const repository = new PrismaPayrollRepository();
 const listMyUseCase = new ListMyPayrollsUseCase(repository);
 
-const DEPRECATION_HEADERS = {
-  Deprecated: "true",
-  Deprecation: "true",
-  Link: '</api/v2/payroll/my>; rel="successor-version"',
-  "Cache-Control": "private, no-store, max-age=0",
-};
-
-// GET /api/payroll/my - Get employee's own payslips (Legacy Adaptateur V1 -> V2)
+// GET /api/v2/payroll/my - Bulletins de l'employé connecté (V2 Clean Architecture)
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request);
@@ -26,26 +18,24 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     const parseResult = listPayrollsQuerySchema.safeParse(Object.fromEntries(searchParams.entries()));
     if (!parseResult.success) {
       return NextResponse.json(
-        { success: false, error: "Invalid query parameters", code: "VALIDATION_ERROR" },
-        { status: 400, headers: DEPRECATION_HEADERS }
+        { success: false, error: "Paramètres invalides", code: "VALIDATION_ERROR" },
+        { status: 400 }
       );
     }
 
-    const payrolls = await listMyUseCase.execute({
+    const data = await listMyUseCase.execute({
       companyId: authResult.companyId,
       userId: authResult.userId,
       month: parseResult.data.month,
       year: parseResult.data.year,
     });
 
-    const legacyData = payrolls.map((p) => toLegacyPayrollDTO(p));
-
-    return NextResponse.json({ success: true, data: legacyData }, { status: 200, headers: DEPRECATION_HEADERS });
+    return NextResponse.json({ success: true, data }, { status: 200 });
   } catch (error: any) {
-    console.error("Get my payroll error:", error);
+    console.error("GET /api/v2/payroll/my error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to fetch payslips", code: "SERVER_ERROR" },
-      { status: 500, headers: DEPRECATION_HEADERS }
+      { success: false, error: error.message || "Erreur interne", code: "SERVER_ERROR" },
+      { status: 500 }
     );
   }
 }
