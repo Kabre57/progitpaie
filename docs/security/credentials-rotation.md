@@ -90,3 +90,10 @@ git clone https://github.com/Kabre57/progitpaie.git
 - Exécution finale VPS confirmée : `Found 1 users; 0 records and 0 fields require rotation. Rotation completed.` La rotation `ENCRYPTION_KEY` est donc clôturée sans ré-encryption effective ni modification de donnée.
 - Health check VPS confirmé à `2026-08-05T01:37:42.696Z` : `status=healthy`, base `up`, latence base `23ms`, sans secret exposé.
 - **Statut distant : ROTATION ENCRYPTION_KEY CLÔTURÉE (NO-OP).** Cette clôture ne valide pas les autres secrets ni les conditions du gatekeeper Phase E ; le plan continue avec le déploiement V2, les E2E production, l'observation réelle de 168 heures, le rollback staging et la validation pre-removal 13/13.
+
+## 6. Fixtures de test et suite du plan Phase E
+
+- `prisma/seed.ts` et `scripts/seed-111-employees.ts` ont été examinés mais ne doivent pas être exécutés sur le VPS de production pour fabriquer des données de rotation ou des preuves.
+- Le seed de 111 salariés génère des données personnelles, bancaires et CNPS fictives ainsi qu'un secret de test commun ; il est réservé à une base isolée de développement ou de staging explicitement identifiée.
+- Si les E2E V2 nécessitent des salariés, les exécuter sur cette base isolée et qualifier les preuves comme `staging`, sans les mélanger aux preuves production.
+- Le plan production continue avec l'artefact V2 réel, les contrôles E2E autorisés, l'observation de 168 heures, le rollback staging et le gatekeeper pre-removal `13/13`.
