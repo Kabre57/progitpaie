@@ -40,8 +40,3 @@ export interface PayrollDTO {
   createdAt?: string;
   updatedAt?: string;
 }
-
-export interface LegacyPayrollDTO extends PayrollDTO {
-  _id: string;
-  userId: string & PayrollUserDTO;
-}

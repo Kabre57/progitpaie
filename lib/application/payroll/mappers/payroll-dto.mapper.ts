@@ -1,5 +1,5 @@
 import { Payroll } from "@/lib/domain/payroll/entities/Payroll";
-import { PayrollDTO, LegacyPayrollDTO } from "../dto/PayrollDTO";
+import { PayrollDTO } from "../dto/PayrollDTO";
 
 export function toPayrollDTO(payroll: Payroll, userObj?: { id: string; name: string; email: string; employeeId?: string | null }): PayrollDTO {
   return {
@@ -41,17 +41,5 @@ export function toPayrollDTO(payroll: Payroll, userObj?: { id: string; name: str
     finalizedAt: payroll.finalizedAt ? payroll.finalizedAt.toISOString() : null,
     createdAt: payroll.createdAt ? payroll.createdAt.toISOString() : undefined,
     updatedAt: payroll.updatedAt ? payroll.updatedAt.toISOString() : undefined,
-  };
-}
-
-export function toLegacyPayrollDTO(dto: PayrollDTO): LegacyPayrollDTO {
-  const user = dto.user || { id: dto.userId, name: "", email: "" };
-  return {
-    ...dto,
-    _id: dto.id,
-    userId: {
-      ...user,
-      _id: user.id,
-    } as any,
   };
 }
