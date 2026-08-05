@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAuth } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { Prisma } from "@prisma/client";
 import { ApiResponse } from "@/types";
 
@@ -9,7 +9,8 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const user = await requireAuth(request);
+    // requireTenant garantit l’isolation : userId + companyId extraits du JWT + DB
+    const user = await requireTenant(request);
     if (user instanceof NextResponse) {
       return user;
     }
@@ -18,7 +19,11 @@ export async function GET(
     const month = parseInt(searchParams.get("month") || "0", 10);
     const year = parseInt(searchParams.get("year") || "0", 10);
 
-    const where: Prisma.PayrollWhereInput = { userId: user.userId };
+    // Double filtre userId + companyId : empêche la fuite inter-tenant
+    const where: Prisma.PayrollWhereInput = {
+      userId: user.userId,
+      companyId: user.companyId,
+    };
 
     if (month) where.month = month;
     if (year) where.year = year;

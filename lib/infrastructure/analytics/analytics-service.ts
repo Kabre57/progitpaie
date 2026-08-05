@@ -30,13 +30,14 @@ export class AnalyticsService {
   /**
    * Calcule les métriques globales Analytics pour la période actuelle ou mensuelle
    */
-  public async getSummary(month?: number, year?: number): Promise<AnalyticsSummaryData> {
+  public async getSummary(companyId: string, month?: number, year?: number): Promise<AnalyticsSummaryData> {
     const targetMonth = month || new Date().getMonth() + 1;
     const targetYear = year || new Date().getFullYear();
 
-    // 1. Récupération des bulletins de la période
+    // 1. Récupération des bulletins de la période — filtre companyId obligatoire
     const payrolls = await prisma.payroll.findMany({
       where: {
+        companyId,
         month: targetMonth,
         year: targetYear,
       },
@@ -47,9 +48,9 @@ export class AnalyticsService {
       },
     });
 
-    // 2. Récupération de tous les employés actifs
+    // 2. Récupération des employés actifs du tenant — filtre companyId obligatoire
     const activeEmployees = await prisma.user.findMany({
-      where: { isActive: true },
+      where: { isActive: true, companyId },
       include: { department: true },
     });
 

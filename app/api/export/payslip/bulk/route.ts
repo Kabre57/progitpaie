@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { decryptData } from "@/lib/crypto";
@@ -53,7 +53,7 @@ function fmtNumZero(val: number | string | null | undefined): string {
 // GET /api/export/payslip/bulk?month=1&year=2026
 export async function GET(request: NextRequest): Promise<Response> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     const [payrolls, companyInfoDoc, companyDoc, ratesDoc, otherParamsDoc] = await Promise.all([
       prisma.payroll.findMany({
-        where: { month, year },
+        where: { month, year, companyId: authResult.companyId },
         include: {
           user: {
             include: { department: true }

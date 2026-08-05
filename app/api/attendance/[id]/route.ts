@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { AttendanceStatus } from "@prisma/client";
 import { ApiResponse, AttendanceOverrideBody } from "@/types";
 
@@ -10,7 +10,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -30,7 +30,8 @@ export async function PUT(
       );
     }
 
-    const attendance = await prisma.attendance.findUnique({ where: { id } });
+    // Filtre companyId obligatoire : garantit l'isolation tenant
+    const attendance = await prisma.attendance.findFirst({ where: { id, companyId: authResult.companyId } });
     if (!attendance) {
       return NextResponse.json(
         {
@@ -56,7 +57,7 @@ export async function PUT(
     if ((body.status as string) === "on-leave") prismaStatus = AttendanceStatus.on_leave;
 
     const updated = await prisma.attendance.update({
-      where: { id },
+      where: { id, companyId: authResult.companyId },
       data: {
         status: prismaStatus,
         notes: updatedNotes,
@@ -108,15 +109,16 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
 
     const { id } = await params;
 
-    const attendance = await prisma.attendance.findUnique({
-      where: { id },
+    // Filtre companyId obligatoire : garantit l'isolation tenant
+    const attendance = await prisma.attendance.findFirst({
+      where: { id, companyId: authResult.companyId },
       include: {
         user: { select: { id: true, name: true, email: true, employeeId: true } },
         overriddenBy: { select: { id: true, name: true } },

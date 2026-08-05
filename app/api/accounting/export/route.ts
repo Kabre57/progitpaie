@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import * as XLSX from "xlsx";
 import { ApiResponse } from "@/types";
 
@@ -9,7 +9,7 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown> | Buffer>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -21,8 +21,9 @@ export async function GET(
     const periodStr = `${year}-${String(month).padStart(2, "0")}`;
     const journalDate = `${year}-${String(month).padStart(2, "0")}-${new Date(year, month, 0).getDate()}`;
 
+    // Filtre companyId obligatoire : garantit l'isolation tenant
     const payrolls = await prisma.payroll.findMany({
-      where: { month, year },
+      where: { month, year, companyId: authResult.companyId },
     });
 
     let totalBasicSursalaire = 0;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { ApiResponse, CreateDepartmentBody } from "@/types";
 
 // PUT /api/departments/[id] - Update department (admin only)
@@ -9,7 +9,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -17,7 +17,8 @@ export async function PUT(
     const { id } = await params;
     const body: Partial<CreateDepartmentBody> = await request.json();
 
-    const department = await prisma.department.findUnique({ where: { id } });
+    // Filtre companyId obligatoire : garantit l'isolation tenant
+    const department = await prisma.department.findFirst({ where: { id, companyId: authResult.companyId } });
     if (!department) {
       return NextResponse.json(
         {
@@ -30,8 +31,10 @@ export async function PUT(
     }
 
     if (body.name && body.name.trim() !== department.name) {
+      // Filtre companyId pour ne rechercher les doublons QUE dans l'entreprise courante
       const existingDepartment = await prisma.department.findFirst({
         where: {
+          companyId: authResult.companyId,
           name: { equals: body.name.trim(), mode: "insensitive" },
           NOT: { id },
         },
@@ -50,7 +53,7 @@ export async function PUT(
     }
 
     const updated = await prisma.department.update({
-      where: { id },
+      where: { id, companyId: authResult.companyId },
       data: {
         name: body.name !== undefined ? body.name.trim() : undefined,
         description: body.description !== undefined ? body.description.trim() : undefined,
@@ -90,14 +93,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse<null>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
 
     const { id } = await params;
 
-    const department = await prisma.department.findUnique({ where: { id } });
+    // Filtre companyId obligatoire : garantit l'isolation tenant
+    const department = await prisma.department.findFirst({ where: { id, companyId: authResult.companyId } });
     if (!department) {
       return NextResponse.json(
         {
@@ -110,7 +114,7 @@ export async function DELETE(
     }
 
     await prisma.department.update({
-      where: { id },
+      where: { id, companyId: authResult.companyId },
       data: { isActive: false },
     });
 

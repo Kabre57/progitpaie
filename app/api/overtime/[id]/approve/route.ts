@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { OvertimeStatus } from "@prisma/client";
 import { ApiResponse } from "@/types";
 
@@ -10,7 +10,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -19,7 +19,8 @@ export async function PUT(
     const body = await request.json();
     const { action } = body; // action: "approve" | "reject"
 
-    const overtime = await prisma.overtime.findUnique({ where: { id } });
+    // Filtre companyId obligatoire : garantit l'isolation tenant
+    const overtime = await prisma.overtime.findFirst({ where: { id, companyId: authResult.companyId } });
     if (!overtime) {
       return NextResponse.json(
         {
@@ -49,7 +50,8 @@ export async function PUT(
     if (isApproved) {
       const dateStr = overtime.date.toISOString().split("T")[0];
       await prisma.attendance.updateMany({
-        where: { userId: overtime.userId, date: dateStr },
+        // Filtre companyId pour ne modifier que les pointages du même tenant
+        where: { userId: overtime.userId, date: dateStr, companyId: authResult.companyId },
         data: {
           overtimeMinutes: overtime.minutes,
           overtimeRate: overtime.rate,

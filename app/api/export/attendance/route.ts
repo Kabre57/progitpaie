@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
@@ -11,7 +11,7 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown> | Buffer>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -25,11 +25,12 @@ export async function GET(
     const startOfMonth = new Date(year, month - 1, 1);
     const endOfMonth = new Date(year, month, 0);
 
-    const userWhere: any = { isActive: true };
+    const userWhere: any = { isActive: true, companyId: authResult.companyId };
     if (deptId) {
       userWhere.departmentId = deptId;
     }
 
+    // Filtre companyId obligatoire : garantit l'isolation tenant
     const users = await prisma.user.findMany({
       where: userWhere,
       select: {
@@ -45,6 +46,7 @@ export async function GET(
     const attendanceRecords = await prisma.attendance.findMany({
       where: {
         userId: { in: userIds },
+        companyId: authResult.companyId,
         date: {
           gte: startOfMonth.toISOString().split("T")[0],
           lte: endOfMonth.toISOString().split("T")[0],

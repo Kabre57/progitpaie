@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { PayrollStatus } from "@prisma/client";
 import { ApiResponse, UpdatePayrollBody } from "@/types";
 import { createNotification } from "@/lib/notifications";
@@ -11,7 +11,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -19,7 +19,8 @@ export async function PUT(
     const { id } = await params;
     const body: UpdatePayrollBody = await request.json();
 
-    const payroll = await prisma.payroll.findUnique({ where: { id } });
+    // Filtre systématique par companyId pour garantir l'isolation tenant
+    const payroll = await prisma.payroll.findFirst({ where: { id, companyId: authResult.companyId } });
     if (!payroll) {
       return NextResponse.json(
         {
@@ -56,7 +57,7 @@ export async function PUT(
     }
 
     const updated = await prisma.payroll.update({
-      where: { id },
+      where: { id, companyId: authResult.companyId },
       data: {
         bonuses,
         netSalary,
@@ -102,14 +103,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
 
     const { id } = await params;
 
-    const payroll = await prisma.payroll.findUnique({ where: { id } });
+    // Filtre systématique par companyId pour garantir l'isolation tenant
+    const payroll = await prisma.payroll.findFirst({ where: { id, companyId: authResult.companyId } });
     if (!payroll) {
       return NextResponse.json(
         {
@@ -133,7 +135,7 @@ export async function PATCH(
     }
 
     const updated = await prisma.payroll.update({
-      where: { id },
+      where: { id, companyId: authResult.companyId },
       data: {
         status: PayrollStatus.finalized,
         finalizedAt: new Date(),

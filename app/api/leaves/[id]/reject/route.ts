@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { LeaveStatus } from "@prisma/client";
 import { ApiResponse, ApproveLeaveBody } from "@/types";
 import { createNotification } from "@/lib/notifications";
@@ -10,7 +10,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -18,7 +18,8 @@ export async function PUT(
     const { id } = await params;
     const body: ApproveLeaveBody = await request.json().catch(() => ({}));
 
-    const leave = await prisma.leave.findUnique({ where: { id } });
+    // Filtre companyId obligatoire : garantit l'isolation tenant
+    const leave = await prisma.leave.findFirst({ where: { id, companyId: authResult.companyId } });
     if (!leave) {
       return NextResponse.json(
         {
@@ -59,8 +60,8 @@ export async function PUT(
       link: "/employee/leaves",
     });
 
-    const populatedLeave = await prisma.leave.findUnique({
-      where: { id },
+    const populatedLeave = await prisma.leave.findFirst({
+      where: { id, companyId: authResult.companyId },
       include: {
         user: { select: { id: true, name: true, email: true } },
         approvedBy: { select: { id: true, name: true } },

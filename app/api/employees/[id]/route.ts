@@ -213,7 +213,8 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const existingUser = await prisma.user.findUnique({ where: { id } });
+    // Filtre companyId obligatoire : garantit l'isolation tenant (soft delete)
+    const existingUser = await prisma.user.findFirst({ where: { id, companyId: adminCheck.companyId } });
     if (!existingUser) {
       return NextResponse.json(
         {
@@ -227,7 +228,7 @@ export async function DELETE(
 
     // Soft delete
     await prisma.user.update({
-      where: { id },
+      where: { id, companyId: adminCheck.companyId },
       data: { isActive: false },
     });
 

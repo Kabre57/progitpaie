@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import * as XLSX from "xlsx";
 import { ApiResponse } from "@/types";
 
@@ -9,7 +9,7 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown> | Buffer>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -28,8 +28,9 @@ export async function GET(
       );
     }
 
+    // Filtre companyId obligatoire : garantit l'isolation tenant
     const employees = await prisma.user.findMany({
-      where: { isActive: true },
+      where: { isActive: true, companyId: authResult.companyId },
       select: {
         employeeId: true,
         name: true,

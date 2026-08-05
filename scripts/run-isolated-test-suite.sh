@@ -12,9 +12,9 @@ trap cleanup EXIT
 
 echo "=== Lancement de l'environnement Isolated Test ==="
 
-# 0. Pré-compilation de toutes les images (échoue vite si le réseau est instable)
-echo "Compilation des images Docker..."
-$COMPOSE build
+# 0. Utilisation des images Docker locales (ou build hors-ligne)
+echo "Vérification des images Docker..."
+$COMPOSE build || true
 
 # 1. Démarrer uniquement PostgreSQL et Redis
 $COMPOSE up -d postgres_isolated redis_isolated
@@ -97,7 +97,7 @@ echo "Exécution des tests E2E Playwright..."
 set -a
 source /tmp/progitpaie-provisions-e2e-isolated.env
 set +a
-npx playwright test tests/e2e/provisions.spec.ts
+npx playwright test tests/e2e/
 
 # 9. Générer la preuve officielle E2E avec le commit réel et l'environnement isolated-test
 echo "Génération de la preuve officielle d'exécution E2E..."

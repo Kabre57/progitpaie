@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware-helpers";
+import { requireTenant } from "@/lib/database/tenant-context";
 import { ApiResponse } from "@/types";
 
 export interface JournalRow {
@@ -17,7 +17,7 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const authResult = await requireAdmin(request);
+    const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) {
       return authResult;
     }
@@ -29,9 +29,9 @@ export async function GET(
     const periodStr = `${year}-${String(month).padStart(2, "0")}`;
     const journalDate = `${year}-${String(month).padStart(2, "0")}-${new Date(year, month, 0).getDate()}`;
 
-    // Récupérer toutes les fiches de paie générées du mois
+    // Récupérer les fiches de paie générées du mois — filtre companyId obligatoire
     const payrolls = await prisma.payroll.findMany({
-      where: { month, year },
+      where: { month, year, companyId: authResult.companyId },
       include: {
         user: { select: { name: true, employeeId: true } },
       },
