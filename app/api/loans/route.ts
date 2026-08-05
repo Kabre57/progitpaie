@@ -1,136 +1,106 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { LoanType, LoanStatus, Prisma } from "@prisma/client";
+import { PrismaLoanRepository } from "@/lib/infrastructure/repositories/prisma/PrismaLoanRepository";
+import { ListLoansUseCase } from "@/lib/application/loan/use-cases/ListGetLoanUseCase";
+import { CreateLoanUseCase } from "@/lib/application/loan/use-cases/CreateLoanUseCase";
+import { createLoanSchema, listLoansQuerySchema } from "@/shared/validation/loan-v2.schema";
 import { ApiResponse } from "@/types";
 
-// GET /api/loans - Liste des prêts et avances
-export async function GET(
-  request: NextRequest
-): Promise<NextResponse<ApiResponse<unknown>>> {
+const repository = new PrismaLoanRepository();
+const listUseCase = new ListLoansUseCase(repository);
+const createUseCase = new CreateLoanUseCase(repository);
+
+const DEPRECATION_HEADERS: Record<string, string> = {
+  Deprecated: "true",
+  Deprecation: "true",
+  Link: '</api/v2/loans>; rel="successor-version"',
+  "Cache-Control": "private, no-store, max-age=0",
+};
+
+function withDeprecation<T>(response: NextResponse<T>): NextResponse<T> {
+  Object.entries(DEPRECATION_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+  return response;
+}
+
+// GET /api/loans - List loans (Legacy Adaptateur V1 -> V2)
+export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
-    const user = await requireTenant(request);
-    if (user instanceof NextResponse) {
-      return user;
-    }
+    const authResult = await requireTenant(request);
+    if (authResult instanceof NextResponse) return withDeprecation(authResult);
 
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
-    const status = searchParams.get("status");
-
-    const where: Prisma.LoanWhereInput = { companyId: user.companyId };
-    if (user.role === "employee") {
-      where.userId = user.userId;
-    } else if (userId) {
-      where.userId = userId;
+    const parseResult = listLoansQuerySchema.safeParse(Object.fromEntries(searchParams.entries()));
+    if (!parseResult.success) {
+      return withDeprecation(
+        NextResponse.json(
+          { success: false, error: "Invalid query parameters", code: "VALIDATION_ERROR" },
+          { status: 400 }
+        )
+      );
     }
 
-    if (status) {
-      where.status = status as LoanStatus;
-    }
-
-    const loans = await prisma.loan.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      include: {
-        user: { select: { id: true, name: true, email: true, employeeId: true } },
-        schedules: { orderBy: { paidAt: "desc" } },
-      },
+    const loans = await listUseCase.execute({
+      companyId: authResult.companyId,
+      userId: parseResult.data.userId || (authResult.role === "employee" ? authResult.userId : undefined),
+      type: parseResult.data.type,
+      status: parseResult.data.status,
     });
 
-    const formattedLoans = loans.map((l) => ({
+    const legacyData = loans.map((l) => ({
       ...l,
       _id: l.id,
-      userId: { ...l.user, _id: l.user.id },
+      userId: l.user ? { ...l.user, _id: l.user.id } : l.userId,
     }));
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: formattedLoans,
-      },
-      { status: 200 }
-    );
-  } catch (error) {
+    return withDeprecation(NextResponse.json({ success: true, data: legacyData }, { status: 200 }));
+  } catch (error: any) {
     console.error("Get loans error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to fetch loans",
-        code: "SERVER_ERROR",
-      },
-      { status: 500 }
+    return withDeprecation(
+      NextResponse.json(
+        { success: false, error: "Failed to fetch loans", code: "SERVER_ERROR" },
+        { status: 500 }
+      )
     );
   }
 }
 
-// POST /api/loans - Créer un dossier de prêt ou avance sur salaire (admin)
-export async function POST(
-  request: NextRequest
-): Promise<NextResponse<ApiResponse<unknown>>> {
+// POST /api/loans - Create loan (Legacy Adaptateur V1 -> V2)
+export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request, "admin");
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
+    if (authResult instanceof NextResponse) return withDeprecation(authResult);
 
-    const body = await request.json();
-    const { userId, type, amount, monthlyDeduction, startDate } = body;
-
-    if (!userId || !amount || !monthlyDeduction || !startDate) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Employé, Montant total, Retenue mensuelle et Date sont requis",
-          code: "VALIDATION_ERROR",
-        },
-        { status: 400 }
+    const body = await request.json().catch(() => ({}));
+    const parseResult = createLoanSchema.safeParse(body);
+    if (!parseResult.success) {
+      return withDeprecation(
+        NextResponse.json(
+          { success: false, error: "Invalid loan data", code: "VALIDATION_ERROR" },
+          { status: 400 }
+        )
       );
     }
 
-    const totalAmount = parseFloat(amount);
-    const deduction = parseFloat(monthlyDeduction);
-
-    const loan = await prisma.loan.create({
-      data: {
-        companyId: authResult.companyId,
-        userId,
-        type: (type || "PRET") as LoanType,
-        amount: totalAmount,
-        monthlyDeduction: deduction,
-        totalRepaid: 0,
-        remainingAmount: totalAmount,
-        startDate: new Date(startDate),
-        status: LoanStatus.active,
-      },
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-      },
+    const loan = await createUseCase.execute({
+      companyId: authResult.companyId,
+      ...parseResult.data,
     });
 
-    const responseData = {
+    const legacyData = {
       ...loan,
       _id: loan.id,
-      userId: { ...loan.user, _id: loan.user.id },
     };
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: responseData,
-        message: "Dossier de prêt / avance créé avec succès",
-      },
-      { status: 201 }
+    return withDeprecation(
+      NextResponse.json({ success: true, data: legacyData, message: "Loan created successfully" }, { status: 201 })
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Create loan error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to create loan",
-        code: "SERVER_ERROR",
-      },
-      { status: 500 }
+    return withDeprecation(
+      NextResponse.json(
+        { success: false, error: error.message || "Failed to create loan", code: "SERVER_ERROR" },
+        { status: 400 }
+      )
     );
   }
 }
