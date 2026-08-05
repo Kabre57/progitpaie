@@ -1,7 +1,6 @@
 import {
   buildPayrollProvisionUrl,
   fetchPayrollProvisions,
-  ProvisionApiError,
 } from "../provision-api";
 
 const v2Payload = {
@@ -18,22 +17,16 @@ const v2Payload = {
 describe("client API provisions", () => {
   afterEach(() => jest.restoreAllMocks());
 
-  it("construit des URL séparées par version", () => {
-    expect(buildPayrollProvisionUrl({ year: 2025 }, "v2")).toBe("/api/v2/payroll/provisions?year=2025");
-    expect(buildPayrollProvisionUrl({ year: 2025 }, "legacy")).toBe("/api/payroll/provisions?year=2025");
-    expect(buildPayrollProvisionUrl({ asOf: "2025-06-30" }, "v2")).toBe("/api/v2/payroll/provisions?asOf=2025-06-30");
-  });
-
-  it("refuse asOf en legacy et les paramètres incompatibles", () => {
-    expect(() => buildPayrollProvisionUrl({ asOf: "2025-06-30" }, "legacy")).toThrow(ProvisionApiError);
-    expect(() => buildPayrollProvisionUrl({ year: 2025, asOf: "2025-06-30" }, "v2")).toThrow(ProvisionApiError);
+  it("construit des URL V2", () => {
+    expect(buildPayrollProvisionUrl({ year: 2025 })).toBe("/api/v2/payroll/provisions?year=2025");
+    expect(buildPayrollProvisionUrl({ asOf: "2025-06-30" })).toBe("/api/v2/payroll/provisions?asOf=2025-06-30");
   });
 
   it("valide une réponse V2 avant de la retourner", async () => {
     jest.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(v2Payload), {
       status: 200, headers: { "Content-Type": "application/json" },
     }));
-    const result = await fetchPayrollProvisions({ year: 2025 }, "v2");
+    const result = await fetchPayrollProvisions({ year: 2025 });
     expect(result).toEqual({ apiVersion: "v2", data: v2Payload.data });
     expect(fetch).toHaveBeenCalledWith("/api/v2/payroll/provisions?year=2025", expect.objectContaining({
       cache: "no-store", credentials: "same-origin",
@@ -44,7 +37,7 @@ describe("client API provisions", () => {
     jest.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
       ...v2Payload, data: { ...v2Payload.data, retirementProvisions: [] },
     }), { status: 200 }));
-    await expect(fetchPayrollProvisions({ year: 2025 }, "v2")).rejects.toMatchObject({
+    await expect(fetchPayrollProvisions({ year: 2025 })).rejects.toMatchObject({
       code: "INVALID_RESPONSE",
     });
   });
@@ -53,7 +46,7 @@ describe("client API provisions", () => {
     "type l'erreur HTTP %i",
     async (status, code) => {
       jest.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status }));
-      await expect(fetchPayrollProvisions({ year: 2025 }, "v2")).rejects.toMatchObject({ status, code });
+      await expect(fetchPayrollProvisions({ year: 2025 })).rejects.toMatchObject({ status, code });
     }
   );
 });

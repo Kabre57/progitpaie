@@ -102,6 +102,7 @@ export default function ProvisionsPage() {
       <div className="flex items-center gap-3"><select aria-label="Année de référence" value={year} onChange={(event) => changeYear(Number(event.target.value))} className="rounded-lg border border-[var(--neu-border)] bg-[var(--neu-surface-light)] px-3 py-1.5 text-sm font-bold text-[var(--neu-text)]">{years.map((item) => <option key={item} value={item}>{item}</option>)}</select>
         <NeuButton onClick={() => void provisions.refresh()} disabled={provisions.isFetching} variant="ghost" size="sm"><RefreshCw className={`h-4 w-4 ${provisions.isFetching ? "animate-spin" : ""}`} aria-hidden="true" />{provisions.isFetching ? "Actualisation…" : "Actualiser"}</NeuButton></div>
     </header>
-    {provisions.data.apiVersion === "v2" ? <V2Content data={provisions.data.data} state={state} /> : <LegacyContent data={provisions.data.data} state={state} />}
+    <V2Content data={provisions.data.data} state={state} />
   </div>;
 }
+

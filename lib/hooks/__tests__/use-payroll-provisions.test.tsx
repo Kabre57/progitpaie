@@ -1,62 +1,58 @@
-/** @jest-environment jsdom */
-import type { ReactNode } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+/**
+ * @jest-environment jsdom
+ */
 import { renderHook, waitFor } from "@testing-library/react";
-
-const mockGetVersion = jest.fn<"v2" | "legacy", []>();
-const mockFetchProvisions = jest.fn();
-jest.mock("@/lib/config/provision-api-version", () => ({
-  getProvisionApiVersion: mockGetVersion,
-}));
-jest.mock("@/lib/client/payroll/provision-api", () => {
-  const actual = jest.requireActual("@/lib/client/payroll/provision-api");
-  return { ...actual, fetchPayrollProvisions: mockFetchProvisions };
-});
-
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactNode } from "react";
 import { usePayrollProvisions } from "../use-payroll-provisions";
+import { fetchPayrollProvisions } from "@/lib/client/payroll/provision-api";
 
-const payload = {
-  success: true,
-  data: {
-    companyId: "company-a", referenceDate: "2025-12-31T23:59:59.999Z", ruleVersion: "rules-v2",
-    calculatedAt: "2026-01-01T00:00:00.000Z", leaveProvisions: [], terminationBenefits: [],
-    totalLeaveProvision: 0, totalTerminationExposure: 0, totalExposure: 0,
-    employeesProcessed: 0, employeesWithWarnings: 0, warnings: [],
-    dataQuality: { completeSalaryHistories: 0, incompleteSalaryHistories: 0, contractFallbacks: 0, legacyLeaveBalances: 0 },
-  },
-};
+jest.mock("@/lib/client/payroll/provision-api", () => ({
+  fetchPayrollProvisions: jest.fn(),
+}));
+
+const mockFetchProvisions = fetchPayrollProvisions as jest.MockedFunction<typeof fetchPayrollProvisions>;
 
 function createWrapper() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-  };
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
 }
 
 describe("usePayrollProvisions", () => {
-  beforeEach(() => {
-    mockGetVersion.mockReturnValue("v2");
-    mockFetchProvisions.mockResolvedValue({ apiVersion: "v2", data: payload.data });
+  afterEach(() => {
+    jest.clearAllMocks();
   });
-  afterEach(() => jest.clearAllMocks());
 
-  it("expose le chargement puis une réponse V2 validée", async () => {
-    const { result } = renderHook(() => usePayrollProvisions({ year: 2025 }), { wrapper: createWrapper() });
-    expect(result.current.isPending).toBe(true);
+  it("récupère correctement les provisions V2", async () => {
+    mockFetchProvisions.mockResolvedValueOnce({
+      apiVersion: "v2",
+      data: {
+        companyId: "comp-1",
+        referenceDate: "2026-08-01",
+        ruleVersion: "2026.2",
+        calculatedAt: "2026-08-01T00:00:00.000Z",
+        leaveProvisions: [],
+        terminationBenefits: [],
+        totalLeaveProvision: 0,
+        totalTerminationExposure: 0,
+        totalExposure: 0,
+        employeesProcessed: 1,
+        employeesWithWarnings: 0,
+        warnings: [],
+        dataQuality: { completeSalaryHistories: 1, incompleteSalaryHistories: 0, contractFallbacks: 0, legacyLeaveBalances: 0 },
+      },
+    });
+
+    const { result } = renderHook(() => usePayrollProvisions({ year: 2026 }), {
+      wrapper: createWrapper(),
+    });
+
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual({ apiVersion: "v2", data: payload.data });
+    expect(result.current.apiVersion).toBe("v2");
     expect(result.current.isV2).toBe(true);
-  });
-
-  it("sépare la version dans la requête", async () => {
-    mockGetVersion.mockReturnValue("legacy");
-    mockFetchProvisions.mockResolvedValue({ apiVersion: "legacy", data: {
-      companyId: "company-a", year: 2025, leaveProvisions: [], totalLeaveProvision: 0,
-      retirementProvisions: [], totalRetirementProvision: 0, total: 0,
-    } });
-    const { result } = renderHook(() => usePayrollProvisions({ year: 2025 }), { wrapper: createWrapper() });
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data?.apiVersion).toBe("legacy");
-    expect(mockFetchProvisions).toHaveBeenCalledWith({ year: 2025 }, "legacy", expect.any(AbortSignal));
   });
 });

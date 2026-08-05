@@ -1,19 +1,16 @@
 import { z } from "zod";
-import type { ProvisionResponse, ProvisionResponseV2 } from "@/shared/types/contracts/provision.contract";
-import {
-  legacyProvisionApiEnvelopeSchema,
-  provisionV2ApiEnvelopeSchema,
-} from "@/shared/validation/provision-response.schema";
-import type { ProvisionApiVersion } from "@/lib/config/provision-api-version";
+import type { ProvisionResponseV2 } from "@/shared/types/contracts/provision.contract";
+import { provisionV2ApiEnvelopeSchema } from "@/shared/validation/provision-response.schema";
 
 export interface PayrollProvisionQuery {
   readonly year?: number;
   readonly asOf?: string;
 }
 
-export type PayrollProvisionQueryResult =
-  | { readonly apiVersion: "v2"; readonly data: ProvisionResponseV2 }
-  | { readonly apiVersion: "legacy"; readonly data: ProvisionResponse };
+export interface PayrollProvisionQueryResult {
+  readonly apiVersion: "v2";
+  readonly data: ProvisionResponseV2;
+}
 
 export type ProvisionApiErrorCode =
   | "INVALID_QUERY"
@@ -35,12 +32,9 @@ export class ProvisionApiError extends Error {
   }
 }
 
-function validateQuery(query: PayrollProvisionQuery, version: ProvisionApiVersion): void {
+function validateQuery(query: PayrollProvisionQuery): void {
   if (query.year !== undefined && query.asOf !== undefined) {
     throw new ProvisionApiError("year et asOf sont mutuellement exclusifs", "INVALID_QUERY");
-  }
-  if (version === "legacy" && query.asOf !== undefined) {
-    throw new ProvisionApiError("La date asOf n'est pas disponible en mode legacy", "INVALID_QUERY");
   }
   const currentYear = new Date().getUTCFullYear();
   if (query.year !== undefined && (!Number.isInteger(query.year) || query.year < 2000 || query.year > currentYear)) {
@@ -57,12 +51,9 @@ function validateQuery(query: PayrollProvisionQuery, version: ProvisionApiVersio
   }
 }
 
-export function buildPayrollProvisionUrl(
-  query: PayrollProvisionQuery,
-  version: ProvisionApiVersion
-): string {
-  validateQuery(query, version);
-  const path = version === "v2" ? "/api/v2/payroll/provisions" : "/api/payroll/provisions";
+export function buildPayrollProvisionUrl(query: PayrollProvisionQuery): string {
+  validateQuery(query);
+  const path = "/api/v2/payroll/provisions";
   const params = new URLSearchParams();
   if (query.year !== undefined) params.set("year", String(query.year));
   if (query.asOf !== undefined) params.set("asOf", query.asOf);
@@ -78,12 +69,11 @@ function errorForStatus(status: number): ProvisionApiError {
 
 export async function fetchPayrollProvisions(
   query: PayrollProvisionQuery,
-  version: ProvisionApiVersion,
   signal?: AbortSignal
 ): Promise<PayrollProvisionQueryResult> {
   let response: Response;
   try {
-    response = await fetch(buildPayrollProvisionUrl(query, version), {
+    response = await fetch(buildPayrollProvisionUrl(query), {
       method: "GET",
       credentials: "same-origin",
       cache: "no-store",
@@ -105,20 +95,7 @@ export async function fetchPayrollProvisions(
     throw new ProvisionApiError("Réponse JSON invalide", "INVALID_RESPONSE", response.status);
   }
 
-  if (version === "v2") {
-    const parsed = provisionV2ApiEnvelopeSchema.safeParse(payload);
-    if (!parsed.success) {
-      throw new ProvisionApiError(
-        "Les données reçues ne respectent pas le contrat attendu",
-        "INVALID_RESPONSE",
-        response.status,
-        parsed.error.issues
-      );
-    }
-    return { apiVersion: "v2", data: parsed.data.data };
-  }
-
-  const parsed = legacyProvisionApiEnvelopeSchema.safeParse(payload);
+  const parsed = provisionV2ApiEnvelopeSchema.safeParse(payload);
   if (!parsed.success) {
     throw new ProvisionApiError(
       "Les données reçues ne respectent pas le contrat attendu",
@@ -127,5 +104,5 @@ export async function fetchPayrollProvisions(
       parsed.error.issues
     );
   }
-  return { apiVersion: "legacy", data: parsed.data.data };
+  return { apiVersion: "v2", data: parsed.data.data };
 }

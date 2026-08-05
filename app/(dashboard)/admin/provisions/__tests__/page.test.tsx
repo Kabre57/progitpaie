@@ -29,16 +29,6 @@ describe("écran administrateur des provisions", () => {
     expect(screen.getByText(/Historique salarial incomplet/)).toBeInTheDocument();
   });
 
-  it("signale explicitement le mode de compatibilité", () => {
-    mockUsePayrollProvisions.mockReturnValue({ ...queryState, data: { apiVersion: "legacy", data: {
-      companyId: "company-a", year: 2026, leaveProvisions: [], totalLeaveProvision: 100,
-      retirementProvisions: [], totalRetirementProvision: 200, total: 300,
-    } } });
-    render(<ProvisionsPage />);
-    expect(screen.getByText(/Mode de compatibilité actif/)).toBeInTheDocument();
-    expect(screen.queryByText(/Règles rules-v2/)).not.toBeInTheDocument();
-  });
-
   it("affiche un skeleton pendant le chargement", () => {
     mockUsePayrollProvisions.mockReturnValue({ ...queryState, isPending: true, data: undefined });
     render(<ProvisionsPage />);

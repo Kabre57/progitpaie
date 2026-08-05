@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getProvisionApiVersion } from "@/lib/config/provision-api-version";
 import {
   fetchPayrollProvisions,
   ProvisionApiError,
@@ -10,10 +9,9 @@ import {
 } from "@/lib/client/payroll/provision-api";
 
 export function usePayrollProvisions(query: PayrollProvisionQuery) {
-  const apiVersion = getProvisionApiVersion();
   const result = useQuery<PayrollProvisionQueryResult, ProvisionApiError>({
-    queryKey: ["payroll-provisions", apiVersion, query] as const,
-    queryFn: ({ signal }) => fetchPayrollProvisions(query, apiVersion, signal),
+    queryKey: ["payroll-provisions", "v2", query] as const,
+    queryFn: ({ signal }) => fetchPayrollProvisions(query, signal),
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -24,9 +22,9 @@ export function usePayrollProvisions(query: PayrollProvisionQuery) {
 
   return {
     ...result,
-    apiVersion,
-    isLegacy: apiVersion === "legacy",
-    isV2: apiVersion === "v2",
+    apiVersion: "v2" as const,
+    isLegacy: false,
+    isV2: true,
     refresh: result.refetch,
   };
 }
