@@ -52,16 +52,17 @@ git clone https://github.com/Kabre57/progitpaie.git
 1. Sauvegarder PostgreSQL selon la procédure d'exploitation avant toute écriture.
 2. Préparer hors des commandes et des logs une nouvelle `ENCRYPTION_KEY`, en conservant l'ancienne comme `ENCRYPTION_KEY_PREVIOUS`.
 3. Mettre à jour `/etc/progitpaie/production.env` avec les valeurs de production, sans les afficher dans le terminal.
-4. Reconstruire et recréer l'application pour injecter les variables déclarées par Compose :
-   `docker compose --env-file /etc/progitpaie/production.env build app`
-   `docker compose --env-file /etc/progitpaie/production.env up -d --no-deps --force-recreate app`
-5. Exécuter d'abord le contrôle sans écriture :
+4. Reconstruire et démarrer la stack. Le service `migrate` applique les migrations Prisma avant d'autoriser le démarrage de `app` :
+   `docker compose --env-file /etc/progitpaie/production.env up -d --build`
+5. Vérifier que le service `migrate` est terminé avec le code 0 avant toute rotation :
+   `docker compose --env-file /etc/progitpaie/production.env ps`
+6. Exécuter d'abord le contrôle sans écriture :
    `docker compose --env-file /etc/progitpaie/production.env exec -T app node /app/scripts/rotate-encryption-key.js --dry-run`
-6. Si le contrôle est conforme, exécuter la rotation transactionnelle :
+7. Si le contrôle est conforme, exécuter la rotation transactionnelle :
    `docker compose --env-file /etc/progitpaie/production.env exec -T app node /app/scripts/rotate-encryption-key.js`
-7. Contrôler la santé applicative sans exposer la configuration :
+8. Contrôler la santé applicative sans exposer la configuration :
    `curl --fail --silent http://127.0.0.1:3500/api/health`
-8. Après la période d'observation, retirer `ENCRYPTION_KEY_PREVIOUS`, recréer l'application et relancer le contrôle à blanc.
+9. Après la période d'observation, retirer `ENCRYPTION_KEY_PREVIOUS`, recréer l'application et relancer le contrôle à blanc.
 
 ---
 
@@ -77,4 +78,6 @@ git clone https://github.com/Kabre57/progitpaie.git
 - La copie du script dans `/app/scripts` a réussi, mais son exécution a échoué avec `MODULE_NOT_FOUND` pour `../lib/db`.
 - Cause : l'image standalone ne contenait ni l'artefact compilé du script ni les modules source attendus par le script TypeScript isolé ; `npx tsx` n'était donc pas une procédure de production fiable.
 - Correctif ajouté dans le code : compilation du script pendant le build Docker, exécution native par `node`, injection explicite des variables de chiffrement dans Compose, et mise à jour atomique sans logs de nom ou d'e-mail.
-- **Statut distant : EN ATTENTE.** Le correctif n'est pas une preuve de déploiement ni de rotation exécutée sur le VPS. Les étapes 5 à 8 doivent être validées par l'opérateur habilité après déploiement.
+- Après déploiement de ce correctif, l'image a démarré mais la rotation a atteint une base sans table `public.users`. Aucun enregistrement n'a été modifié.
+- Cause : les migrations Prisma n'étaient pas exécutées par Compose avant le démarrage de l'application. Un service `migrate` bloquant applique désormais `prisma migrate deploy` avant `app`.
+- **Statut distant : EN ATTENTE.** Le correctif n'est pas une preuve de déploiement ni de rotation exécutée sur le VPS. Les étapes 5 à 9 doivent être validées par l'opérateur habilité après déploiement.
