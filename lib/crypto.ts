@@ -59,6 +59,20 @@ export function resetKeyCache(): void {
   keyCache = undefined;
 }
 
+export function isEncryptedWithPrimaryKey(encryptedData: string): boolean {
+  if (!encryptedData || !encryptedData.includes(":")) return false;
+
+  const parts = encryptedData.split(":");
+  if (parts.length !== 3) return false;
+
+  try {
+    decryptSingleLayerWithKey(parts[0], parts[1], parts[2], getSecretKeys()[0]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Decrypts a single layer of AES-256-GCM cipher text using a specific key buffer.
  */

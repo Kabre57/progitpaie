@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": ".build/rotation",
+    "rootDir": ".",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "isolatedModules": false
+  },
+  "include": [
+    "scripts/rotate-encryption-key.ts",
+    "lib/crypto.ts",
+    "lib/db.ts"
+  ],
+  "exclude": []
+}

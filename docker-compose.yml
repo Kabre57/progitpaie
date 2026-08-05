@@ -19,6 +19,9 @@ services:
       - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      - ENCRYPTION_KEY_PREVIOUS=${ENCRYPTION_KEY_PREVIOUS:-}
+      - ENCRYPTION_KEYS=${ENCRYPTION_KEYS:-}
     depends_on:
       postgres:
         condition: service_healthy

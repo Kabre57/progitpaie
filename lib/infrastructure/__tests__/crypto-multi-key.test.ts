@@ -1,4 +1,4 @@
-import { encryptData, decryptData, resetKeyCache } from "../../crypto";
+import { encryptData, decryptData, isEncryptedWithPrimaryKey, resetKeyCache } from "../../crypto";
 
 describe("Multi-Key Encryption and Key Rotation Support", () => {
   const originalEnv = process.env;
@@ -50,5 +50,19 @@ describe("Multi-Key Encryption and Key Rotation Support", () => {
     resetKeyCache();
 
     expect(decryptData(reEncryptedWithV2)).toBe(sensitiveData);
+  });
+
+  it("detects whether a value is already encrypted with the primary key", () => {
+    process.env.ENCRYPTION_KEY = "key-v1-initial-secret-key-32bytes";
+    resetKeyCache();
+    const encryptedWithV1 = encryptData("CI1234567890");
+
+    process.env.ENCRYPTION_KEY = "key-v2-new-rotated-secret-key-32b";
+    process.env.ENCRYPTION_KEY_PREVIOUS = "key-v1-initial-secret-key-32bytes";
+    resetKeyCache();
+
+    expect(isEncryptedWithPrimaryKey(encryptedWithV1)).toBe(false);
+    const encryptedWithV2 = encryptData(encryptedWithV1);
+    expect(isEncryptedWithPrimaryKey(encryptedWithV2)).toBe(true);
   });
 });

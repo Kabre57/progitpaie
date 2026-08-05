@@ -48,17 +48,33 @@ git push --force origin main
 git clone https://github.com/Kabre57/progitpaie.git
 ```
 
-### Step 2: Rotation PostgreSQL & JWT distante (DevOps)
-1. Modifier le mot de passe du rôle Postgres dans le SGBD distant :
-   `ALTER ROLE progitpaie WITH LOGIN PASSWORD '<nouveau_mdp_32_chars>';`
-2. Mettre à jour `/etc/progitpaie/production.env` avec le nouveau `DB_PASSWORD`, `DATABASE_URL` et `JWT_SECRET`.
-3. Redémarrer l'application : `docker compose --env-file /etc/progitpaie/production.env up -d --no-deps --force-recreate app`.
-4. Exécuter la migration de rotation de clé si `ENCRYPTION_KEY` est renouvelée : `npx tsx scripts/rotate-encryption-key.ts`.
+### Step 2: Rotation distante (DevOps)
+1. Sauvegarder PostgreSQL selon la procédure d'exploitation avant toute écriture.
+2. Préparer hors des commandes et des logs une nouvelle `ENCRYPTION_KEY`, en conservant l'ancienne comme `ENCRYPTION_KEY_PREVIOUS`.
+3. Mettre à jour `/etc/progitpaie/production.env` avec les valeurs de production, sans les afficher dans le terminal.
+4. Reconstruire et recréer l'application pour injecter les variables déclarées par Compose :
+   `docker compose --env-file /etc/progitpaie/production.env build app`
+   `docker compose --env-file /etc/progitpaie/production.env up -d --no-deps --force-recreate app`
+5. Exécuter d'abord le contrôle sans écriture :
+   `docker compose --env-file /etc/progitpaie/production.env exec -T app node /app/scripts/rotate-encryption-key.js --dry-run`
+6. Si le contrôle est conforme, exécuter la rotation transactionnelle :
+   `docker compose --env-file /etc/progitpaie/production.env exec -T app node /app/scripts/rotate-encryption-key.js`
+7. Contrôler la santé applicative sans exposer la configuration :
+   `curl --fail --silent http://127.0.0.1:3500/api/health`
+8. Après la période d'observation, retirer `ENCRYPTION_KEY_PREVIOUS`, recréer l'application et relancer le contrôle à blanc.
 
 ---
 
 ## 4. Statut d'intégrité du projet
 
 - **Compilation TypeScript** : `npx tsc --noEmit` $\rightarrow$ 0 erreur
-- **Tests unitaires** : `npm test` $\rightarrow$ **218 / 218 tests PASS (30/30 suites)**
+- **Tests unitaires** : `npm test` $\rightarrow$ **219 / 219 tests PASS (30/30 suites)**
 - **Audit de secret Git** : 0 blob `.env` présent
+
+## 5. Journal d'exécution VPS — 2026-08-05
+
+- Les prérequis distants ont été contrôlés : SSH, `/etc/progitpaie/production.env`, conteneurs PostgreSQL/Redis/application et endpoint `/api/health` étaient disponibles.
+- La copie du script dans `/app/scripts` a réussi, mais son exécution a échoué avec `MODULE_NOT_FOUND` pour `../lib/db`.
+- Cause : l'image standalone ne contenait ni l'artefact compilé du script ni les modules source attendus par le script TypeScript isolé ; `npx tsx` n'était donc pas une procédure de production fiable.
+- Correctif ajouté dans le code : compilation du script pendant le build Docker, exécution native par `node`, injection explicite des variables de chiffrement dans Compose, et mise à jour atomique sans logs de nom ou d'e-mail.
+- **Statut distant : EN ATTENTE.** Le correctif n'est pas une preuve de déploiement ni de rotation exécutée sur le VPS. Les étapes 5 à 8 doivent être validées par l'opérateur habilité après déploiement.

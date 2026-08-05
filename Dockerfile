@@ -20,6 +20,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 RUN npx prisma generate
 RUN npm run build
+RUN npx tsc --project tsconfig.rotation.json
 
 # Phase 3 : Execution Runner NGINX / Node Standalone
 FROM base AS runner
@@ -34,6 +35,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/.build/rotation/scripts/rotate-encryption-key.js ./scripts/rotate-encryption-key.js
+COPY --from=builder --chown=nextjs:nodejs /app/.build/rotation/lib/crypto.js ./lib/crypto.js
+COPY --from=builder --chown=nextjs:nodejs /app/.build/rotation/lib/db.js ./lib/db.js
 
 USER nextjs
 
