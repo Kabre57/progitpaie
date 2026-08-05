@@ -1,0 +1,10 @@
+status=PASS
+executed_at=2026-08-05T12:05:42Z
+environment=isolated-test
+commit=d8f4b6148bb9455e631ecf384f8483a15bf1ec8f
+tests_passed=2
+tests_failed=0
+tests_skipped=0
+tenant_isolation=PASS
+legacy_requests=0
+report_checksum=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855

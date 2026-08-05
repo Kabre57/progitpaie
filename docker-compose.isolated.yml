@@ -1,0 +1,84 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# PROGITPAIE — Docker Compose Infrastructure Isolée (Staging / E2E)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  migrate_isolated:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    command: ["npx", "prisma", "migrate", "deploy"]
+    environment:
+      - DATABASE_URL=postgresql://progitpaie:secret_isolated@postgres_isolated:5432/progitpaie_isolated?schema=public
+    depends_on:
+      postgres_isolated:
+        condition: service_healthy
+    networks:
+      - progitpaie-net-isolated
+
+  # 1. Application PROGITPAIE (Next.js) - Isolé
+  app_isolated:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: progitpaie-app-isolated
+    restart: "no"
+    ports:
+      - "127.0.0.1:3502:3000"
+    environment:
+      - NODE_ENV=staging
+      - DATABASE_URL=postgresql://progitpaie:secret_isolated@postgres_isolated:5432/progitpaie_isolated?schema=public
+      - REDIS_URL=redis://redis_isolated:6379
+      - JWT_SECRET=isolated_secret_jwt_for_testing_purposes_only
+      - ENCRYPTION_KEY=isolated_secret_encryption_key_testing_32b
+      - ENCRYPTION_KEY_PREVIOUS=
+      - ENCRYPTION_KEYS=
+    depends_on:
+      postgres_isolated:
+        condition: service_healthy
+      redis_isolated:
+        condition: service_started
+      migrate_isolated:
+        condition: service_completed_successfully
+    networks:
+      - progitpaie-net-isolated
+
+  # 2. Base de données PostgreSQL - Isolé
+  postgres_isolated:
+    image: postgres:15-alpine
+    container_name: progitpaie-postgres-isolated
+    restart: "no"
+    environment:
+      - POSTGRES_USER=progitpaie
+      - POSTGRES_PASSWORD=secret_isolated
+      - POSTGRES_DB=progitpaie_isolated
+    ports:
+      - "127.0.0.1:5435:5432"
+    # Aucun volume persistant monté, les données sont volatiles
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U progitpaie"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - progitpaie-net-isolated
+
+  # 3. Cache Redis - Isolé
+  redis_isolated:
+    image: redis:7-alpine
+    container_name: progitpaie-redis-isolated
+    restart: "no"
+    ports:
+      - "127.0.0.1:6381:6379"
+    # Aucun volume persistant
+    tmpfs:
+      - /data
+    networks:
+      - progitpaie-net-isolated
+
+networks:
+  progitpaie-net-isolated:
+    driver: bridge
