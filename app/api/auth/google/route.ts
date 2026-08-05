@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
 
     if (!user) {
       const companyId = await getDefaultCompanyId();
+      const userCount = await prisma.user.count();
       // Création automatique de l'utilisateur avec Google Auth
       user = await prisma.user.create({
         data: {
@@ -30,24 +31,16 @@ export async function POST(req: NextRequest) {
           email,
           name: name || email.split("@")[0],
           password: "", // Pas de mot de passe car authentification OAuth Google
-          role: email.includes("admin") ? "admin" : "employee",
+          role: email.includes("admin") || userCount === 0 ? "admin" : "employee",
         },
       });
     }
 
-    // 2. Génération du jeton JWT de session PROGITPAIE
-    const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-      JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    // 2. Génération du jeton JWT de session PROGITPAIE (unifié avec generateToken)
+    const { generateToken } = await import("@/lib/auth");
+    const token = generateToken(user.id, user.email, user.role);
 
-    // 3. Réponse avec Cookie HttpOnly
+    // 3. Réponse avec Cookie HttpOnly rbeas_token
     const response = NextResponse.json({
       success: true,
       data: {
@@ -61,10 +54,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    response.cookies.set("token", token, {
+    response.cookies.set("rbeas_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60, // 7 jours
       path: "/",
     });

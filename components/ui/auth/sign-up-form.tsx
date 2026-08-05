@@ -16,11 +16,15 @@ export function SignUpForm({ onSubmit, isLoading, error }: SignUpFormProps) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [department, setDepartment] = useState("");
 
+  const [validationError, setValidationError] = useState<string | null>(null);
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (password !== confirmPassword) {
+      setValidationError("Les mots de passe ne correspondent pas.");
       return;
     }
+    setValidationError(null);
     onSubmit({ name, email, password, department: department || undefined });
   };
 
@@ -44,9 +48,9 @@ export function SignUpForm({ onSubmit, isLoading, error }: SignUpFormProps) {
         <p className="text-sm text-[var(--neu-text-secondary)]">Renseignez vos informations ci-dessous pour vous inscrire</p>
       </div>
 
-      {error && (
+      {(validationError || error) && (
         <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-          {error}
+          {validationError || error}
         </div>
       )}
 
