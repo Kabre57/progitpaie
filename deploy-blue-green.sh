@@ -62,8 +62,9 @@ if [ "$HEALTH_PASSED" = true ]; then
   echo "⚡ Application des Vues Matérialisées & Index Full-Text Search..."
   docker compose exec -T postgres psql -U "${POSTGRES_USER:-progitpaie}" -d "${POSTGRES_DB:-progitpaie}" \
     -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;" || true
-  docker compose exec -T postgres psql -U "${POSTGRES_USER:-progitpaie}" -d "${POSTGRES_DB:-progitpaie}" \
-    -f /app/prisma/migrations/20260806190000_advanced_pg_features/migration.sql || true
+  # Pipe le fichier SQL depuis l'hôte vers le conteneur postgres
+  cat prisma/migrations/20260806190000_advanced_pg_features/migration.sql | \
+    docker compose exec -T postgres psql -U "${POSTGRES_USER:-progitpaie}" -d "${POSTGRES_DB:-progitpaie}" || true
 
   echo "✅ Health Check RÉUSSI ! Déploiement Zéro Temps d'Arrêt validé."
   echo "🌐 URL : https://progitpaie.online"

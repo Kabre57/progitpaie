@@ -47,8 +47,8 @@ docker compose up -d
 echo "⚡ Application des Vues Matérialisées & Index Full-Text Search..."
 docker compose exec -T postgres psql -U "${POSTGRES_USER:-progitpaie}" -d "${POSTGRES_DB:-progitpaie}" \
   -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;" || true
-docker compose exec -T postgres psql -U "${POSTGRES_USER:-progitpaie}" -d "${POSTGRES_DB:-progitpaie}" \
-  -f /app/prisma/migrations/20260806190000_advanced_pg_features/migration.sql || true
+cat prisma/migrations/20260806190000_advanced_pg_features/migration.sql | \
+  docker compose exec -T postgres psql -U "${POSTGRES_USER:-progitpaie}" -d "${POSTGRES_DB:-progitpaie}" || true
 
 echo "================================================================="
 echo "✅ Déploiement de PROGITPAIE terminé avec succès !"
