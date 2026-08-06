@@ -9,10 +9,13 @@ echo "================================================================="
 echo "🚀 Démarrage du Déploiement Zéro Temps d'Arrêt (Blue-Green)..."
 echo "================================================================="
 
-# 1. Vérification / Création automatique du fichier .env si inexistant
-if [ ! -f .env ]; then
-    echo "⚙️ Fichier .env absent, création automatique à partir de .env.example..."
-    cp .env.example .env
+# 1. Sélection du fichier de secrets de production
+ENV_OPTION=""
+if [ -f /etc/progitpaie/production.env ]; then
+    ENV_OPTION="--env-file /etc/progitpaie/production.env"
+    echo "🔐 Secrets de production détectés : /etc/progitpaie/production.env"
+elif [ -f .env ]; then
+    ENV_OPTION="--env-file .env"
 fi
 
 # 1b. Pull du dernier code
@@ -21,11 +24,11 @@ git reset --hard origin/main
 
 # 2. Construction de la nouvelle image Docker sans interrompre l'ancienne
 echo "🏗️ Construction de la nouvelle image Docker..."
-docker compose build app || docker compose build
+docker compose $ENV_OPTION build app || docker compose $ENV_OPTION build
 
 # 3. Relance du conteneur en mode Rolling Update
 echo "🔄 Relance du conteneur d'application..."
-docker compose up -d --no-deps --build app || docker compose up -d
+docker compose $ENV_OPTION up -d --no-deps --build app || docker compose $ENV_OPTION up -d
 
 # 4. Attente et vérification du Health Check (20 tentatives de 3s = 60s)
 echo "⏳ Vérification du Health Check (/api/health)..."
@@ -42,10 +45,11 @@ done
 
 if [ "$HEALTH_PASSED" = true ]; then
   echo "⚡ Application des Vues Matérialisées & Index Full-Text Search PostgreSQL..."
-  docker compose exec -T postgres psql -U progitpaie -d progitpaie -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;" || true
-  docker compose exec -T postgres psql -U progitpaie -d progitpaie -f /app/prisma/migrations/20260806190000_advanced_pg_features/migration.sql || true
+  docker compose $ENV_OPTION exec -T postgres psql -U progitpaie -d progitpaie -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;" || true
+  docker compose $ENV_OPTION exec -T postgres psql -U progitpaie -d progitpaie -f /app/prisma/migrations/20260806190000_advanced_pg_features/migration.sql || true
 
   echo "✅ Health Check RÉUSSI ! Le déploiement Zéro Temps d'Arrêt est validé."
+  echo "🌐 URL : https://progitpaie.online"
 else
   echo "❌ ÉCHEC DU HEALTH CHECK ! Lancement du Rollback automatique..."
   ./rollback.sh

@@ -9,17 +9,18 @@ echo "================================================================="
 echo "⏪ Lancement du Rollback vers le commit précédent..."
 echo "================================================================="
 
-APP_DIR="/home/theo_pbl/apps/progitpaie"
-cd "$APP_DIR" || exit 1
+# Sélection du fichier de secrets (priorité à /etc/progitpaie/)
+ENV_OPTION=""
+if [ -f /etc/progitpaie/production.env ]; then
+    ENV_OPTION="--env-file /etc/progitpaie/production.env"
+elif [ -f .env ]; then
+    ENV_OPTION="--env-file .env"
+fi
 
 # Reset au commit Git précédent
 git reset --hard HEAD~1
 
-if [ ! -f .env ]; then
-    cp .env.example .env
-fi
-
 # Relance des conteneurs
-docker compose up -d --build app || docker compose up -d
+docker compose $ENV_OPTION up -d --build app || docker compose $ENV_OPTION up -d
 
 echo "✅ Rollback exécuté avec succès en moins de 30 secondes."
