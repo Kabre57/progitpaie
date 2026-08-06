@@ -17,6 +17,7 @@ datasource db {
 
 /// Rôle de l'utilisateur dans l'application
 enum UserRole {
+  super_admin
   admin
   employee
 }

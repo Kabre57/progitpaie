@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "employee";
+export type UserRole = "super_admin" | "admin" | "employee";
 export type AttendanceStatus = "present" | "absent" | "late" | "half-day" | "on-leave";
 export type LeaveType = "sick" | "casual" | "annual" | "unpaid";
 export type LeaveStatus = "pending" | "approved" | "rejected";

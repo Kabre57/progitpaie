@@ -52,6 +52,7 @@ const navItems = [
   { name: "Déclarations Fiscales & CNPS", href: "/admin/declarations", icon: FileSpreadsheet },
   { name: "Planning & Horaires", href: "/admin/shifts", icon: Clock },
   { name: "Départements & Services", href: "/admin/departments", icon: Building2 },
+  { name: "Gestion des Entreprises", href: "/admin/tenants", icon: Building2 },
   { name: "Rapports & Statistiques", href: "/admin/reports", icon: BarChart2 },
   { name: "Journal d'Audit", href: "/admin/audit-logs", icon: ScrollText },
   { name: "Paramètres", href: "/admin/settings", icon: Settings },
