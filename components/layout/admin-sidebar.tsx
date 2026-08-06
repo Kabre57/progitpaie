@@ -57,6 +57,7 @@ const navItems = [
   { name: "Gestion des Entreprises", href: "/admin/tenants", icon: Building2 },
   { name: "Rapports & Statistiques", href: "/admin/reports", icon: BarChart2 },
   { name: "Journal d'Audit", href: "/admin/audit-logs", icon: ScrollText },
+  { name: "Audit Global (Super Admin)", href: "/admin/audit-logs-global", icon: ScrollText },
   { name: "Paramètres", href: "/admin/settings", icon: Settings },
 ];
 
