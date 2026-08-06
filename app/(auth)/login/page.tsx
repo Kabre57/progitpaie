@@ -12,7 +12,7 @@ interface LoginResponse {
       id: string;
       _id: string;
       name: string;
-      role: "admin" | "employee";
+      role: "super_admin" | "admin" | "employee";
     };
   };
 }
@@ -44,7 +44,9 @@ export default function LoginPage() {
 
       // Redirection selon le rôle utilisateur
       const userRole = result.data?.user?.role;
-      if (userRole === "admin") {
+      if (userRole === "super_admin") {
+        window.location.href = "/admin/super-dashboard";
+      } else if (userRole === "admin") {
         window.location.href = "/admin";
       } else {
         window.location.href = "/employee";
