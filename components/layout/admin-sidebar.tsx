@@ -60,6 +60,7 @@ const navItems = [
   { name: "Audit Global (Super Admin)", href: "/admin/audit-logs-global", icon: ScrollText },
   { name: "Paramètres", href: "/admin/settings", icon: Settings },
   { name: "Paramètres Globaux (Super Admin)", href: "/admin/global-settings", icon: Settings },
+  { name: "Sauvegardes & Exports (Super Admin)", href: "/admin/backups-exports", icon: PieChart },
 ];
 
 export function AdminSidebar() {
