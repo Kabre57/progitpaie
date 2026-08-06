@@ -18,7 +18,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
-RUN npx prisma generate
+ENV DATABASE_URL="postgresql://progitpaie:progitpaie_pass_2026@postgres:5432/progitpaie?schema=public"
+RUN npx prisma generate --schema=prisma/schema
 RUN npm run build
 RUN npx tsc --project tsconfig.rotation.json
 

@@ -81,6 +81,7 @@ export async function POST(request: NextRequest) {
             _id: user.id,
             name: user.name,
             role: user.role,
+            mustChangePassword: user.mustChangePassword ?? false,
           },
         },
       },

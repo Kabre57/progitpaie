@@ -1,0 +1,29 @@
+// ════════════════════════════════════════════════════════════════════════
+// PROGITPAIE — Module Payroll Earning Line 📊
+// ════════════════════════════════════════════════════════════════════════
+
+/// Ventilation typée des éléments constituant ou non les assiettes de provision.
+model PayrollEarningLine {
+  id                        String                 @id @default(cuid())
+  companyId                 String
+  payrollId                 String
+  code                      String
+  label                     String
+  category                  PayrollEarningCategory
+  amount                    Decimal                @db.Decimal(18, 2)
+  includedInLeaveBase       Boolean
+  includedInTerminationBase Boolean
+  isExpenseReimbursement    Boolean                @default(false)
+  classificationSource      String
+  isEstimated               Boolean                @default(false)
+  createdAt                 DateTime               @default(now())
+  updatedAt                 DateTime               @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  payroll Payroll @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+
+  @@unique([payrollId, code])
+  @@index([companyId, payrollId])
+  @@index([companyId, category])
+  @@map("payroll_earning_lines")
+}

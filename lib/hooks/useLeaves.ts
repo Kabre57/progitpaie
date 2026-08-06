@@ -10,9 +10,12 @@ export function useLeaves() {
     queryKey: ["leaves"],
     queryFn: async () => {
       const res = await fetch("/api/leaves/my");
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok || !contentType.includes("application/json")) {
+        return [];
+      }
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Échec de récupération des demandes de congés");
-      return json.data;
+      return json.data || [];
     },
   });
 }

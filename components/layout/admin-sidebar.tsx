@@ -30,13 +30,23 @@ import {
   Send,
   PieChart,
   LayoutGrid,
+  Archive,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSidebar } from "@/lib/SidebarContext";
 
-const navItems = [
+/** Menu items pour le Super Administrateur */
+const superAdminNavItems = [
+  { name: "Dashboard Groupe", href: "/super-admin/dashboard", icon: LayoutGrid },
+  { name: "Gestion des Entreprises", href: "/super-admin/tenants", icon: Building2 },
+  { name: "Journal d'Audit Global", href: "/super-admin/audit-logs", icon: ScrollText },
+  { name: "Paramètres Globaux", href: "/super-admin/settings", icon: Settings },
+  { name: "Sauvegardes & Exports", href: "/super-admin/backups", icon: Archive },
+];
+
+/** Menu items pour l'Administrateur d'Entreprise (Tenant Admin) */
+const tenantAdminNavItems = [
   { name: "Tableau de Bord", href: "/admin", icon: LayoutDashboard },
-  { name: "Dashboard Groupe (Super Admin)", href: "/admin/super-dashboard", icon: LayoutGrid },
   { name: "Salariés & Personnel", href: "/admin/employees", icon: Users },
   { name: "Contrats RH", href: "/admin/contracts", icon: FileText },
   { name: "Pointages & Présences", href: "/admin/attendance", icon: ClipboardCheck },
@@ -49,29 +59,39 @@ const navItems = [
   { name: "Relevé RNS CNPS", href: "/admin/rns", icon: ShieldCheck },
   { name: "Prêts & Avances", href: "/admin/loans", icon: CreditCard },
   { name: "Solde Tout Compte", href: "/admin/severance", icon: UserX },
-  { name: "Comptabilité  ", href: "/admin/accounting", icon: BookOpen },
+  { name: "Comptabilité", href: "/admin/accounting", icon: BookOpen },
   { name: "Provisions Congés & Retraite", href: "/admin/provisions", icon: PieChart },
   { name: "Déclarations Fiscales & CNPS", href: "/admin/declarations", icon: FileSpreadsheet },
   { name: "Planning & Horaires", href: "/admin/shifts", icon: Clock },
   { name: "Départements & Services", href: "/admin/departments", icon: Building2 },
-  { name: "Gestion des Entreprises", href: "/admin/tenants", icon: Building2 },
   { name: "Rapports & Statistiques", href: "/admin/reports", icon: BarChart2 },
   { name: "Journal d'Audit", href: "/admin/audit-logs", icon: ScrollText },
-  { name: "Audit Global (Super Admin)", href: "/admin/audit-logs-global", icon: ScrollText },
   { name: "Paramètres", href: "/admin/settings", icon: Settings },
-  { name: "Paramètres Globaux (Super Admin)", href: "/admin/global-settings", icon: Settings },
-  { name: "Sauvegardes & Exports (Super Admin)", href: "/admin/backups-exports", icon: PieChart },
 ];
 
 export function AdminSidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const { isAdminCollapsed: isCollapsed, setIsAdminCollapsed: setIsCollapsed } = useSidebar();
 
   useEffect(() => {
     setPendingHref(null);
   }, [pathname]);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.data?.role) {
+          setUserRole(data.data.role);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const navItems = userRole === "super_admin" ? superAdminNavItems : tenantAdminNavItems;
 
   return (
     <>
@@ -101,7 +121,10 @@ export function AdminSidebar() {
       >
         {/* Logo & Toggle Header */}
         <div className="h-20 flex items-center justify-between border-b border-[var(--neu-border)] px-4 bg-[var(--neu-surface)] shrink-0 relative">
-          <Link href="/admin" className="flex items-center gap-2 overflow-hidden">
+          <Link
+            href={userRole === "super_admin" ? "/super-admin/dashboard" : "/admin"}
+            className="flex items-center gap-2 overflow-hidden"
+          >
             <img 
               src="/logo.png" 
               alt="progitpaie Logo" 
@@ -124,6 +147,14 @@ export function AdminSidebar() {
             {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </button>
         </div>
+
+        {/* Badge rôle si Super Admin */}
+        {userRole === "super_admin" && !isCollapsed && (
+          <div className="px-4 py-2 bg-[#666cff]/15 border-b border-[#666cff]/20 text-[#666cff] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shrink-0">
+            <span className="w-2 h-2 rounded-full bg-[#666cff] animate-pulse" />
+            Espace Super Admin
+          </div>
+        )}
 
         {/* Nav items */}
         <nav className="p-3 space-y-1 overflow-y-auto flex-1 pb-12">

@@ -23,17 +23,17 @@ interface AttendanceStatsProps {
 }
 
 export function AttendanceStats({ stats }: AttendanceStatsProps) {
-  const safeStats = stats || {
-    totalEmployees: 0,
-    presentToday: 0,
-    absentToday: 0,
-    lateToday: 0,
-    avgHoursThisMonth: 0,
-    attendanceRate: 0,
-    totalLateThisMonth: 0,
-    presentTrend: 0,
-    lateTrend: 0,
-    month: "",
+  const safeStats = {
+    totalEmployees: stats?.totalEmployees ?? (stats as any)?.totalEmployees ?? 0,
+    presentToday: stats?.presentToday ?? (stats as any)?.presentCount ?? 0,
+    absentToday: stats?.absentToday ?? (stats as any)?.absentCount ?? 0,
+    lateToday: stats?.lateToday ?? (stats as any)?.lateCount ?? 0,
+    avgHoursThisMonth: stats?.avgHoursThisMonth ?? 8,
+    attendanceRate: stats?.attendanceRate ?? (stats?.totalEmployees ? Math.round((((stats?.presentToday ?? (stats as any)?.presentCount ?? 0) + (stats?.lateToday ?? (stats as any)?.lateCount ?? 0)) / stats.totalEmployees) * 100) : 0),
+    totalLateThisMonth: stats?.totalLateThisMonth ?? 0,
+    presentTrend: stats?.presentTrend ?? 0,
+    lateTrend: stats?.lateTrend ?? 0,
+    month: stats?.month ?? "",
   };
 
   const getTrend = (value: number): "up" | "down" | "neutral" => {

@@ -1,0 +1,52 @@
+// ════════════════════════════════════════════════════════════════════════
+// PROGITPAIE — Module Leave Ledger & Provisions 📒
+// ════════════════════════════════════════════════════════════════════════
+
+/// Registre comptable et auditable des mouvements de jours de congés.
+model LeaveLedgerEntry {
+  id              String                @id @default(cuid())
+  companyId       String
+  userId          String
+  effectiveDate   DateTime
+  referencePeriod String
+  entryType       LeaveLedgerEntryType
+  days            Decimal               @db.Decimal(10, 4)
+  sourceType      LeaveLedgerSourceType
+  sourceId        String?
+  ruleVersion     String
+  createdById     String?
+  reason          String?
+  isEstimated     Boolean               @default(false)
+  createdAt       DateTime              @default(now())
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user      User    @relation("EmployeeLeaveLedger", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("LeaveLedgerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, sourceType, sourceId, entryType])
+  @@index([companyId, userId, effectiveDate])
+  @@index([companyId, referencePeriod])
+  @@map("leave_ledger_entries")
+}
+
+/// Snapshot persistant et versionné d'un calcul de provisions.
+model ProvisionCalculationSnapshot {
+  id                       String                  @id @default(cuid())
+  companyId                String
+  referenceDate            DateTime
+  ruleVersion              String
+  inputHash                String
+  resultJson               Json
+  warningCount             Int                     @default(0)
+  status                   ProvisionSnapshotStatus @default(DRAFT)
+  calculatedById           String
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+
+  company      Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  calculatedBy User    @relation("ProvisionCalculatedBy", fields: [calculatedById], references: [id], onDelete: Restrict)
+
+  @@index([companyId, referenceDate])
+  @@index([companyId, status])
+  @@map("provision_calculation_snapshots")
+}

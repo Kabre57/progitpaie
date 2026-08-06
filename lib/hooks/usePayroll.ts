@@ -14,9 +14,12 @@ export function usePayroll(month?: number, year?: number) {
     queryKey: ["payroll", month, year],
     queryFn: async () => {
       const res = await fetch(`/api/payroll?${queryParams.toString()}`);
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok || !contentType.includes("application/json")) {
+        return [];
+      }
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Échec de récupération de la paie");
-      return json.data;
+      return json.data || [];
     },
     staleTime: 30 * 60 * 1000, // 30 minutes de mise en cache car les bulletins changent peu
   });

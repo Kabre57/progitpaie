@@ -109,7 +109,7 @@ export function TaxRatesCard({
           {/* SECTION 1: CNPS (4 Champs) */}
           <div>
             <h3 className="font-bold text-sm mb-3 text-[var(--neu-accent)] uppercase tracking-wider">
-              1. Cotisations Sociales CNPS (4 Taux)
+              1. Cotisations Sociales CNPS
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <NeuInput
@@ -146,7 +146,7 @@ export function TaxRatesCard({
           {/* SECTION 2: FDFP (2 Champs) */}
           <div>
             <h3 className="font-bold text-sm mb-3 text-[var(--neu-accent)] uppercase tracking-wider">
-              2. Taxes Formation Professionnelle FDFP (2 Taux)
+              2. Taxes Formation Professionnelle FDFP
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <NeuInput
@@ -169,7 +169,7 @@ export function TaxRatesCard({
           {/* SECTION 3: ITS (1 Champ) */}
           <div>
             <h3 className="font-bold text-sm mb-3 text-[var(--neu-accent)] uppercase tracking-wider">
-              3. Impôt sur Traitements et Salaires ITS (1 Taux)
+              3. Impôt sur Traitements et Salaires ITS
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <NeuInput
@@ -185,7 +185,7 @@ export function TaxRatesCard({
           {/* SECTION 4: CMU (3 Champs + Toggle) */}
           <div>
             <h3 className="font-bold text-sm mb-3 text-[var(--neu-accent)] uppercase tracking-wider">
-              4. Couverture Maladie Universelle CMU (3 Paramètres)
+              4. Couverture Maladie Universelle CMU
             </h3>
             {/* Toggle CMU */}
             <label className="flex items-center gap-3 p-3 mb-4 rounded-lg bg-[var(--neu-surface)] border border-[var(--neu-border)] cursor-pointer hover:border-[var(--neu-accent)] transition-colors">
@@ -234,7 +234,7 @@ export function TaxRatesCard({
           {/* SECTION 5: AUTRES PARAMÈTRES (3 Champs) */}
           <div>
             <h3 className="font-bold text-sm mb-3 text-[var(--neu-accent)] uppercase tracking-wider">
-              5. Autres Plafonds & Primes Exonérées (3 Champs)
+              5. Autres Plafonds & Primes Exonérées
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <NeuInput

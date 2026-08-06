@@ -1,0 +1,102 @@
+// ════════════════════════════════════════════════════════════════════════
+// PROGITPAIE — Module Attendance (Pointages, Shifts & Heures Supp.) ⏱️
+// ════════════════════════════════════════════════════════════════════════
+
+/// Table des Pointages & Présences Quotidiennes
+model Attendance {
+  id              String           @id @default(cuid())
+  companyId       String
+  userId          String // ID de l'employé
+  date            String // Date au format YYYY-MM-DD
+  checkIn         DateTime // Heure de pointage d'arrivée
+  checkOut        DateTime? // Heure de pointage de départ
+  status          AttendanceStatus @default(present) // Statut (present, late, absent, half_day, on_leave)
+  hoursWorked     Float            @default(0) // Nombre d'heures travaillées
+  workingMinutes  Int              @default(0) // Nombre de minutes travaillées
+  overtimeMinutes Int              @default(0) // Minutes d'heures supplémentaires
+  overtimeRate    Float            @default(1.15) // Taux de majoration (1.15 = +15%, 1.5 = +50%, 1.75 = +75%, 2.0 = +100%)
+  notes           String           @default("") // Notes ou motifs
+  locationLat     Float? // Latitude GPS lors du pointage
+  locationLng     Float? // Longitude GPS lors du pointage
+  accuracyMeters  Float? // Précision GPS estimée HTML5 (en mètres)
+  distanceMeters  Float? // Distance calculée au bureau (en mètres)
+  isWithinFence   Boolean          @default(true) // Dans le rayon autorisé
+
+  // Demande d'exception RH (Mission, Télétravail, Problème GPS)
+  exceptionStatus String? // PENDING, APPROVED, REJECTED
+  exceptionType   String? // MISSION, REMOTE, GPS_FAILURE
+  exceptionReason String? // Motif rédigé par l'employé
+
+  overriddenById String? // Modifié par (Admin ID)
+  overriddenAt   DateTime? // Date de modification admin
+  outOfOffice    Boolean   @default(false) // Mission extérieure
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user            User       @relation("UserAttendances", fields: [userId], references: [id], onDelete: Cascade)
+  company         Company    @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  overriddenBy    User?      @relation("OverriddenAttendances", fields: [overriddenById], references: [id], onDelete: SetNull)
+  overtimeDetails Overtime[] @relation("AttendanceOvertimes")
+
+  @@unique([userId, date])
+  @@index([date])
+  @@index([userId])
+  @@index([status])
+  @@index([companyId])
+  @@map("attendances")
+}
+
+/// Table des Horaires & Shifts de Travail
+model Shift {
+  id                   String  @id @default(cuid())
+  companyId            String
+  name                 String // Nom du shift (ex: Équipe Jour, Équipe Nuit)
+  startTime            String // Heure de début "09:00"
+  endTime              String // Heure de fin "17:00"
+  workingHours         Float // Heures théoriques par jour (ex: 8)
+  lateThresholdMinutes Int     @default(15) // Tolérance de retard (minutes)
+  isActive             Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  employees User[]  @relation("ShiftEmployees")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, name])
+  @@index([name])
+  @@index([isActive])
+  @@index([companyId])
+  @@map("shifts")
+}
+
+/// Table des Heures Supplémentaires Détaillées
+model Overtime {
+  id           String         @id @default(cuid())
+  companyId    String
+  userId       String // ID de l'employé
+  attendanceId String? // ID du pointage rattaché
+  date         DateTime // Date de réalisation
+  minutes      Int // Nombre de minutes d'heures supp
+  rate         Float          @default(1.15) // Taux légal (1.15 = +15%, 1.50 = +50%, 1.75 = +75%, 2.00 = +100%)
+  reason       String // Motif des heures supp
+  status       OvertimeStatus @default(pending) // Statut de validation
+  approvedById String? // Validé par (Admin ID)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  approvedBy User?       @relation("ApprovedOvertimes", fields: [approvedById], references: [id], onDelete: SetNull)
+  attendance Attendance? @relation("AttendanceOvertimes", fields: [attendanceId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([companyId])
+  @@map("overtimes")
+}

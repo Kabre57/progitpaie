@@ -51,8 +51,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     const body = await request.json().catch(() => ({}));
     const parseResult = createContractSchema.safeParse(body);
     if (!parseResult.success) {
+      const issueMsg = parseResult.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ");
       return NextResponse.json(
-        { success: false, error: "Données de contrat invalides", code: "VALIDATION_ERROR" },
+        { success: false, error: `Données de contrat invalides: ${issueMsg}`, code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     const data = await createUseCase.execute({
       companyId: authResult.companyId,
       ...parseResult.data,
+      endDate: parseResult.data.endDate || undefined,
     });
 
     return NextResponse.json(

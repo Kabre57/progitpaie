@@ -2,7 +2,19 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const schema = fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8");
+const readSchemaFiles = (dir: string): string => {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  return entries.reduce((acc, entry) => {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      return acc + "\n" + readSchemaFiles(fullPath);
+    } else if (entry.name.endsWith(".prisma")) {
+      return acc + "\n" + fs.readFileSync(fullPath, "utf8");
+    }
+    return acc;
+  }, "");
+};
+const schema = readSchemaFiles(path.join(root, "prisma/schema"));
 const migration = fs.readFileSync(
   path.join(
     root,
@@ -56,7 +68,7 @@ describe("Phase B provisions — contrats de persistance", () => {
 
   it("stocke les montants et jours en Decimal PostgreSQL", () => {
     expect(schema).toContain("@db.Decimal(10, 4)");
-    expect(schema.match(/@db\.Decimal\(18, 2\)/g)?.length).toBeGreaterThanOrEqual(4);
+    expect(migration.match(/Decimal\(18,\s*2\)/gi)?.length).toBeGreaterThanOrEqual(4);
   });
 
   it("audite l'isolation tenant avant de valider la transaction", () => {

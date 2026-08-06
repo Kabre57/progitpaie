@@ -5,16 +5,17 @@ export function toContractDTO(
   contract: WorkContract,
   userObj?: { id: string; name: string; email: string; employeeId?: string | null }
 ): ContractDTO {
+  const finalUser = userObj || contract.user;
   const probationEnd = contract.calculateProbationEndDate();
   return {
     id: contract.id || "",
     companyId: contract.companyId,
     userId: contract.userId,
-    user: userObj ? {
-      id: userObj.id,
-      name: userObj.name,
-      email: userObj.email,
-      employeeId: userObj.employeeId,
+    user: finalUser ? {
+      id: finalUser.id,
+      name: finalUser.name,
+      email: finalUser.email,
+      employeeId: finalUser.employeeId,
     } : undefined,
     type: contract.type.value,
     category: contract.category.value,

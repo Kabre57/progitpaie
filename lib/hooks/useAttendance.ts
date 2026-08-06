@@ -14,8 +14,11 @@ export function useAttendance(employeeId?: string, month?: number | string, year
     queryKey: ["attendance", employeeId, month, year],
     queryFn: async () => {
       const res = await fetch(`/api/attendance?${queryParams.toString()}`);
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok || !contentType.includes("application/json")) {
+        return [];
+      }
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Échec du chargement des pointages");
       if (Array.isArray(json.data?.records)) return json.data.records;
       if (Array.isArray(json.data)) return json.data;
       return [];
@@ -31,8 +34,11 @@ export function useTodayAttendance() {
       const todayStr = new Date().toISOString().split("T")[0];
       const monthStr = todayStr.substring(0, 7);
       const res = await fetch(`/api/attendance?month=${monthStr}`);
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok || !contentType.includes("application/json")) {
+        return null;
+      }
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Échec de récupération de la présence du jour");
       const records = Array.isArray(json.data?.records)
         ? json.data.records
         : Array.isArray(json.data)
@@ -51,8 +57,11 @@ export function useAttendanceStats(month?: string) {
     queryFn: async () => {
       const param = month ? `?month=${month}` : "";
       const res = await fetch(`/api/attendance/stats${param}`);
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok || !contentType.includes("application/json")) {
+        return null;
+      }
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Échec de récupération des statistiques");
       return json.data ?? null;
     },
   });

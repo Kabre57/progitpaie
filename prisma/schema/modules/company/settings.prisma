@@ -1,0 +1,29 @@
+// ════════════════════════════════════════════════════════════════════════
+// PROGITPAIE — Module Settings (Paramètres Entreprises & Système) ⚙️
+// ════════════════════════════════════════════════════════════════════════
+
+/// Table des Paramètres Spécifiques par Entreprise (Multicompany 🏢)
+model CompanySettings {
+  id        String @id @default(cuid())
+  companyId String
+  key       String // Clé de paramètre (ex: payroll_rates, payslip_appearance)
+  value     Json // Données JSON de configuration
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, key])
+  @@map("company_settings")
+}
+
+/// Table des Paramètres Globaux de l'Application
+model Settings {
+  id        String   @id @default(cuid())
+  key       String   @unique // Clé unique (ex: location, company_info)
+  value     Json // Données JSON
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}

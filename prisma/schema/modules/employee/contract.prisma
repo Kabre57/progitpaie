@@ -1,0 +1,34 @@
+// ════════════════════════════════════════════════════════════════════════
+// PROGITPAIE — Module Contract (Contrats de Travail) 📜
+// ════════════════════════════════════════════════════════════════════════
+
+/// Table des Contrats de Travail
+model Contract {
+  id                    String           @id @default(cuid())
+  companyId             String
+  userId                String // ID de l'employé
+  type                  ContractType     @default(CDI) // Type (CDI, CDD, STAGE, FREELANCE)
+  category              EmployeeCategory @default(employe) // Catégorie (cadre, maitrise, employe)
+  jobTitle              String // Intitulé du poste
+  startDate             DateTime // Date de début de contrat
+  endDate               DateTime? // Date de fin (si CDD / STAGE)
+  probationPeriodMonths Int              @default(0) // Période d'essai (mois)
+  baseSalary            Float // Salaire de base contractuel
+  sursalaire            Float            @default(0) // Sursalaire
+  transportAllowance    Float            @default(0) // Indemnité de transport
+  housingAllowance      Float            @default(0) // Indemnité de logement
+  documentUrl           String? // Lien vers le contrat PDF signé
+  status                String           @default("active") // Statut (active, expired, terminated)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  severances Severance[]
+
+  @@index([userId])
+  @@index([companyId])
+  @@map("contracts")
+}

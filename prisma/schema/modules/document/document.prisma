@@ -1,0 +1,49 @@
+// ════════════════════════════════════════════════════════════════════════
+// PROGITPAIE — Module Document & Audit 📑
+// ════════════════════════════════════════════════════════════════════════
+
+model CompanyDocument {
+  id           String             @id @default(cuid())
+  companyId    String
+  documentType String // RCCM, DGI_CC, CNPS_ATTESTATION, GERANT_ID, OTHER
+  fileUrl      String
+  fileName     String
+  status       VerificationStatus @default(PENDING)
+  rejectReason String?
+  uploadedAt   DateTime           @default(now())
+  verifiedAt   DateTime?
+  verifiedById String?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("company_documents")
+}
+
+/// Table des Journaux d'Audit & Sécurité
+model AuditLog {
+  id            String   @id @default(cuid())
+  companyId     String
+  performedById String // ID de l'utilisateur ayant exécuté l'action
+  action        String // Action (ex: CREATE_EMPLOYEE, OVERRIDE_ATTENDANCE)
+  targetModel   String // Modèle ciblé (ex: User, Attendance, Payroll)
+  targetId      String? // ID de la ressource ciblée
+  oldValues     Json? // Valeurs avant modification
+  newValues     Json? // Valeurs après modification
+  ipAddress     String? // Adresse IP de l'utilisateur
+  userAgent     String? // Navigateur / Device
+  timestamp     DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  performedBy User    @relation(fields: [performedById], references: [id], onDelete: Cascade)
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([timestamp(sort: Desc)])
+  @@index([performedById])
+  @@index([targetModel, targetId])
+  @@index([companyId])
+  @@map("audit_logs")
+}

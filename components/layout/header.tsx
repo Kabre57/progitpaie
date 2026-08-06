@@ -47,6 +47,8 @@ export function Header() {
     if (!path || path === "admin" || path === "employee") return "Tableau de Bord";
     
     const titles: Record<string, string> = {
+      dashboard: "Dashboard Groupe",
+      tenants: "Gestion des Entreprises (SaaS)",
       employees: "Salariés & Personnel",
       contracts: "Contrats RH",
       attendance: "Pointages & Présences",
@@ -60,14 +62,15 @@ export function Header() {
       rns: "Relevé RNS CNPS",
       loans: "Prêts & Avances",
       severance: "Solde Tout Compte",
-      accounting: "Comptabilité  ",
+      accounting: "Comptabilité",
       provisions: "Provisions Congés & Retraite",
       declarations: "Déclarations Fiscales & CNPS",
       shifts: "Planning & Horaires",
       departments: "Départements & Services",
       reports: "Rapports & Statistiques",
       "audit-logs": "Journal d'Audit",
-      settings: "Paramètres",
+      settings: "Paramètres Globaux",
+      backups: "Sauvegardes & Exports",
       notifications: "Mes Notifications",
     };
 

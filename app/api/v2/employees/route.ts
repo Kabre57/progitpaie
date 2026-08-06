@@ -51,8 +51,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     const body = await request.json().catch(() => ({}));
     const parseResult = createEmployeeSchema.safeParse(body);
     if (!parseResult.success) {
+      const issueMsg = parseResult.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ");
       return NextResponse.json(
-        { success: false, error: "Données salarié invalides", code: "VALIDATION_ERROR" },
+        { success: false, error: `Données salarié invalides: ${issueMsg}`, code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }

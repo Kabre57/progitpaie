@@ -1,0 +1,159 @@
+// ════════════════════════════════════════════════════════════════════════
+// PROGITPAIE — Global System Enums 📜
+// ════════════════════════════════════════════════════════════════════════
+
+/// Rôle de l'utilisateur dans l'application
+enum UserRole {
+  super_admin
+  admin
+  employee
+}
+
+/// Statut quotidien de présence
+enum AttendanceStatus {
+  present
+  absent
+  late
+  half_day @map("half-day")
+  on_leave @map("on-leave")
+}
+
+/// Type de congé demandé
+enum LeaveType {
+  sick
+  casual
+  annual
+  unpaid
+}
+
+/// Statut de validation de la demande de congé
+enum LeaveStatus {
+  pending
+  approved
+  rejected
+}
+
+/// Statut de la fiche de paie mensuelle
+enum PayrollStatus {
+  draft
+  finalized
+}
+
+/// Type de notification émise
+enum NotificationType {
+  info
+  success
+  warning
+  error
+}
+
+/// Type de contrat de travail
+enum ContractType {
+  CDI
+  CDD
+  STAGE
+  FREELANCE
+}
+
+/// Catégorie professionnelle de l'employé (Barème de convention collective)
+enum EmployeeCategory {
+  cadre
+  maitrise
+  employe
+  ouvrier
+}
+
+/// Statut de validation des heures supplémentaires
+enum OvertimeStatus {
+  pending
+  approved
+  rejected
+}
+
+/// Type de prêt ou avance sur salaire
+enum LoanType {
+  PRET
+  AVANCE
+}
+
+/// Statut du dossier de prêt
+enum LoanStatus {
+  active
+  completed
+  cancelled
+}
+
+/// Type de rupture du contrat de travail (Solde de tout compte)
+enum TerminationType {
+  licenciement
+  demission
+  retraite
+  fin_cdd
+  rupture_conventionnelle
+}
+
+/// Type de déclaration fiscale ou sociale
+enum DeclarationType {
+  ITS_MONTHLY
+  CNPS_MONTHLY
+  FDFP_ANNUAL
+  ETAT_301
+  DISA
+}
+
+/// Type de présence au travail (Pointage Géolocalisé 📍)
+enum WorkType {
+  ONSITE
+  REMOTE
+  HYBRID
+}
+
+enum LeaveLedgerEntryType {
+  OPENING_BALANCE
+  ACCRUAL
+  SENIORITY_BONUS
+  LEAVE_CONSUMED
+  LEAVE_COMPENSATED
+  CARRY_FORWARD
+  EXPIRATION
+  MANUAL_ADJUSTMENT
+}
+
+enum LeaveLedgerSourceType {
+  MIGRATION
+  LEAVE_REQUEST
+  PAYROLL
+  SEVERANCE
+  ANNUAL_CLOSING
+  MANUAL
+}
+
+enum PayrollEarningCategory {
+  BASE_SALARY
+  SURSALAIRE
+  BONUS
+  ALLOWANCE
+  OVERTIME
+  EXPENSE_REIMBURSEMENT
+}
+
+enum ProvisionSnapshotStatus {
+  DRAFT
+  FINALIZED
+}
+
+/// Niveau de criticité des alertes légales
+enum LegalAlertSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+/// Statut du workflow de validation humaine des évolutions légales
+enum LegalAlertStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  APPLIED
+}

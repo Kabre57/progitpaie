@@ -9,13 +9,16 @@
     "lint": "eslint",
     "test": "jest --runInBand",
     "test:e2e": "playwright test",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio",
-    "prisma:seed": "prisma db seed"
+    "prisma:generate": "prisma generate --schema=prisma/schema",
+    "prisma:migrate": "prisma migrate dev --schema=prisma/schema",
+    "prisma:studio": "prisma studio --schema=prisma/schema",
+    "prisma:seed": "prisma db seed",
+    "prisma:validate": "npx -y tsx prisma/scripts/validate.ts",
+    "prisma:deploy": "npx -y tsx prisma/scripts/deploy.ts"
   },
   "prisma": {
-    "seed": "npx tsx prisma/seed.ts"
+    "schema": "prisma/schema",
+    "seed": "npx -y tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

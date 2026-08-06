@@ -1,0 +1,129 @@
+// ════════════════════════════════════════════════════════════════════════
+// PROGITPAIE — Module Company (Entreprises, Départements & Clés API) 🏢
+// ════════════════════════════════════════════════════════════════════════
+
+/// Table des Entreprises / Entités Juridiques (Multicompany 🏢)
+model Company {
+  id           String  @id @default(cuid())
+  name         String // Nom officiel (ex: LOGIPAIE RH CI)
+  taxNumber    String? // N° Compte Contribuable (CC)
+  cnpsNumber   String? // N° Affiliation CNPS
+  rccm         String? // N° Registre du Commerce (RCCM)
+  address      String? // Adresse physique / Boîte postale
+  city         String? @default("Abidjan")
+  country      String? @default("Côte d'Ivoire")
+  phone        String? // Téléphone
+  email        String? // Email officiel
+  latitude     Float?  @default(5.3484) // Latitude GPS du siège / bureau (ex: Abidjan 5.3484)
+  longitude    Float?  @default(-4.0305) // Longitude GPS du siège / bureau (ex: Abidjan -4.0305)
+  radiusMeters Float   @default(100.0) // Rayon d'autorisation de pointage en mètres (ex: 100m)
+  isMain       Boolean @default(false) // Entreprise principale par défaut
+  isActive     Boolean @default(true)
+
+  // KYB & Verification
+  verificationStatus VerificationStatus @default(PENDING)
+  verificationNotes  String?
+
+  // Abonnements SaaS & Tarification
+  plan                  SubscriptionPlan   @default(FREE_TRIAL)
+  subscriptionStatus    SubscriptionStatus @default(TRIALING)
+  subscriptionExpiresAt DateTime?
+  monthlyPriceFCFA      Float              @default(0)
+  maxEmployeesAllowed   Int                @default(10)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  employees              User[]                         @relation("CompanyEmployees")
+  settings               CompanySettings[]
+  attendances            Attendance[]
+  departments            Department[]
+  shifts                 Shift[]
+  leaves                 Leave[]
+  payslipConfigSnapshots PayslipConfigSnapshot[]
+  payrolls               Payroll[]
+  contracts              Contract[]
+  overtimes              Overtime[]
+  loans                  Loan[]
+  loanSchedules          LoanSchedule[]
+  accountingEntries      AccountingEntry[]
+  severances             Severance[]
+  taxDeclarations        TaxDeclaration[]
+  notifications          Notification[]
+  auditLogs              AuditLog[]
+  apiKeys                ApiKey[]
+  leaveLedgerEntries     LeaveLedgerEntry[]
+  payrollEarningLines    PayrollEarningLine[]
+  provisionSnapshots     ProvisionCalculationSnapshot[]
+  documents              CompanyDocument[]
+
+  @@map("companies")
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  INCOMPLETE
+}
+
+enum SubscriptionPlan {
+  FREE_TRIAL
+  STARTER
+  BUSINESS
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+/// Table des Départements
+model Department {
+  id          String  @id @default(cuid())
+  companyId   String
+  name        String // Nom du département (ex: Ressources Humaines, IT, Finance)
+  description String  @default("") // Description
+  managerId   String? // Responsable du département
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  manager   User?   @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  employees User[]  @relation("DepartmentEmployees")
+
+  @@unique([companyId, name])
+  @@index([name])
+  @@index([isActive])
+  @@index([companyId])
+  @@map("departments")
+}
+
+/// Table des Clés API Publiques (Connecteurs ERP - SAP, Sage, Odoo 🔌)
+model ApiKey {
+  id          String    @id @default(cuid())
+  companyId   String
+  name        String // Intitulé du système tiers (ex: Connecteur SAP Production)
+  keyHash     String    @unique // Hachage sécurisé SHA-256 de la clé API
+  keyPrefix   String // Préfixe public de la clé (ex: pk_live_8f3a...)
+  permissions Json? // Portée des droits (read:payroll, write:employees, etc.)
+  lastUsedAt  DateTime? // Horodatage du dernier appel API
+  expiresAt   DateTime? // Date d'expiration optionnelle
+  isActive    Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([keyPrefix])
+  @@index([companyId])
+  @@map("api_keys")
+}

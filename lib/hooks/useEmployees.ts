@@ -35,8 +35,11 @@ export function useEmployees(params?: FetchEmployeesParams) {
     queryKey: ["employees", params],
     queryFn: async () => {
       const res = await fetch(`/api/employees?${queryParams.toString()}`);
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok || !contentType.includes("application/json")) {
+        throw new Error("Échec de la récupération des employés");
+      }
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Échec de la récupération des employés");
       return json;
     },
   });
@@ -48,8 +51,11 @@ export function useEmployee(id: string) {
     queryKey: ["employee", id],
     queryFn: async () => {
       const res = await fetch(`/api/employees/${id}`);
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok || !contentType.includes("application/json")) {
+        throw new Error("Employé non trouvé");
+      }
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Employé non trouvé");
       return json.data;
     },
     enabled: Boolean(id),

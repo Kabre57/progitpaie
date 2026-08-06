@@ -6,6 +6,7 @@ export interface WorkContractProps {
   id?: string;
   companyId: string;
   userId: string;
+  user?: { id: string; name: string; email: string; employeeId?: string | null };
   type: ContractType;
   category: EmployeeCategory;
   jobTitle: string;
@@ -26,6 +27,7 @@ export class WorkContract {
   public readonly id?: string;
   public readonly companyId: string;
   public readonly userId: string;
+  public readonly user?: { id: string; name: string; email: string; employeeId?: string | null };
   public readonly type: ContractType;
   public readonly category: EmployeeCategory;
   public readonly jobTitle: string;
@@ -53,6 +55,7 @@ export class WorkContract {
     this.id = props.id;
     this.companyId = props.companyId;
     this.userId = props.userId;
+    this.user = props.user;
     this.type = props.type;
     this.category = props.category;
     this.jobTitle = props.jobTitle.trim();

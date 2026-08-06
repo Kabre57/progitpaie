@@ -24,6 +24,12 @@ export default function ContractsPage() {
     name: string;
     jobTitle?: string;
     salary?: number;
+    sursalaire?: number;
+    transport?: number;
+    category?: string;
+    contractType?: string;
+    startDate?: string;
+    endDate?: string | null;
     docType: "contract" | "attestation" | "certificat" | "payslip";
   } | null>(null);
 
@@ -236,12 +242,18 @@ export default function ContractsPage() {
                     <td className="px-6 py-4 text-right space-x-2">
                       <NeuButton
                         size="sm"
-                        variant="ghost"
+                        variant="accent"
                         onClick={() => setActiveEditDoc({
                           userId: typeof c.userId === "object" ? (c.userId as any).id : c.userId,
                           name: c.user?.name || "",
                           jobTitle: c.jobTitle,
                           salary: c.baseSalary,
+                          sursalaire: c.sursalaire,
+                          transport: c.transportAllowance,
+                          category: c.category,
+                          contractType: c.type,
+                          startDate: c.startDate,
+                          endDate: c.endDate || undefined,
                           docType: "contract"
                         })}
                         title="Éditer et Télécharger le Contrat de travail PDF"
@@ -256,6 +268,12 @@ export default function ContractsPage() {
                           name: c.user?.name || "",
                           jobTitle: c.jobTitle,
                           salary: c.baseSalary,
+                          sursalaire: c.sursalaire,
+                          transport: c.transportAllowance,
+                          category: c.category,
+                          contractType: c.type,
+                          startDate: c.startDate,
+                          endDate: c.endDate || undefined,
                           docType: "attestation"
                         })}
                         title="Éditer et Télécharger l'Attestation de travail PDF"
@@ -270,6 +288,12 @@ export default function ContractsPage() {
                           name: c.user?.name || "",
                           jobTitle: c.jobTitle,
                           salary: c.baseSalary,
+                          sursalaire: c.sursalaire,
+                          transport: c.transportAllowance,
+                          category: c.category,
+                          contractType: c.type,
+                          startDate: c.startDate,
+                          endDate: c.endDate || undefined,
                           docType: "certificat"
                         })}
                         title="Éditer et Télécharger le Certificat de travail PDF"
@@ -398,6 +422,13 @@ export default function ContractsPage() {
           defaultName={activeEditDoc.name}
           defaultJobTitle={activeEditDoc.jobTitle}
           defaultSalary={activeEditDoc.salary}
+          defaultSursalaire={activeEditDoc.sursalaire}
+          defaultTransport={activeEditDoc.transport}
+          defaultCategory={activeEditDoc.category}
+          defaultContractType={activeEditDoc.contractType}
+          defaultJoiningDate={activeEditDoc.startDate}
+          startDate={activeEditDoc.startDate}
+          endDate={activeEditDoc.endDate || undefined}
           docType={activeEditDoc.docType}
         />
       )}

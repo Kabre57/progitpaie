@@ -1,0 +1,67 @@
+// ════════════════════════════════════════════════════════════════════════
+// PROGITPAIE — Module Tax Rate & Declarations ⚖️
+// ════════════════════════════════════════════════════════════════════════
+
+/// Table des Barèmes & Taux Fiscaux/Sociaux Dynamiques
+model TaxRate {
+  id                  String  @id @default(cuid())
+  year                Int     @unique // Année d'application (ex: 2026)
+  cnpsEmployeeRate    Float   @default(0.063) // Retraite salarié 6.3%
+  cnpsEmployerRate    Float   @default(0.077) // Retraite patronale 7.7%
+  cnpsRetraiteCeiling Float   @default(3375000) // Plafond CNPS Retraite (3 375 000 FCFA)
+  cnpsPfCeiling       Float   @default(75000) // Plafond CNPS PF & AT (75 000 FCFA)
+  itsRate             Float   @default(0.012) // Taux Impôt sur Salaire IS 1.2%
+  fdfpTfcRate         Float   @default(0.012) // Taxe Formation Continue 1.2%
+  fdfpTapRate         Float   @default(0.004) // Taxe d'Apprentissage 0.4%
+  isActive            Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tax_rates")
+}
+
+/// Table des Déclarations Fiscales & Sociales Réglementaires (DISA, État 301, FDFP)
+model TaxDeclaration {
+  id          String          @id @default(cuid())
+  companyId   String
+  period      String // Période "YYYY-MM" ou "YYYY"
+  type        DeclarationType // Type (ITS_MONTHLY, CNPS_MONTHLY, FDFP_ANNUAL, ETAT_301, DISA)
+  totalGross  Float // Masse salariale brute déclarée
+  totalTax    Float // Total impôts dus (ITS / IGR)
+  totalSocial Float // Total cotisations CNPS dues
+  fileUrl     String? // Document récapitulatif généré (PDF / Excel)
+  status      String          @default("draft") // Statut (draft, submitted)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([period, type])
+  @@index([companyId])
+  @@map("tax_declarations")
+}
+
+/// Table des Alertes Légales & Veille Réglementaire (Intelligence Légale ⚖️)
+model LegalAlert {
+  id            String             @id @default(cuid())
+  title         String // Intitulé de l'alerte (ex: Révision du Plafond CNPS Retraite)
+  source        String // Source officielle (DGI, CNPS, Journal Officiel, FDFP)
+  category      String // Catégorie (CNPS, ITS, IGR, FDFP, CMU, SMIC)
+  summary       String // Résumé synthétique
+  officialText  String? // Extrait ou référence du texte de loi / décrets
+  effectiveDate DateTime // Date d'entrée en vigueur légale
+  severity      LegalAlertSeverity @default(HIGH)
+  status        LegalAlertStatus   @default(PENDING_REVIEW)
+  proposedRates Json? // Taux et barèmes suggérés par l'IA / Parser
+
+  reviewedById String? // Validateur humain (ID Admin)
+  reviewedAt   DateTime? // Date de validation
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, severity])
+  @@index([effectiveDate])
+  @@map("legal_alerts")
+}

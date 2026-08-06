@@ -10,6 +10,7 @@ import { generateContractHTML } from "@/lib/templates/documents/contract-templat
 import { generateWorkAttestationHTML } from "@/lib/templates/documents/attestation-templates";
 import { generateSeveranceHTML } from "@/lib/templates/documents/severance-templates";
 import { PDFDocumentFactory } from "@/lib/infrastructure/pdf/pdf-document-factory";
+import { ContractPDFBuilder } from "@/lib/infrastructure/pdf/builders/contract-pdf-builder";
 
 type EmployeeDocumentRecord = Prisma.UserGetPayload<{
   include: { company: true; department: true };
@@ -54,7 +55,7 @@ function employeeHtml(input: DocumentGenerationInput, employee: EmployeeDocument
   if (input.docType === "contract") {
     return {
       title: "Contrat de travail",
-      html: generateContractHTML({
+      html: input.customBodyText ?? generateContractHTML({
         companyName, companyAddress, employeeName: name,
         employeeAddress: employee.address ?? "Abidjan",
         employeeNationality: employee.nationality ?? "Ivoirienne",
@@ -136,6 +137,32 @@ export async function POST(request: NextRequest): Promise<Response> {
       const employee = await prisma.user.findFirst({ where: { id: targetUserId, companyId: tenant.companyId } });
       if (!employee) return NextResponse.json({ success: false, error: "Salarié introuvable" }, { status: 404 });
       pdf = textPdf("RELEVÉ NOMINATIF DES SALAIRES", `${input.customName ?? employee.name}\n${JSON.stringify(input.rnsData ?? [], null, 2)}`);
+    } else if (input.docType === "contract") {
+      const employee = await prisma.user.findFirst({
+        where: { id: targetUserId, companyId: tenant.companyId },
+        include: { company: true, department: true },
+      });
+      if (!employee) return NextResponse.json({ success: false, error: "Salarié introuvable" }, { status: 404 });
+
+      pdf = ContractPDFBuilder.generatePDF({
+        companyName: input.companyName || company.name,
+        companyAddress: input.companyAddress || company.address || "Abidjan, Côte d'Ivoire",
+        companyRepresentative: input.companyRepresentative || "la Direction Générale",
+        employeeName: input.customName || employee.name,
+        employeeBirth: input.employeeBirth || "01/01/2000 à Abidjan",
+        employeeNationality: input.employeeNationality || employee.nationality || "Ivoirienne",
+        employeeCni: input.employeeCni || "Non renseigné",
+        employeeAddress: input.employeeAddress || employee.address || "Abidjan",
+        jobTitle: input.customJobTitle || employee.jobTitle || "Comptable",
+        contractType: employee.contractType || "CDI",
+        startDate: input.startDate || employee.joiningDate.toLocaleDateString("fr-FR"),
+        endDate: input.endDate,
+        articles: input.articles || [
+          { title: "Article 1er", content: `${input.customName || employee.name} est engagé(e) au poste de ${input.customJobTitle || employee.jobTitle || "Salarié"}, conformément à la Convention Collective Interprofessionnelle (CCI).` },
+          { title: "Article 2", content: "Le présent contrat prend fin sur décision unilatérale de l'une ou l'autre des parties au contrat, conformément au Code du Travail." },
+          { title: "Article 3", content: `Le salarié percevra un salaire de base de ${(input.customSalary || employee.salary).toLocaleString()} FCFA.` },
+        ],
+      });
     } else {
       const employee = await prisma.user.findFirst({
         where: { id: targetUserId, companyId: tenant.companyId },

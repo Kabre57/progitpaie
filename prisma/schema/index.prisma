@@ -1,0 +1,22 @@
+// ════════════════════════════════════════════════════════════════════════
+// PROGITPAIE — Architecture Prisma Scalable & Modulaire 🏗️
+// Point d'entrée principal réunissant l'ensemble des sous-modules
+// ════════════════════════════════════════════════════════════════════════
+
+// Core System (Base & Enums)
+// - ./core/base.prisma
+// - ./core/enums.prisma
+
+// Modules Métier
+// - ./modules/company/company.prisma
+// - ./modules/company/settings.prisma
+// - ./modules/employee/employee.prisma
+// - ./modules/employee/attendance.prisma
+// - ./modules/employee/contract.prisma
+// - ./modules/payroll/payroll.prisma
+// - ./modules/payroll/earning-line.prisma
+// - ./modules/payroll/tax-rate.prisma
+// - ./modules/leave/leave.prisma
+// - ./modules/leave/leave-ledger.prisma
+// - ./modules/document/document.prisma
+// - ./modules/document/template.prisma

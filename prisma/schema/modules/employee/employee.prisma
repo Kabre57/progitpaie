@@ -1,0 +1,88 @@
+// ════════════════════════════════════════════════════════════════════════
+// PROGITPAIE — Module Employee (Utilisateurs & Fiche du Personnel) 👤
+// ════════════════════════════════════════════════════════════════════════
+
+/// Table des Utilisateurs & Employés
+model User {
+  id                   String    @id @default(cuid())
+  name                 String // Nom complet de l'employé
+  email                String    @unique // Adresse email professionnelle
+  password             String // Mot de passe haché (Bcrypt)
+  role                 UserRole  @default(employee) // Rôle (admin / employee)
+  employeeId           String?   @unique // Matricule unique (ex: EMP-001)
+  departmentId         String? // Département rattaché
+  shiftId              String? // Horaire de travail (Shift) rattaché
+  salary               Float     @default(0) // Salaire catégoriel de base
+  sursalaire           Float     @default(0) // Sursalaire négocié
+  partsIGR             Float     @default(1.0) // Nombre de parts IGR (Quotient familial)
+  transportAllowance   Float     @default(0) // Indemnité de transport (Non imposable jusqu'à 30k FCFA)
+  housingAllowance     Float     @default(0) // Indemnité de logement
+  joiningDate          DateTime  @default(now()) // Date d'embauche
+  isActive             Boolean   @default(true) // Statut d'activité (Soft delete)
+  mustChangePassword   Boolean   @default(true) // Forcer le changement de mot de passe à la 1ère connexion
+  resetPasswordToken   String?   @unique // Jeton de réinitialisation de mot de passe
+  resetPasswordExpires DateTime? // Expiration du jeton de réinitialisation
+  civility          String?   @default("M.") // Civilité (M., Mme, Mlle)
+  gender            String?   @default("M") // Sexe (M / F)
+  birthDate         DateTime? // Date de naissance
+  birthPlace        String? // Lieu de naissance
+  idCardType        String?   @default("CNI") // Nature pièce identité (CNI, Passeport...)
+  idCardNumber      String? // N° pièce identité
+  nationality       String?   @default("IVOIRIENNE") // Nationalité
+  maritalStatus     String?   @default("Célibataire") // Situation matrimoniale
+  childrenCount     Int       @default(0) // Nombre d'enfants à charge
+  address           String? // Adresse complète
+  phone             String? // Téléphone
+  contractType      String?   @default("CDI") // Type de contrat (CDI, CDD, Stage)
+  contractSignDate  DateTime? // Date de signature du contrat
+  cddDurationMonths Int? // Durée contrat CDD (mois)
+  exitDate          DateTime? // Date de sortie
+  direction         String? // Direction (ex: ADMINISTRATION)
+  service           String? // Service (ex: SECRETARIAT EXECUTE)
+  jobTitle          String? // Emploi / Fonction (ex: Comptable)
+  jobCode           String? // Code Emploi (ex: CM, CS)
+  regime            String?   @default("Général") // Régime (Général / Agricole)
+  paymentType       String?   @default("Mensuel") // Type (Mensuel / Horaire)
+  category          String?   @default("1A") // Catégorie professionnelle (11 à 1A)
+  cnpsExempt        Boolean   @default(false) // Non soumis CNPS
+  cnpsNumber        String? // N° CNPS
+  paymentMethod     String?   @default("Virement") // Mode de paiement (Virement, Chèque, Espèces)
+  bankAccount       String? // N° de Compte Bancaire (RIB)
+  bankName          String? // Nom de la Banque (ex: SOCIETE GENERALE CI)
+
+  // Soldes de congés (en jours)
+  leaveBalanceAnnual Int @default(20)
+  leaveBalanceSick   Int @default(10)
+  leaveBalanceCasual Int @default(5)
+
+  companyId String // Entité juridique de rattachement (Multicompany 🏢)
+  workType  WorkType @default(ONSITE) // Type de présence (ONSITE, REMOTE, HYBRID)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations principales
+  company    Company     @relation("CompanyEmployees", fields: [companyId], references: [id], onDelete: Restrict)
+  department Department? @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
+  shift      Shift?      @relation("ShiftEmployees", fields: [shiftId], references: [id], onDelete: SetNull)
+
+  // Relations inverses
+  attendances          Attendance[]                   @relation("UserAttendances")
+  overriddenRecords    Attendance[]                   @relation("OverriddenAttendances")
+  leaves               Leave[]                        @relation("UserLeaves")
+  approvedLeaves       Leave[]                        @relation("ApprovedLeaves")
+  payrolls             Payroll[]
+  notifications        Notification[]
+  auditLogs            AuditLog[]
+  managedDepartments   Department[]                   @relation("DepartmentManager")
+  contracts            Contract[]
+  overtimes            Overtime[]                     
+  approvedOvertimes    Overtime[]                     @relation("ApprovedOvertimes")
+  loans                Loan[]
+  severances           Severance[]
+  leaveLedgerEntries   LeaveLedgerEntry[]             @relation("EmployeeLeaveLedger")
+  createdLedgerEntries LeaveLedgerEntry[]             @relation("LeaveLedgerCreatedBy")
+  provisionSnapshots   ProvisionCalculationSnapshot[] @relation("ProvisionCalculatedBy")
+
+  @@index([email])
+  @@map("users")
+}

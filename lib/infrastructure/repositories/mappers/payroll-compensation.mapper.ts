@@ -78,7 +78,7 @@ export function mapPayrollCompensation(
     userId: payroll.userId,
     year: payroll.year,
     month: payroll.month,
-    finalizedAt: payroll.finalizedAt ?? payroll.generatedAt,
+    finalizedAt: payroll.finalizedAt ?? payroll.generatedAt ?? payroll.createdAt ?? new Date(),
     lines,
     leaveEligibleGross,
     terminationEligibleGross,

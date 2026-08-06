@@ -13,6 +13,7 @@ interface LoginResponse {
       _id: string;
       name: string;
       role: "super_admin" | "admin" | "employee";
+      mustChangePassword?: boolean;
     };
   };
 }
@@ -42,10 +43,16 @@ export default function LoginPage() {
         return;
       }
 
+      // Vérifier si le changement de mot de passe est obligatoire à la 1ère connexion
+      if (result.data?.user?.mustChangePassword) {
+        window.location.href = "/change-password";
+        return;
+      }
+
       // Redirection selon le rôle utilisateur
       const userRole = result.data?.user?.role;
       if (userRole === "super_admin") {
-        window.location.href = "/admin/super-dashboard";
+        window.location.href = "/super-admin/dashboard";
       } else if (userRole === "admin") {
         window.location.href = "/admin";
       } else {

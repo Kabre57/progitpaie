@@ -1,0 +1,34 @@
+// ════════════════════════════════════════════════════════════════════════
+// PROGITPAIE — Module Leave (Gestion des Demandes de Congés) 🏖️
+// ════════════════════════════════════════════════════════════════════════
+
+/// Table des Demandes de Congés
+model Leave {
+  id           String      @id @default(cuid())
+  companyId    String
+  userId       String // ID de l'employé
+  leaveType    LeaveType // Type de congé (annual, sick, casual, unpaid)
+  startDate    DateTime // Date de début
+  endDate      DateTime // Date de fin
+  totalDays    Int // Nombre de jours ouvrés
+  reason       String // Motif de la demande
+  status       LeaveStatus @default(pending) // Statut de validation
+  approvedById String? // Validé/Rejeté par (Admin ID)
+  adminComment String      @default("") // Commentaire de l'administrateur
+  appliedAt    DateTime    @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user       User    @relation("UserLeaves", fields: [userId], references: [id], onDelete: Cascade)
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  approvedBy User?   @relation("ApprovedLeaves", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([startDate, endDate])
+  @@index([userId, status])
+  @@index([companyId])
+  @@map("leaves")
+}

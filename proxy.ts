@@ -60,7 +60,12 @@ export function proxy(request: NextRequest) {
     if (token) {
       const decoded = decodeJwt(token);
       if (decoded && (!decoded.exp || Date.now() < decoded.exp * 1000)) {
-        const dest = decoded.role === "admin" ? "/admin" : "/employee";
+        const dest =
+          decoded.role === "super_admin"
+            ? "/super-admin/dashboard"
+            : decoded.role === "admin"
+            ? "/admin"
+            : "/employee";
         return NextResponse.redirect(new URL(dest, request.url));
       }
     }
@@ -73,8 +78,10 @@ export function proxy(request: NextRequest) {
   if (
     path.startsWith("/dashboard") ||
     path.startsWith("/admin") ||
+    path.startsWith("/super-admin") ||
     path.startsWith("/employee") ||
-    path.startsWith("/api/admin")
+    path.startsWith("/api/admin") ||
+    path.startsWith("/api/v2/admin")
   ) {
     if (!token) {
       if (path.startsWith("/api/")) {
@@ -97,9 +104,16 @@ export function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
 
+    // Role check for super-admin routes
+    if (path.startsWith("/super-admin")) {
+      if (decoded.role !== "super_admin") {
+        return NextResponse.redirect(new URL(decoded.role === "admin" ? "/admin" : "/employee", request.url));
+      }
+    }
+
     // Role check for admin routes
     if (path.startsWith("/admin") || path.startsWith("/api/admin")) {
-      if (decoded.role !== "admin") {
+      if (decoded.role !== "admin" && decoded.role !== "super_admin") {
         if (path.startsWith("/api/")) {
           return NextResponse.json(
             { success: false, error: "Accès administrateur requis", code: "FORBIDDEN" },
@@ -112,7 +126,7 @@ export function proxy(request: NextRequest) {
 
     // Role check for employee routes
     if (path.startsWith("/employee")) {
-      if (decoded.role !== "employee") {
+      if (decoded.role !== "employee" && decoded.role !== "admin" && decoded.role !== "super_admin") {
         return NextResponse.redirect(new URL("/admin", request.url));
       }
     }
@@ -125,7 +139,12 @@ export function proxy(request: NextRequest) {
     if (token) {
       const decoded = decodeJwt(token);
       if (decoded && (!decoded.exp || Date.now() < decoded.exp * 1000)) {
-        const dest = decoded.role === "admin" ? "/admin" : "/employee";
+        const dest =
+          decoded.role === "super_admin"
+            ? "/super-admin/dashboard"
+            : decoded.role === "admin"
+            ? "/admin"
+            : "/employee";
         return NextResponse.redirect(new URL(dest, request.url));
       }
     }

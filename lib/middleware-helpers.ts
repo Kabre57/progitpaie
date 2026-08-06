@@ -66,7 +66,7 @@ export async function requireAdmin(
     );
   }
 
-  if (user.role !== "admin") {
+  if (user.role !== "admin" && user.role !== "super_admin") {
     return NextResponse.json<ApiResponse<never>>(
       {
         success: false,

@@ -36,6 +36,28 @@ export const changePasswordSchema = z.object({
   newPassword: z
     .string({ message: "Le nouveau mot de passe est requis" })
     .min(8, "Le nouveau mot de passe doit contenir au moins 8 caractères"),
+  confirmPassword: z
+    .string({ message: "La confirmation du mot de passe est requise" })
+    .optional(),
 });
 
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+export const forgotPasswordSchema = z.object({
+  email: z
+    .string({ message: "L'adresse email est requise" })
+    .email("Format d'adresse email invalide")
+    .transform((val) => val.toLowerCase().trim()),
+});
+
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const resetPasswordSchema = z.object({
+  token: z
+    .string({ message: "Le jeton de réinitialisation est requis" }),
+  newPassword: z
+    .string({ message: "Le nouveau mot de passe est requis" })
+    .min(8, "Le nouveau mot de passe doit contenir au moins 8 caractères"),
+});
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

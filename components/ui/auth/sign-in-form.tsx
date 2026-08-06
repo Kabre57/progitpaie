@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { Label, Input, PasswordInput, Button } from "@/components/ui/auth-fuse";
 
 export interface SignInFormProps {
@@ -45,15 +46,25 @@ export function SignInForm({ onSubmit, isLoading, error }: SignInFormProps) {
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
-        <PasswordInput
-          name="password"
-          label="Mot de passe"
-          required
-          autoComplete="current-password"
-          placeholder="Saisissez votre mot de passe"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <div>
+          <PasswordInput
+            name="password"
+            label="Mot de passe"
+            required
+            autoComplete="current-password"
+            placeholder="Saisissez votre mot de passe"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <div className="flex justify-end mt-1.5">
+            <Link
+              href="/forgot-password"
+              className="text-xs text-[var(--neu-accent)] hover:underline font-medium"
+            >
+              Mot de passe oublié ?
+            </Link>
+          </div>
+        </div>
         <Button type="submit" className="mt-2" disabled={isLoading}>
           {isLoading ? "Connexion en cours..." : "Se connecter"}
         </Button>

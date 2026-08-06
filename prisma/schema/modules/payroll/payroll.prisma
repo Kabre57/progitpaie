@@ -1,0 +1,185 @@
+// ════════════════════════════════════════════════════════════════════════
+// PROGITPAIE — Module Payroll (Paie, Prêts, Solde de Tout Compte & Comptabilité) 💰
+// ════════════════════════════════════════════════════════════════════════
+
+/// Snapshot immutable de la configuration du bulletin au moment de la génération
+model PayslipConfigSnapshot {
+  id String @id @default(cuid())
+
+  // Snapshot de la configuration visuelle
+  appearanceConfig Json // { primaryColor, headerTitle, headerSubtitle, logoBase64 }
+
+  // Snapshot de la configuration légale
+  legalConfig Json // { legalNotice, showEmployerStamp, showEmployeeSignature }
+
+  // Snapshot des taux métier au moment de la génération
+  ratesConfig Json // Copie complète de PayrollRatesConfig
+
+  // Préparation Multi-Company (nullable pour compatibilité ascendante)
+  companyId String
+
+  // Métadonnées
+  createdById String // Admin qui a déclenché la génération
+  createdAt   DateTime @default(now())
+
+  // Relations
+  payrolls Payroll[] @relation("PayslipConfigPayrolls")
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+  @@index([createdAt(sort: Desc)])
+  @@map("payslip_config_snapshots")
+}
+
+/// Table des Fiches de Paie Mensuelles (Super-calculateur Fiscal & Social)
+model Payroll {
+  id                   String        @id @default(cuid())
+  companyId            String
+  userId               String // ID de l'employé
+  month                Int // Mois (1 - 12)
+  year                 Int // Année (ex: 2026)
+  basicSalary          Float // Salaire de base catégoriel
+  sursalaire           Float         @default(0) // Sursalaire
+  transportAllowance   Float         @default(0) // Indemnité de transport
+  housingAllowance     Float         @default(0) // Indemnité de logement
+  presentDays          Int           @default(0) // Jours de présence effective
+  absentDays           Int           @default(0) // Jours d'absence
+  lateDays             Int           @default(0) // Nombre de retards
+  leaveDays            Int           @default(0) // Jours de congés payés
+  unpaidLeaveDays      Int           @default(0) // Jours de congés non payés
+  overtimePay          Float         @default(0) // Montant des heures supplémentaires
+  absentDeduction      Float         @default(0) // Retenue pour absence
+  lateDeduction        Float         @default(0) // Retenue pour retard (3 retards = 1 jour)
+  unpaidLeaveDeduction Float         @default(0) // Retenue pour congés non payés
+  bonuses              Float         @default(0) // Primes exceptionnelles
+  grossSalary          Float         @default(0) // Salaire Brut Total
+  itsTax               Float         @default(0) // Impôt sur Salaire (ITS : IS + CN)
+  igrTax               Float         @default(0) // Impôt Général sur le Revenu (IGR)
+  cnpsEmployee         Float         @default(0) // Cotisation CNPS Salarié (6.3%)
+  cnpsEmployer         Float         @default(0) // Cotisation CNPS Patronale (Retraite + PF + AT)
+  fdfpTax              Float         @default(0) // Taxe FDFP Patronale (TFC + TAP 1.6%)
+  totalDeductions      Float         @default(0) // Total des retenues salariales
+  netSalary            Float // Salaire Net à payer
+  status               PayrollStatus @default(draft) // Statut (draft / finalized)
+  configSnapshotId     String? // ID de la configuration appliquée
+  finalizedAt          DateTime?
+  generatedAt          DateTime?     @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company           Company                @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  configSnapshot    PayslipConfigSnapshot? @relation("PayslipConfigPayrolls", fields: [configSnapshotId], references: [id], onDelete: SetNull)
+  loanSchedules     LoanSchedule[]
+  accountingEntries AccountingEntry[]
+  earningLines      PayrollEarningLine[]
+
+  @@unique([userId, month, year])
+  @@index([month, year])
+  @@index([status])
+  @@index([companyId])
+  @@map("payrolls")
+}
+
+/// Table des Prêts & Avances sur Salaire
+model Loan {
+  id               String     @id @default(cuid())
+  companyId        String
+  userId           String // ID de l'employé
+  type             LoanType   @default(PRET) // Type (PRET / AVANCE)
+  amount           Float // Capital total prêté
+  monthlyDeduction Float // Retenue mensuelle sur salaire
+  totalRepaid      Float      @default(0) // Montant total déjà remboursé
+  remainingAmount  Float // Capital restant dû
+  startDate        DateTime // Date de mise en place
+  status           LoanStatus @default(active) // Statut (active, completed)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  schedules LoanSchedule[]
+
+  @@index([userId])
+  @@index([companyId])
+  @@map("loans")
+}
+
+/// Table des Échéances de Remboursement de Prêts
+model LoanSchedule {
+  id         String   @id @default(cuid())
+  companyId  String
+  loanId     String // ID du prêt rattaché
+  payrollId  String? // Fiche de paie sur laquelle la retenue a été effectuée
+  month      Int // Mois de remboursement
+  year       Int // Année de remboursement
+  amountPaid Float // Montant prélevé
+  paidAt     DateTime @default(now())
+
+  // Relations
+  loan    Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  company Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  payroll Payroll? @relation(fields: [payrollId], references: [id], onDelete: SetNull)
+
+  @@index([loanId])
+  @@index([companyId])
+  @@map("loan_schedules")
+}
+
+/// Table des Imputations Comptables (Journal de Paie 📖)
+model AccountingEntry {
+  id            String   @id @default(cuid())
+  companyId     String
+  payrollId     String // Fiche de paie rattachée
+  journalDate   DateTime @default(now()) // Date de l'écriture
+  pieceNumber   String // N° de pièce comptable
+  accountNumber String // N° de compte (ex: 661100, 447200, 431310, 422000)
+  accountName   String // Intitulé du compte (ex: Appointements & Salaires, Impôts sur Salaires)
+  debit         Float    @default(0) // Montant au Débit
+  credit        Float    @default(0) // Montant au Crédit
+  period        String // Période "YYYY-MM"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  payroll Payroll @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([payrollId])
+  @@index([period])
+  @@index([companyId])
+  @@map("accounting_entries")
+}
+
+/// Table des Indemnités de Rupture & Solde de Tout Compte
+model Severance {
+  id                 String          @id @default(cuid())
+  companyId          String
+  userId             String // ID de l'employé
+  contractId         String? // ID du contrat rompu
+  terminationType    TerminationType // Motif (licenciement, demission, retraite, fin_cdd)
+  exitDate           DateTime // Date de départ effectif
+  seniorityYears     Float // Ancienneté calculée (années)
+  noticeIndemnity    Float           @default(0) // Indemnité de préavis
+  severanceIndemnity Float           @default(0) // Indemnité de licenciement / départ
+  leaveCompensation  Float           @default(0) // Indemnité compensatrice de congés payés
+  gratification13th  Float           @default(0) // Prorata de gratification (13ème mois)
+  totalNetExit       Float // Total Net du solde de tout compte
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  contract Contract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([companyId])
+  @@map("severances")
+}

@@ -22,7 +22,7 @@ export function SalaryGridCard({
       <NeuCardHeader>
         <NeuCardTitle className="flex items-center gap-2 justify-between">
           <span className="flex items-center gap-2">
-            <Grid className="w-5 h-5 text-[var(--neu-accent)]" /> Grille des Salaires par Catégorie (Convention Collective)
+            <Grid className="w-5 h-5 text-[var(--neu-accent)]" /> Grille des Salaires par Catégorie
           </span>
           <NeuButton
             size="sm"

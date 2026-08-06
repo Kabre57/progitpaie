@@ -15,6 +15,7 @@ export class PrismaContractRepository implements ContractRepository {
 
     const records = await prisma.contract.findMany({
       where,
+      include: { user: { select: { id: true, name: true, email: true, employeeId: true } } },
       orderBy: { startDate: "desc" },
     });
 
@@ -24,6 +25,7 @@ export class PrismaContractRepository implements ContractRepository {
   public async findByIdForTenant(companyId: string, id: string): Promise<WorkContract | null> {
     const record = await prisma.contract.findFirst({
       where: { id, companyId },
+      include: { user: { select: { id: true, name: true, email: true, employeeId: true } } },
     });
     if (!record) return null;
     return mapPrismaToDomainContract(record);

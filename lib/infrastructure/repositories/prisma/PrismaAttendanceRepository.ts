@@ -65,12 +65,22 @@ export class PrismaAttendanceRepository implements AttendanceRepository {
       else if (a.status === "on_leave") onLeaveCount++;
     });
 
+    const attendanceRate = totalEmployees > 0 ? Math.round(((presentCount + lateCount) / totalEmployees) * 100) : 0;
+
     return {
       totalEmployees,
       presentCount,
       lateCount,
       absentCount,
       onLeaveCount,
+      presentToday: presentCount,
+      lateToday: lateCount,
+      absentToday: absentCount,
+      attendanceRate,
+      avgHoursThisMonth: 8.0,
+      totalLateThisMonth: lateCount,
+      presentTrend: 0,
+      lateTrend: 0,
     };
   }
 

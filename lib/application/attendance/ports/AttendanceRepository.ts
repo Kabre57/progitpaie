@@ -15,6 +15,14 @@ export interface TodaySummaryDTO {
   lateCount: number;
   absentCount: number;
   onLeaveCount: number;
+  presentToday?: number;
+  lateToday?: number;
+  absentToday?: number;
+  attendanceRate?: number;
+  avgHoursThisMonth?: number;
+  totalLateThisMonth?: number;
+  presentTrend?: number;
+  lateTrend?: number;
 }
 
 export interface AttendanceRepository {

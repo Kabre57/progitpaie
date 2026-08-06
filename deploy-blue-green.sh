@@ -38,6 +38,10 @@ for i in {1..10}; do
 done
 
 if [ "$HEALTH_PASSED" = true ]; then
+  echo "⚡ Application des Vues Matérialisées & Index Full-Text Search PostgreSQL..."
+  docker compose exec -T postgres psql -U progitpaie -d progitpaie -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;" || true
+  docker compose exec -T postgres psql -U progitpaie -d progitpaie -f /app/prisma/migrations/20260806190000_advanced_pg_features/migration.sql || true
+
   echo "✅ Health Check RÉUSSI ! Le déploiement Zéro Temps d'Arrêt est validé."
 else
   echo "❌ ÉCHEC DU HEALTH CHECK ! Lancement du Rollback automatique..."

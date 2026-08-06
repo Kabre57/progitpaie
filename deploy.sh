@@ -32,6 +32,11 @@ echo "🔄 Démarrage des conteneurs PROGITPAIE..."
 docker compose down
 docker compose up -d
 
+# 5. Application des Vues Matérialisées & Index Full-Text Search PostgreSQL
+echo "⚡ Application des Vues Matérialisées & Index Full-Text Search..."
+docker compose exec -T postgres psql -U progitpaie -d progitpaie -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;" || true
+docker compose exec -T postgres psql -U progitpaie -d progitpaie -f /app/prisma/migrations/20260806190000_advanced_pg_features/migration.sql || true
+
 echo "================================================================="
 echo "✅ Déploiement de PROGITPAIE terminé avec succès !"
 echo "🌐 URL : https://progitpaie.online"

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AttendanceStats } from "@/components/attendance/attendance-stats";
 import { AttendanceFilters, FilterState } from "@/components/attendance/attendance-filters";
@@ -14,7 +15,24 @@ import { useAttendanceStats, useAttendance } from "@/lib/hooks/useAttendance";
 const ITEMS_PER_PAGE = 10;
 
 export default function AdminDashboardPage() {
+  const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
+
+  const [isSuperAdmin, setIsSuperAdmin] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.success && j.data?.role === "super_admin") {
+          setIsSuperAdmin(true);
+          router.replace("/super-admin/dashboard");
+        } else {
+          setIsSuperAdmin(false);
+        }
+      })
+      .catch(() => setIsSuperAdmin(false));
+  }, [router]);
   const [filters, setFilters] = useState<FilterState>({
     month: new Date().toISOString().slice(0, 7),
     employeeId: "",
