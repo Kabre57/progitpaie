@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PROGITPAIE — Script de Rollback Automatisé (< 30 secondes) ⏪
@@ -9,19 +9,21 @@ echo "================================================================="
 echo "⏪ Lancement du Rollback vers le commit précédent..."
 echo "================================================================="
 
-# Injection des secrets de production dans l'environnement courant
-if [ -f /etc/progitpaie/production.env ]; then
+SECRETS_FILE="/etc/progitpaie/production.env"
+
+if [ -r "$SECRETS_FILE" ]; then
     set -a
     # shellcheck source=/dev/null
-    source /etc/progitpaie/production.env
+    source "$SECRETS_FILE"
     set +a
-elif [ -f .env ]; then
+elif sudo -n test -r "$SECRETS_FILE" 2>/dev/null; then
+    SECRETS_CONTENT=$(sudo cat "$SECRETS_FILE")
     set -a
-    source .env
+    eval "$SECRETS_CONTENT"
     set +a
 fi
 
-# Reset au commit Git précédent
+# Reset au commit Git précédent (ownership reste theo_pbl)
 git reset --hard HEAD~1
 
 # Relance des conteneurs

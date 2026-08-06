@@ -1,6 +1,8 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ═══════════════════════════════════════════════════════════════════════════════
+# PROGITPAIE — .gitignore (VPS Production)
+# ═══════════════════════════════════════════════════════════════════════════════
 
-# dependencies
+# ── Dépendances ──────────────────────────────────────────────────────────────
 /node_modules
 /.pnp
 .pnp.*
@@ -10,36 +12,64 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
-
-# next.js
+# ── Build Next.js ─────────────────────────────────────────────────────────────
 /.next/
 /out/
-
-# production
-/build
+/build/
 /.build/
 
-# misc
-.DS_Store
-*.pem
+# ── Secrets & Environnement ───────────────────────────────────────────────────
 .env
 .env.local
 .env.production
+.env.*.local
 .seed.env
-/backups/
+production.env
 
-# debug
+# ── Tests & Couverture ────────────────────────────────────────────────────────
+/coverage/
+/test-results/
+/playwright-report/
+
+# ── Logs & Debug ─────────────────────────────────────────────────────────────
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+/logs/
 
-
-# vercel
-.vercel
-
-# typescript
+# ── Fichiers temporaires & OS ─────────────────────────────────────────────────
+.DS_Store
+*.pem
 *.tsbuildinfo
 next-env.d.ts
+.vercel
+tsconfig.tsbuildinfo
+
+# ── Sauvegardes & Uploads ─────────────────────────────────────────────────────
+/backups/
+/uploads/
+
+# ── Fichiers d'observation (VPS runtime) ────────────────────────────────────
+observation-*/
+
+# ── Outils de charge & Monitoring (non nécessaires sur VPS) ──────────────────
+artillery-load-test.yml
+load-test.js
+grafana-dashboard.json
+prometheus.yml
+
+# ── Fichiers volumineux inutiles en prod ─────────────────────────────────────
+*.xlsx
+*.xls
+copy_logipaie_rh24.xlsx
+"©️ LOGIPAIE_RH24 .xls"
+
+# ── Scripts de diagnostic locaux (pas besoin sur VPS) ────────────────────────
+check_long_files.sh
+secure-ports.sh
+deploy-local.sh
+
+# ── Dossier nginx (géré directement sur le VPS, pas via Git) ─────────────────
+# nginx/  ← décommentez si votre config nginx est gérée manuellement sur le VPS

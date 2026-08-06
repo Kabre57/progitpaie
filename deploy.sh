@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PROGITPAIE — Script de Déploiement Automatisé Production VPS 🚀
@@ -9,26 +9,30 @@ echo "================================================================="
 echo "🚀 Démarrage du Déploiement de PROGITPAIE..."
 echo "================================================================="
 
-# 1. Injection des secrets de production dans l'environnement courant
-if [ -f /etc/progitpaie/production.env ]; then
-    echo "🔐 Chargement des secrets : /etc/progitpaie/production.env"
+SECRETS_FILE="/etc/progitpaie/production.env"
+
+# 1. Injection des secrets dans l'environnement courant
+if [ -r "$SECRETS_FILE" ]; then
+    echo "🔐 Chargement des secrets : $SECRETS_FILE"
     set -a
     # shellcheck source=/dev/null
-    source /etc/progitpaie/production.env
+    source "$SECRETS_FILE"
     set +a
-elif [ -f .env ]; then
-    echo "⚠️  Utilisation de .env local (non recommandé en production)"
+elif sudo -n test -r "$SECRETS_FILE" 2>/dev/null; then
+    echo "🔐 Chargement des secrets via sudo : $SECRETS_FILE"
+    SECRETS_CONTENT=$(sudo cat "$SECRETS_FILE")
     set -a
-    source .env
+    eval "$SECRETS_CONTENT"
     set +a
 else
-    echo "❌ Aucun fichier de secrets trouvé. Créez /etc/progitpaie/production.env"
+    echo "❌ Impossible de lire $SECRETS_FILE"
+    echo "   → Vérifiez que theo_pbl est membre du groupe progitpaie-deploy"
     exit 1
 fi
 
 # 2. Recharger le dernier code source
 echo "📦 Récupération du code source..."
-git pull origin main || echo "ℹ️ Attention: git pull a échoué."
+git pull origin main || echo "ℹ️ git pull a échoué — code local utilisé."
 
 # 3. Build des conteneurs Docker
 echo "🏗️ Construction des conteneurs Docker..."
@@ -39,10 +43,12 @@ echo "🔄 Démarrage des conteneurs PROGITPAIE..."
 docker compose down
 docker compose up -d
 
-# 5. Application des Vues Matérialisées & Index Full-Text Search PostgreSQL
+# 5. Application des Vues Matérialisées & Index Full-Text Search
 echo "⚡ Application des Vues Matérialisées & Index Full-Text Search..."
-docker compose exec -T postgres psql -U progitpaie -d progitpaie -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;" || true
-docker compose exec -T postgres psql -U progitpaie -d progitpaie -f /app/prisma/migrations/20260806190000_advanced_pg_features/migration.sql || true
+docker compose exec -T postgres psql -U "${POSTGRES_USER:-progitpaie}" -d "${POSTGRES_DB:-progitpaie}" \
+  -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;" || true
+docker compose exec -T postgres psql -U "${POSTGRES_USER:-progitpaie}" -d "${POSTGRES_DB:-progitpaie}" \
+  -f /app/prisma/migrations/20260806190000_advanced_pg_features/migration.sql || true
 
 echo "================================================================="
 echo "✅ Déploiement de PROGITPAIE terminé avec succès !"
