@@ -59,6 +59,7 @@ const navItems = [
   { name: "Journal d'Audit", href: "/admin/audit-logs", icon: ScrollText },
   { name: "Audit Global (Super Admin)", href: "/admin/audit-logs-global", icon: ScrollText },
   { name: "Paramètres", href: "/admin/settings", icon: Settings },
+  { name: "Paramètres Globaux (Super Admin)", href: "/admin/global-settings", icon: Settings },
 ];
 
 export function AdminSidebar() {
