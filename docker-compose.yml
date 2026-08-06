@@ -8,9 +8,9 @@ services:
       context: .
       dockerfile: Dockerfile
       target: builder
-    command: ["npx", "prisma", "migrate", "deploy"]
+    command: ["npx", "prisma", "migrate", "deploy", "--schema=prisma/schema"]
     environment:
-      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://progitpaie:progitpaie_pass_2026@postgres:5432/progitpaie?schema=public}
     depends_on:
       postgres:
         condition: service_healthy
@@ -28,10 +28,10 @@ services:
       - "127.0.0.1:3500:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://progitpaie:progitpaie_pass_2026@postgres:5432/progitpaie?schema=public}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      - JWT_SECRET=${JWT_SECRET:-progitpaie_jwt_secret_2026_super_secret_key_32bytes}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-progitpaie_encryption_key_2026_super_secret_key}
       - ENCRYPTION_KEY_PREVIOUS=${ENCRYPTION_KEY_PREVIOUS:-}
       - ENCRYPTION_KEYS=${ENCRYPTION_KEYS:-}
     depends_on:
@@ -53,7 +53,7 @@ services:
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-progitpaie}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-progitpaie_pass_2026}
       - POSTGRES_DB=${POSTGRES_DB:-progitpaie}
     ports:
       - "127.0.0.1:5433:5432"
