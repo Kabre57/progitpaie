@@ -29,12 +29,14 @@ import {
   ShieldCheck,
   Send,
   PieChart,
+  LayoutGrid,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSidebar } from "@/lib/SidebarContext";
 
 const navItems = [
   { name: "Tableau de Bord", href: "/admin", icon: LayoutDashboard },
+  { name: "Dashboard Groupe (Super Admin)", href: "/admin/super-dashboard", icon: LayoutGrid },
   { name: "Salariés & Personnel", href: "/admin/employees", icon: Users },
   { name: "Contrats RH", href: "/admin/contracts", icon: FileText },
   { name: "Pointages & Présences", href: "/admin/attendance", icon: ClipboardCheck },
