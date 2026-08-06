@@ -101,9 +101,9 @@ export default function ApiKeysAdminPage() {
         <div className="flex items-center gap-3">
           <ShieldCheck className="text-purple-500 shrink-0" size={24} />
           <div>
-            <h3 className="font-bold text-sm text-[var(--neu-text)]">API REST Gateway v1 Actif</h3>
+            <h3 className="font-bold text-sm text-[var(--neu-text)]">API REST Gateway v2 &amp; GraphQL Actif</h3>
             <p className="text-xs text-[var(--neu-text-subtle)]">
-              Endpoints disponibles : <code className="text-purple-600">/api/v1/employees</code> et <code className="text-purple-600">/api/v1/payroll</code>
+              Endpoints disponibles : <code className="text-purple-600">/api/v2/employees</code>, <code className="text-purple-600">/api/v2/payroll</code> et <code className="text-purple-600">/api/graphql</code>
             </p>
           </div>
         </div>

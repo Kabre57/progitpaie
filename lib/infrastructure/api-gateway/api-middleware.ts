@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
- * PROGITPAIE — Middleware de Securite API Publique ERP (/api/v1/*) 🔌
+ * PROGITPAIE — Middleware de Sécurité API Publique ERP (/api/v2/* & /api/graphql) 🔌
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
