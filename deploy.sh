@@ -9,10 +9,10 @@ echo "================================================================="
 echo "🚀 Démarrage du Déploiement de PROGITPAIE..."
 echo "================================================================="
 
-# 1. Vérification du fichier .env
+# 1. Vérification / Création automatique du fichier .env
 if [ ! -f .env ]; then
-    echo "❌ Le fichier .env est requis. Copiez .env.production.example puis renseignez des secrets uniques."
-    exit 1
+    echo "⚙️ Fichier .env absent, création automatique à partir de .env.example..."
+    cp .env.example .env
 fi
 
 # 2. Recharger le dernier code source sans jamais écraser les secrets locaux

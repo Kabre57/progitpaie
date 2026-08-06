@@ -15,6 +15,10 @@ cd "$APP_DIR" || exit 1
 # Reset au commit Git précédent
 git reset --hard HEAD~1
 
+if [ ! -f .env ]; then
+    cp .env.example .env
+fi
+
 # Relance des conteneurs
 docker compose up -d --build app || docker compose up -d
 

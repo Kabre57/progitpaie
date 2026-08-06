@@ -9,10 +9,13 @@ echo "================================================================="
 echo "🚀 Démarrage du Déploiement Zéro Temps d'Arrêt (Blue-Green)..."
 echo "================================================================="
 
-APP_DIR="/home/theo_pbl/apps/progitpaie"
-cd "$APP_DIR" || exit 1
+# 1. Vérification / Création automatique du fichier .env si inexistant
+if [ ! -f .env ]; then
+    echo "⚙️ Fichier .env absent, création automatique à partir de .env.example..."
+    cp .env.example .env
+fi
 
-# 1. Pull du dernier code
+# 1b. Pull du dernier code
 git fetch origin main
 git reset --hard origin/main
 
@@ -24,16 +27,16 @@ docker compose build app || docker compose build
 echo "🔄 Relance du conteneur d'application..."
 docker compose up -d --no-deps --build app || docker compose up -d
 
-# 4. Attente et vérification du Health Check
+# 4. Attente et vérification du Health Check (20 tentatives de 3s = 60s)
 echo "⏳ Vérification du Health Check (/api/health)..."
 HEALTH_PASSED=false
-for i in {1..10}; do
+for i in {1..20}; do
   HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3500/api/health || true)
   if [ "$HTTP_STATUS" -eq 200 ]; then
     HEALTH_PASSED=true
     break
   fi
-  echo "Attente du démarrage (Tentative $i/10, Status: $HTTP_STATUS)..."
+  echo "Attente du démarrage (Tentative $i/20, Status: $HTTP_STATUS)..."
   sleep 3
 done
 
