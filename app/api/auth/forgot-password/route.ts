@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { validateBody } from "@/lib/validate";
 import { forgotPasswordSchema } from "@/lib/validators/auth.schema";
+import { sendEmail, emailTemplates } from "@/lib/email";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
@@ -35,9 +36,13 @@ export async function POST(request: NextRequest) {
       });
 
       const resetUrl = `${request.nextUrl.origin}/reset-password?token=${rawToken}`;
+      const template = emailTemplates.passwordReset(resetUrl);
 
-      console.log(`[AUTH] Demande de réinitialisation de mot de passe pour ${email} :`);
-      console.log(`[AUTH] Lien direct : ${resetUrl}`);
+      await sendEmail({
+        to: email,
+        subject: template.subject,
+        html: template.html,
+      });
     }
 
     // Réponse neutre pour des raisons de sécurité
@@ -45,10 +50,11 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Si cette adresse email est associée à un compte actif, vous recevrez un lien de réinitialisation de mot de passe.",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Forgot password error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Erreur serveur";
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur", code: "SERVER_ERROR" },
+      { success: false, error: errorMessage, code: "SERVER_ERROR" },
       { status: 500 }
     );
   }

@@ -1,54 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ClipboardCheck, Loader2, ChevronLeft, ChevronRight, Filter, Download, Upload } from "lucide-react";
-import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/components/ui/neu-card";
+import { ClipboardCheck } from "lucide-react";
 import { NeuButton } from "@/components/ui/neu-button";
-import { NeuBadge } from "@/components/ui/neu-badge";
 import { NeuSelect } from "@/components/ui/neu-select";
 import { NeuInput } from "@/components/ui/neu-input";
-import {
-  NeuTable,
-  NeuTableHeader,
-  NeuTableBody,
-  NeuTableRow,
-  NeuTableHead,
-  NeuTableCell,
-} from "@/components/ui/neu-table";
 import { NeuDialog } from "@/components/ui/neu-dialog";
-import { List2, ListItem } from "@/components/ui/list-2";
-import { User as UserIcon, MapPin, Clock } from "lucide-react";
 
-interface AttendanceRecord {
-  _id: string;
-  userId: {
-    _id: string;
-    name: string;
-    email: string;
-    employeeId?: string;
-  };
-  date: string;
-  checkIn: string;
-  checkOut: string | null;
-  status: "present" | "absent" | "late" | "half-day" | "on-leave";
-  hoursWorked: number;
-  notes?: string;
-  overriddenBy?: { name: string };
-  overriddenAt?: string;
-  outOfOffice?: boolean;
-  location?: {
-    lat: number | null;
-    lng: number | null;
-  };
-}
-
-interface TodaySummary {
-  totalEmployees: number;
-  presentToday: number;
-  absentToday: number;
-  lateToday: number;
-  onLeaveToday: number;
-}
+import { AttendanceStatsCards, TodaySummary } from "@/components/admin/attendance/AttendanceStatsCards";
+import { AttendanceFilterBar } from "@/components/admin/attendance/AttendanceFilterBar";
+import { AttendanceTable, AttendanceRecord } from "@/components/admin/attendance/AttendanceTable";
 
 const statusOptions = [
   { value: "", label: "Tous les statuts" },
@@ -66,8 +27,6 @@ const overrideStatusOptions = [
   { value: "half-day", label: "Demi-journée" },
   { value: "on-leave", label: "En congé" },
 ];
-
-import { NeuPagination } from "@/components/ui/neu-pagination";
 
 export default function AdminAttendancePage() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
@@ -107,7 +66,7 @@ export default function AdminAttendancePage() {
       } else {
         setError(data.error || "Failed to fetch attendance");
       }
-    } catch (err) {
+    } catch {
       setError("Failed to fetch attendance");
     } finally {
       setIsLoading(false);
@@ -149,34 +108,6 @@ export default function AdminAttendancePage() {
     return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   };
 
-  const getLocationBadge = (record: AttendanceRecord) => {
-    if (!record.location?.lat || !record.location?.lng) {
-      return <NeuBadge variant="default">No GPS</NeuBadge>;
-    }
-    if (record.outOfOffice) {
-      return <NeuBadge variant="warning">Out of Office</NeuBadge>;
-    }
-    return <NeuBadge variant="success">In Office</NeuBadge>;
-  };
-
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "present":
-        return "present" as const;
-      case "late":
-        return "late" as const;
-      case "absent":
-        return "absent" as const;
-      case "half-day":
-        return "warning" as const;
-      case "on-leave":
-        return "accent" as const;
-      default:
-        return "default" as const;
-    }
-  };
-
-  // Filter records
   const filteredRecords = records.filter((record) => {
     const matchesStatus = !filters.status || record.status === filters.status;
     const matchesSearch =
@@ -187,11 +118,9 @@ export default function AdminAttendancePage() {
     return matchesStatus && matchesSearch;
   });
 
-  // Pagination
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
   const paginatedRecords = filteredRecords.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // Open override dialog
   const openOverrideDialog = (record: AttendanceRecord) => {
     setSelectedRecord(record);
     setOverrideStatus(record.status);
@@ -199,7 +128,6 @@ export default function AdminAttendancePage() {
     setIsOverrideDialogOpen(true);
   };
 
-  // Handle override
   const handleOverride = async () => {
     if (!selectedRecord) return;
     setIsSubmitting(true);
@@ -216,14 +144,13 @@ export default function AdminAttendancePage() {
       } else {
         setError(data.error || "Failed to override attendance");
       }
-    } catch (err) {
+    } catch {
       setError("Failed to override attendance");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Handle import
   const handleImport = async () => {
     if (!importFile) return;
     setIsSubmitting(true);
@@ -241,7 +168,7 @@ export default function AdminAttendancePage() {
       } else {
         setError(data.error || "Failed to import");
       }
-    } catch (err) {
+    } catch {
       setError("Failed to import");
     } finally {
       setIsSubmitting(false);
@@ -251,296 +178,108 @@ export default function AdminAttendancePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-[var(--neu-text)] flex items-center gap-3">
-            <ClipboardCheck className="w-6 h-6 md:w-8 md:h-8 text-[var(--neu-accent)]" />
-            Pointages & Présences Quotidiennes
-          </h1>
-          <p className="text-xs md:text-sm text-[var(--neu-text-secondary)] mt-1">
-            Suivi en temps réel des arrivées, retards, absences et géolocalisation des salariés.
-          </p>
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <NeuButton variant="ghost" onClick={() => setIsImportDialogOpen(true)} className="flex-1 sm:flex-none">
-            <Upload className="w-4 h-4" />
-            Importer Fichier CSV
-          </NeuButton>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-[var(--neu-text)] flex items-center gap-2">
+          <ClipboardCheck className="w-6 h-6 text-[var(--neu-accent)]" /> Gestion de la Présence
+        </h1>
+        <p className="text-[var(--neu-text-secondary)] text-sm">
+          Suivi en temps réel des pointages, retards et ajustements de présence des collaborateurs.
+        </p>
       </div>
 
-      {/* Today's Summary */}
-      {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-          <NeuCard>
-            <NeuCardContent className="p-4">
-              <p className="text-sm text-[var(--neu-text-secondary)]">Total Salariés</p>
-              <p className="text-2xl font-bold">{summary.totalEmployees}</p>
-            </NeuCardContent>
-          </NeuCard>
-          <NeuCard>
-            <NeuCardContent className="p-4">
-              <p className="text-sm text-[var(--neu-text-secondary)]">Présents</p>
-              <p className="text-2xl font-bold text-[var(--neu-success)]">{summary.presentToday}</p>
-            </NeuCardContent>
-          </NeuCard>
-          <NeuCard>
-            <NeuCardContent className="p-4">
-              <p className="text-sm text-[var(--neu-text-secondary)]">Absents</p>
-              <p className="text-2xl font-bold text-[var(--neu-danger)]">{summary.absentToday}</p>
-            </NeuCardContent>
-          </NeuCard>
-          <NeuCard>
-            <NeuCardContent className="p-4">
-              <p className="text-sm text-[var(--neu-text-secondary)]">En Retard</p>
-              <p className="text-2xl font-bold text-[var(--neu-warning)]">{summary.lateToday}</p>
-            </NeuCardContent>
-          </NeuCard>
-          <NeuCard>
-            <NeuCardContent className="p-4">
-              <p className="text-sm text-[var(--neu-text-secondary)]">En Congé</p>
-              <p className="text-2xl font-bold">{summary.onLeaveToday}</p>
-            </NeuCardContent>
-          </NeuCard>
+      {error && (
+        <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-lg text-sm font-medium">
+          {error}
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex flex-col lg:flex-row gap-4 items-center bg-[var(--neu-surface)] p-4 rounded-xl border border-[var(--neu-border)] shadow-sm">
-        <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-start bg-[var(--neu-surface)] p-1 rounded-lg border border-[var(--neu-border)]">
-          <NeuButton
-            size="icon"
-            variant="ghost"
-            onClick={() => setCurrentMonth(getPreviousMonth(currentMonth))}
-            className="h-9 w-9"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </NeuButton>
-          <span className="text-sm font-bold min-w-[120px] text-center text-[var(--neu-text)] uppercase tracking-wider">
-            {currentMonth ? getMonthName(currentMonth) : ""}
-          </span>
-          <NeuButton
-            size="icon"
-            variant="ghost"
-            onClick={() => setCurrentMonth(getNextMonth(currentMonth))}
-            className="h-9 w-9"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </NeuButton>
-        </div>
+      {/* Cartes KPI Présence */}
+      <AttendanceStatsCards summary={summary} />
 
-        <div className="flex flex-col sm:flex-row gap-4 w-full flex-1">
-          <div className="flex-1">
-            <NeuSelect
-              options={statusOptions}
-              value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-              className="w-full h-11"
-              placeholder="Tous les statuts"
-            />
-          </div>
-          <div className="flex-[2]">
-            <NeuInput
-              placeholder="Rechercher par nom, email ou matricule..."
-              value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              icon={<Filter className="w-4 h-4" />}
-              className="w-full h-11"
-            />
-          </div>
-        </div>
-      </div>
+      {/* Filtres & Recherche */}
+      <AttendanceFilterBar
+        currentMonth={currentMonth}
+        getMonthName={getMonthName}
+        getPreviousMonth={getPreviousMonth}
+        getNextMonth={getNextMonth}
+        onMonthChange={setCurrentMonth}
+        statusFilter={filters.status}
+        onStatusFilterChange={(st) => setFilters((prev) => ({ ...prev, status: st }))}
+        statusOptions={statusOptions}
+        searchQuery={filters.search}
+        onSearchChange={(sc) => setFilters((prev) => ({ ...prev, search: sc }))}
+        onOpenImportDialog={() => setIsImportDialogOpen(true)}
+        recordsCount={filteredRecords.length}
+      />
 
-      {/* Attendance Table */}
-      <NeuCard>
-        <NeuCardHeader>
-          <NeuCardTitle>Attendance Records ({filteredRecords.length})</NeuCardTitle>
-        </NeuCardHeader>
-        <NeuCardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-[var(--neu-accent)]" />
-            </div>
-          ) : filteredRecords.length === 0 ? (
-            <div className="text-center py-12 text-[var(--neu-text-secondary)]">
-              <ClipboardCheck className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No attendance records found</p>
-            </div>
-          ) : (
-            <List2 
-              items={paginatedRecords.map((record) => ({
-                icon: <UserIcon className="w-5 h-5" />,
-                title: record.userId.name,
-                category: record.userId.employeeId || "No ID",
-                description: (
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-3">
-                      <span className="flex items-center gap-1 opacity-70">
-                        <Clock className="w-3.5 h-3.5" />
-                        {record.checkIn ? new Date(record.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "-"}
-                      </span>
-                      <span>→</span>
-                      <span className="flex items-center gap-1 opacity-70">
-                        {record.checkOut ? new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "-"}
-                      </span>
-                      <span className="ml-2 font-bold text-[var(--neu-accent)]">
-                        {record.hoursWorked?.toFixed(1) || "0"}h
-                      </span>
-                    </div>
-                    <div className="text-sm font-medium opacity-60">
-                      {record.date}
-                    </div>
-                  </div>
-                ),
-                status: (
-                  <div className="flex items-center gap-3">
-                    {getLocationBadge(record)}
-                    <NeuBadge variant={getStatusBadgeVariant(record.status)}>
-                      {record.status}
-                    </NeuBadge>
-                  </div>
-                ),
-                onClick: () => openOverrideDialog(record)
-              }))}
-            />
-          )}
-        </NeuCardContent>
-        <NeuPagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={filteredRecords.length}
-          itemsPerPage={itemsPerPage}
-          onPageChange={setCurrentPage}
-        />
-      </NeuCard>
+      {/* Tableau des Pointages */}
+      <AttendanceTable
+        records={paginatedRecords}
+        isLoading={isLoading}
+        onOpenOverrideDialog={openOverrideDialog}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filteredRecords.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+      />
 
-      {/* Override Dialog */}
+      {/* Modale d'ajustement du statut */}
       <NeuDialog
         open={isOverrideDialogOpen}
         onClose={() => setIsOverrideDialogOpen(false)}
-        title="Override Attendance"
+        title={`Ajuster le statut de ${selectedRecord?.userId.name}`}
       >
         <div className="space-y-4">
-          {selectedRecord && (
-            <div className="p-4 bg-[var(--neu-surface-light)] rounded-[var(--neu-radius)]">
-              <p className="font-medium">{selectedRecord.userId.name}</p>
-              <p className="text-sm text-[var(--neu-text-secondary)]">
-                {selectedRecord.date} • Current: {selectedRecord.status}
-              </p>
-            </div>
-          )}
           <NeuSelect
-            label="New Status"
+            label="Nouveau Statut"
             options={overrideStatusOptions}
             value={overrideStatus}
             onChange={(e) => setOverrideStatus(e.target.value)}
           />
           <NeuInput
-            label="Notes (optional)"
-            placeholder="Reason for override"
+            label="Motif / Note d'ajustement"
             value={overrideNotes}
             onChange={(e) => setOverrideNotes(e.target.value)}
+            placeholder="ex: Retard justifié par la direction..."
           />
-          <div className="flex gap-3 pt-4">
-            <NeuButton
-              variant="accent"
-              onClick={handleOverride}
-              loading={isSubmitting}
-              className="flex-1"
-            >
-              Update Status
+          <div className="flex justify-end gap-3 pt-3 border-t border-[var(--neu-border)]">
+            <NeuButton variant="ghost" onClick={() => setIsOverrideDialogOpen(false)}>
+              Annuler
             </NeuButton>
-            <NeuButton
-              variant="ghost"
-              onClick={() => setIsOverrideDialogOpen(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
+            <NeuButton variant="accent" onClick={handleOverride} disabled={isSubmitting}>
+              {isSubmitting ? "Enregistrement..." : "Confirmer l'ajustement"}
             </NeuButton>
           </div>
         </div>
       </NeuDialog>
 
-      {/* Import Dialog */}
+      {/* Modale d'importation CSV */}
       <NeuDialog
         open={isImportDialogOpen}
-        onClose={() => {
-          setIsImportDialogOpen(false);
-          setImportResult(null);
-          setImportFile(null);
-        }}
-        title="Import Attendance CSV"
+        onClose={() => setIsImportDialogOpen(false)}
+        title="Importer les pointages CSV"
       >
         <div className="space-y-4">
-          {!importResult ? (
-            <>
-              <p className="text-sm text-[var(--neu-text-secondary)]">
-                CSV format: employeeId,date,checkIn,checkOut,status
-              </p>
-              <input
-                type="file"
-                accept=".csv"
-                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                className="block w-full text-sm text-[var(--neu-text-secondary)]
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-full file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-[var(--neu-accent)] file:text-white
-                  hover:file:bg-[var(--neu-accent-hover)]"
-              />
-              <div className="flex gap-3 pt-4">
-                <NeuButton
-                  variant="accent"
-                  onClick={handleImport}
-                  loading={isSubmitting}
-                  disabled={!importFile}
-                  className="flex-1"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Import
-                </NeuButton>
-                <NeuButton
-                  variant="ghost"
-                  onClick={() => setIsImportDialogOpen(false)}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </NeuButton>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="p-4 bg-[var(--neu-success)]/10 rounded-[var(--neu-radius)]">
-                <p className="font-medium text-[var(--neu-success)]">
-                  Import Complete!
-                </p>
-                <p className="text-sm mt-1">
-                  {importResult.imported} imported, {importResult.skipped} skipped
-                </p>
-              </div>
-              {importResult.errors.length > 0 && (
-                <div className="max-h-40 overflow-y-auto">
-                  <p className="text-sm font-medium mb-2">Errors:</p>
-                  {importResult.errors.map((err, i) => (
-                    <p key={i} className="text-xs text-[var(--neu-danger)]">
-                      {err}
-                    </p>
-                  ))}
-                </div>
-              )}
-              <NeuButton
-                variant="accent"
-                onClick={() => {
-                  setImportResult(null);
-                  setImportFile(null);
-                  setIsImportDialogOpen(false);
-                }}
-                className="w-full"
-              >
-                Done
-              </NeuButton>
-            </>
+          <input
+            type="file"
+            accept=".csv"
+            onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+            className="w-full text-sm text-[var(--neu-text)]"
+          />
+          {importResult && (
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs rounded-lg">
+              {importResult.imported} pointages importés avec succès, {importResult.skipped} ignorés.
+            </div>
           )}
+          <div className="flex justify-end gap-3 pt-3 border-t border-[var(--neu-border)]">
+            <NeuButton variant="ghost" onClick={() => setIsImportDialogOpen(false)}>
+              Fermer
+            </NeuButton>
+            <NeuButton variant="accent" onClick={handleImport} disabled={!importFile || isSubmitting}>
+              {isSubmitting ? "Importation..." : "Lancer l'importation"}
+            </NeuButton>
+          </div>
         </div>
       </NeuDialog>
     </div>

@@ -5,19 +5,10 @@ import { Key, Plus, Copy, Check, ShieldCheck, Cpu, RefreshCw } from "lucide-reac
 import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuInput } from "@/components/ui/neu-input";
-
-interface ApiKeyItem {
-  id: string;
-  name: string;
-  keyPrefix: string;
-  permissions: any;
-  lastUsedAt?: string;
-  createdAt: string;
-  isActive: boolean;
-}
+import { ApiKeyItemDTO } from "@/shared/types/contracts/api-keys.contract";
 
 export default function ApiKeysAdminPage() {
-  const [keys, setKeys] = useState<ApiKeyItem[]>([]);
+  const [keys, setKeys] = useState<ApiKeyItemDTO[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [name, setName] = useState<string>("");
@@ -119,10 +110,10 @@ export default function ApiKeysAdminPage() {
 
       {/* CLÉS API EXISTANTES */}
       <NeuCard className="p-6 space-y-4">
-        <h2 className="text-lg font-bold text-[var(--neu-text)]">Clés d'Intégration ERP Actives</h2>
+        <h2 className="text-lg font-bold text-[var(--neu-text)]">Clés d&apos;Intégration ERP Actives</h2>
 
         {loading ? (
-          <div className="text-center py-8 text-[var(--neu-text-subtle)]">Chargement des clés d'API ERP...</div>
+          <div className="text-center py-8 text-[var(--neu-text-subtle)]">Chargement des clés d&apos;API ERP...</div>
         ) : keys.length === 0 ? (
           <div className="text-center py-8 text-[var(--neu-text-subtle)]">Aucune clé API générée.</div>
         ) : (
@@ -168,7 +159,7 @@ export default function ApiKeysAdminPage() {
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-[var(--neu-bg)] border border-[var(--neu-border)] p-6 rounded-2xl max-w-lg w-full space-y-4 shadow-xl">
-            <h3 className="text-lg font-bold text-[var(--neu-text)]">Nouvelle Clé d'API ERP</h3>
+            <h3 className="text-lg font-bold text-[var(--neu-text)]">Nouvelle Clé d&apos;API ERP</h3>
 
             {newRawKey ? (
               <div className="space-y-4">
@@ -194,7 +185,7 @@ export default function ApiKeysAdminPage() {
                     }}
                     className="bg-purple-600 text-white"
                   >
-                    J'ai copié la clé
+                    J&apos;ai copié la clé
                   </NeuButton>
                 </div>
               </div>
@@ -202,7 +193,7 @@ export default function ApiKeysAdminPage() {
               <form onSubmit={handleCreateKey} className="space-y-4">
                 <div>
                   <label className="text-xs font-semibold text-[var(--neu-text-subtle)] block mb-1">
-                    Intitulé de l'ERP ou Système Tiers *
+                    Intitulé de l&apos;ERP ou Système Tiers *
                   </label>
                   <NeuInput
                     type="text"

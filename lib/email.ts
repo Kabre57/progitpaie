@@ -63,7 +63,12 @@ export const emailTemplates = {
   }),
 
   lateCheckIn: (name: string, date: string, checkInTime: string) => ({
-    subject: "Late Check-in Notice",
-    html: `<h1>Hello ${name},</h1><p>You checked in at ${checkInTime} on ${date}, which is recorded as late.</p>`,
+    subject: "Notice de retard de pointage",
+    html: `<h1>Bonjour ${name},</h1><p>Votre pointage de ${checkInTime} le ${date} a été enregistré comme en retard.</p>`,
+  }),
+
+  passwordReset: (resetUrl: string) => ({
+    subject: "Réinitialisation de votre mot de passe — PROGITPAIE",
+    html: `<h1>Réinitialisation de votre mot de passe</h1><p>Vous avez demandé la réinitialisation de votre mot de passe. Cliquez sur le lien ci-dessous pour le réinitialiser :</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>Ce lien expirera dans 1 heure.</p>`,
   }),
 };

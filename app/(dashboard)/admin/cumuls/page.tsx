@@ -8,11 +8,12 @@ import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/componen
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuBadge } from "@/components/ui/neu-badge";
 import { NeuPagination } from "@/components/ui/neu-pagination";
+import { CumulsResponseDTO, MonthlyCumulDTO, EmployeeAnnualCumulDTO } from "@/shared/types/contracts/cumuls.contract";
 
 export default function CumulsPage() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<CumulsResponseDTO | null>(null);
   const [activeTab, setActiveTab] = useState<"monthly" | "employee" | "annual">("monthly");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -166,7 +167,7 @@ export default function CumulsPage() {
       {activeTab === "monthly" && (
         <NeuCard>
           <NeuCardHeader>
-            <NeuCardTitle>Tableau des Cumuls Mensuels de l'Année {year}</NeuCardTitle>
+            <NeuCardTitle>Tableau des Cumuls Mensuels de l&apos;Année {year}</NeuCardTitle>
           </NeuCardHeader>
           <NeuCardContent className="p-0 overflow-x-auto">
             <table className="w-full text-left border-collapse text-sm">
@@ -183,21 +184,21 @@ export default function CumulsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--neu-border)]">
-                {monthlyCumuls.map((m: any) => (
+                {monthlyCumuls.map((m: MonthlyCumulDTO) => (
                   <tr key={m.month} className="hover:bg-[var(--neu-surface-light)] transition-colors">
                     <td className="px-4 py-3 font-semibold text-[var(--neu-text)]">{m.monthName}</td>
                     <td className="px-4 py-3 text-center">
-                      <NeuBadge variant={m.totalEmployees > 0 ? "success" : "ghost"}>
-                        {m.totalEmployees}
+                      <NeuBadge variant={(m.totalEmployees || 0) > 0 ? "success" : "ghost"}>
+                        {m.totalEmployees || 0}
                       </NeuBadge>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono">{m.totalGrossSalary.toLocaleString()} F</td>
-                    <td className="px-4 py-3 text-right font-mono text-amber-500">{m.totalItsTax.toLocaleString()} F</td>
-                    <td className="px-4 py-3 text-right font-mono text-emerald-500">{m.totalCnpsEmployee.toLocaleString()} F</td>
-                    <td className="px-4 py-3 text-right font-mono text-emerald-600">{m.totalCnpsEmployer.toLocaleString()} F</td>
-                    <td className="px-4 py-3 text-right font-mono text-blue-500">{m.totalFdfpTax.toLocaleString()} F</td>
+                    <td className="px-4 py-3 text-right font-mono">{(m.totalGrossSalary || 0).toLocaleString()} F</td>
+                    <td className="px-4 py-3 text-right font-mono text-amber-500">{(m.totalItsTax || 0).toLocaleString()} F</td>
+                    <td className="px-4 py-3 text-right font-mono text-emerald-500">{(m.totalCnpsEmployee || 0).toLocaleString()} F</td>
+                    <td className="px-4 py-3 text-right font-mono text-emerald-600">{(m.totalCnpsEmployer || 0).toLocaleString()} F</td>
+                    <td className="px-4 py-3 text-right font-mono text-blue-500">{(m.totalFdfpTax || 0).toLocaleString()} F</td>
                     <td className="px-4 py-3 text-right font-mono font-bold text-[var(--neu-accent)]">
-                      {m.totalNetSalary.toLocaleString()} F
+                      {(m.totalNetSalary || 0).toLocaleString()} F
                     </td>
                   </tr>
                 ))}
@@ -229,11 +230,11 @@ export default function CumulsPage() {
                 {employeeCumuls.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center text-[var(--neu-text-secondary)]">
-                      Aucune donnée de paie calculée pour l'année {year}.
+                      Aucune donnée de paie calculée pour l&apos;année {year}.
                     </td>
                   </tr>
                 ) : (
-                  paginatedEmployeeCumuls.map((e: any) => (
+                  paginatedEmployeeCumuls.map((e: EmployeeAnnualCumulDTO) => (
                     <tr key={e.userId} className="hover:bg-[var(--neu-surface-light)] transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
@@ -248,10 +249,10 @@ export default function CumulsPage() {
                       <td className="px-4 py-3 text-center">
                         <NeuBadge variant="accent">{e.monthsPaid} mois</NeuBadge>
                       </td>
-                      <td className="px-4 py-3 text-right font-mono">{e.cumulGrossSalary.toLocaleString()} F</td>
-                      <td className="px-4 py-3 text-right font-mono text-rose-500">{e.cumulDeductions.toLocaleString()} F</td>
+                      <td className="px-4 py-3 text-right font-mono">{(e.cumulGrossSalary || 0).toLocaleString()} F</td>
+                      <td className="px-4 py-3 text-right font-mono text-rose-500">{(e.cumulDeductions || 0).toLocaleString()} F</td>
                       <td className="px-4 py-3 text-right font-mono font-bold text-[var(--neu-accent)]">
-                        {e.cumulNetSalary.toLocaleString()} F
+                        {(e.cumulNetSalary || 0).toLocaleString()} F
                       </td>
                     </tr>
                   ))

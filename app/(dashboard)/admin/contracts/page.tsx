@@ -10,10 +10,11 @@ import { FileText, Plus, Download, Search, CheckCircle, RefreshCw, Edit3 } from 
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
 
 import { NeuPagination } from "@/components/ui/neu-pagination";
+import { ContractItemDTO, EmployeeOptionDTO } from "@/shared/types/contracts/contracts.contract";
 
 export default function ContractsPage() {
-  const [contracts, setContracts] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
+  const [contracts, setContracts] = useState<ContractItemDTO[]>([]);
+  const [employees, setEmployees] = useState<EmployeeOptionDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -244,7 +245,7 @@ export default function ContractsPage() {
                         size="sm"
                         variant="accent"
                         onClick={() => setActiveEditDoc({
-                          userId: typeof c.userId === "object" ? (c.userId as any).id : c.userId,
+                          userId: typeof c.userId === "object" ? c.userId.id : c.userId,
                           name: c.user?.name || "",
                           jobTitle: c.jobTitle,
                           salary: c.baseSalary,
@@ -264,7 +265,7 @@ export default function ContractsPage() {
                         size="sm"
                         variant="ghost"
                         onClick={() => setActiveEditDoc({
-                          userId: typeof c.userId === "object" ? (c.userId as any).id : c.userId,
+                          userId: typeof c.userId === "object" ? c.userId.id : c.userId,
                           name: c.user?.name || "",
                           jobTitle: c.jobTitle,
                           salary: c.baseSalary,
@@ -284,7 +285,7 @@ export default function ContractsPage() {
                         size="sm"
                         variant="ghost"
                         onClick={() => setActiveEditDoc({
-                          userId: typeof c.userId === "object" ? (c.userId as any).id : c.userId,
+                          userId: typeof c.userId === "object" ? c.userId.id : c.userId,
                           name: c.user?.name || "",
                           jobTitle: c.jobTitle,
                           salary: c.baseSalary,

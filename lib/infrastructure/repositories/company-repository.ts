@@ -9,6 +9,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 
 export interface CompanyData {
   id: string;
@@ -31,8 +32,8 @@ export interface ICompanyRepository {
   findAll(): Promise<ReadonlyArray<CompanyData>>;
   create(data: Partial<CompanyData>): Promise<CompanyData>;
   update(id: string, data: Partial<CompanyData>): Promise<CompanyData>;
-  getCompanySetting<T = any>(companyId: string, key: string): Promise<T | null>;
-  saveCompanySetting<T = any>(companyId: string, key: string, value: T): Promise<void>;
+  getCompanySetting<T = unknown>(companyId: string, key: string): Promise<T | null>;
+  saveCompanySetting<T = unknown>(companyId: string, key: string, value: T): Promise<void>;
 }
 
 export class CompanyRepository implements ICompanyRepository {
@@ -137,7 +138,7 @@ export class CompanyRepository implements ICompanyRepository {
   /**
    * Récupère un paramètre spécifique à une entreprise (avec fallback vers Settings global)
    */
-  public async getCompanySetting<T = any>(companyId: string, key: string): Promise<T | null> {
+  public async getCompanySetting<T = unknown>(companyId: string, key: string): Promise<T | null> {
     const setting = await prisma.companySettings.findUnique({
       where: {
         companyId_key: {
@@ -166,7 +167,8 @@ export class CompanyRepository implements ICompanyRepository {
   /**
    * Sauvegarde un paramètre spécifique pour une entreprise
    */
-  public async saveCompanySetting<T = any>(companyId: string, key: string, value: T): Promise<void> {
+  public async saveCompanySetting<T = unknown>(companyId: string, key: string, value: T): Promise<void> {
+    const jsonValue = (value ?? null) as unknown as Prisma.InputJsonValue;
     await prisma.companySettings.upsert({
       where: {
         companyId_key: {
@@ -174,8 +176,8 @@ export class CompanyRepository implements ICompanyRepository {
           key,
         },
       },
-      update: { value: value as any },
-      create: { companyId, key, value: value as any },
+      update: { value: jsonValue },
+      create: { companyId, key, value: jsonValue },
     });
   }
 }
