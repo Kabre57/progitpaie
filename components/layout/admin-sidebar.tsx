@@ -31,6 +31,7 @@ import {
   PieChart,
   LayoutGrid,
   Archive,
+  Key,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSidebar } from "@/lib/SidebarContext";
@@ -66,6 +67,7 @@ const tenantAdminNavItems = [
   { name: "Départements & Services", href: "/admin/departments", icon: Building2 },
   { name: "Rapports & Statistiques", href: "/admin/reports", icon: BarChart2 },
   { name: "Journal d'Audit", href: "/admin/audit-logs", icon: ScrollText },
+  { name: "Clés API & ERP", href: "/admin/api-keys", icon: Key },
   { name: "Paramètres", href: "/admin/settings", icon: Settings },
 ];
 
