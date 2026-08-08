@@ -37,11 +37,15 @@ fi
 git fetch origin main
 git reset --hard origin/main
 
-# 3. Construction de la nouvelle image Docker
-echo "🏗️ Construction de la nouvelle image Docker..."
-docker compose build app
+# 3. Construction des images Docker
+echo "🏗️ Construction des images Docker..."
+docker compose build app migrate
 
-# 4. Relance du conteneur en mode Rolling Update
+# 4. Exécution des migrations Prisma en base de données
+echo "🗄️ Exécution des migrations Prisma..."
+docker compose run --rm migrate
+
+# 5. Relance du conteneur d'application en mode Rolling Update
 echo "🔄 Relance du conteneur d'application..."
 docker compose up -d --no-deps app
 
