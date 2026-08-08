@@ -17,9 +17,11 @@ function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return ({ children }: { children: ReactNode }) => (
+  const QueryWrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
+  QueryWrapper.displayName = "QueryWrapper";
+  return QueryWrapper;
 }
 
 describe("usePayrollProvisions", () => {
@@ -29,30 +31,21 @@ describe("usePayrollProvisions", () => {
 
   it("récupère correctement les provisions V2", async () => {
     mockFetchProvisions.mockResolvedValueOnce({
-      apiVersion: "v2",
+      success: true,
       data: {
-        companyId: "comp-1",
-        referenceDate: "2026-08-01",
-        ruleVersion: "2026.2",
-        calculatedAt: "2026-08-01T00:00:00.000Z",
-        leaveProvisions: [],
-        terminationBenefits: [],
-        totalLeaveProvision: 0,
-        totalTerminationExposure: 0,
-        totalExposure: 0,
-        employeesProcessed: 1,
-        employeesWithWarnings: 0,
-        warnings: [],
-        dataQuality: { completeSalaryHistories: 1, incompleteSalaryHistories: 0, contractFallbacks: 0, legacyLeaveBalances: 0 },
+        provisions: [],
+        totals: { totalTerminationBenefit: 0, totalLeaveEntitlement: 0, totalProvision: 0 },
+        count: 0,
       },
     });
 
-    const { result } = renderHook(() => usePayrollProvisions({ year: 2026 }), {
+    const { result } = renderHook(() => usePayrollProvisions(2026, 1), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.apiVersion).toBe("v2");
-    expect(result.current.isV2).toBe(true);
+
+    expect(mockFetchProvisions).toHaveBeenCalledWith(2026, 1, undefined);
+    expect(result.current.data).toBeDefined();
   });
 });
