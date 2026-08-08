@@ -16,10 +16,6 @@
     "prisma:validate": "npx -y tsx prisma/scripts/validate.ts",
     "prisma:deploy": "npx -y tsx prisma/scripts/deploy.ts"
   },
-  "prisma": {
-    "schema": "prisma/schema",
-    "seed": "npx -y tsx prisma/seed.ts"
-  },
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "@radix-ui/react-icons": "^1.3.2",
