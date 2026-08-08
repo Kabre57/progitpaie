@@ -15,7 +15,9 @@ export async function requireSuperAdmin(request: NextRequest): Promise<Authentic
   if (authHeader && authHeader.startsWith("Bearer ")) {
     token = authHeader.substring(7);
   } else {
-    token = request.cookies.get("token")?.value;
+    // The login route creates `rbeas_token`. Keep `token` as a fallback so
+    // existing sessions created by older deployments remain usable.
+    token = request.cookies.get("rbeas_token")?.value ?? request.cookies.get("token")?.value;
   }
 
   if (!token) {
