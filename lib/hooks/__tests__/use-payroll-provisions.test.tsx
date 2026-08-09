@@ -39,13 +39,13 @@ describe("usePayrollProvisions", () => {
       },
     });
 
-    const { result } = renderHook(() => usePayrollProvisions(2026, 1), {
+    const { result } = renderHook(() => usePayrollProvisions({ year: 2026, month: 1 }), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(mockFetchProvisions).toHaveBeenCalledWith(2026, 1, undefined);
+    expect(mockFetchProvisions).toHaveBeenCalledWith({ year: 2026, month: 1 }, expect.anything());
     expect(result.current.data).toBeDefined();
   });
 });
