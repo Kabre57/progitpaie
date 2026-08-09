@@ -38,7 +38,7 @@ jobs:
       - name: 🚀 Exécution du Déploiement sur le VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPS_HOST }}       # IP VPS: 180.149.199.203
+          host: ${{ secrets.THEO_PBL_VPS }}       # IP VPS: 180.149.199.203
           username: ${{ secrets.VPS_USER }}   # Utilisateur: root ou ubuntu
           key: ${{ secrets.VPS_SSH_KEY }}     # Clé privée SSH
           port: ${{ secrets.VPS_PORT || 22 }}
