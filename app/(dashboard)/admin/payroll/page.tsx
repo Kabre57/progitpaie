@@ -14,7 +14,8 @@ import { NeuPagination } from "@/components/ui/neu-pagination";
 
 interface PayrollRecord {
   _id: string;
-  userId: { _id: string; id?: string; name: string; employeeId?: string };
+  userId: { _id: string; id?: string; name: string; email?: string; employeeId?: string };
+  user?: { id: string; name: string; email: string; employeeId?: string };
   month: number;
   year: number;
   basicSalary: number;
@@ -211,8 +212,8 @@ export default function AdminPayrollPage() {
                 const userIdVal = record.userId?.id || record.userId?._id || "";
                 return {
                   icon: <UserIcon className="w-5 h-5 text-[var(--neu-accent)]" />,
-                  title: record.userId?.name || "Employé Inconnu",
-                  category: record.userId?.employeeId || "MAT-000",
+                  title: record.user?.name || record.userId?.name || "Salarié",
+                  category: record.user?.employeeId || record.userId?.employeeId || record.user?.email || record.userId?.email || "EMP",
                   description: (
                     <div className="flex flex-col gap-2">
                       <div className="flex flex-wrap items-center gap-4 text-xs font-medium">
