@@ -13,6 +13,7 @@ import { User as UserIcon, Calendar as CalendarIcon } from "lucide-react";
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
 import { NeuDialog } from "@/components/ui/neu-dialog";
 import { NeuPagination } from "@/components/ui/neu-pagination";
+import { LeaveFilterBar } from "@/components/admin/leaves/LeaveFilterBar";
 
 interface LeaveRequest {
   _id: string;
@@ -31,13 +32,44 @@ interface ImportResultData {
   errors: string[];
 }
 
+const getMonthName = (monthStr: string) => {
+  if (!monthStr) return "";
+  const [year, month] = monthStr.split("-");
+  const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+  return date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+};
+
+const getPreviousMonth = (monthStr: string) => {
+  const [year, month] = monthStr.split("-").map(Number);
+  const date = new Date(year, month - 2, 1);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+};
+
+const getNextMonth = (monthStr: string) => {
+  const [year, month] = monthStr.split("-").map(Number);
+  const date = new Date(year, month, 1);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+};
+
 export default function AdminLeavesPage() {
+  const now = new Date();
+  const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
-  const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // States pour la barre de filtrage
+  const [currentMonth, setCurrentMonth] = useState<string>(defaultMonth);
+  const [filter, setFilter] = useState("all"); // status filter
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Import Excel State
   const [showImportModal, setShowImportModal] = useState(false);
@@ -59,16 +91,12 @@ export default function AdminLeavesPage() {
 
   useEffect(() => {
     fetchLeaves();
-  }, [filter]);
-
-  const totalPages = Math.ceil(leaves.length / itemsPerPage);
-  const paginatedLeaves = leaves.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, []);
 
   const fetchLeaves = async () => {
     setLoading(true);
     try {
-      const url = filter !== "all" ? `/api/leaves/all?status=${filter}` : "/api/leaves/all";
-      const response = await fetch(url);
+      const response = await fetch("/api/leaves/all");
       const data = await response.json();
       if (data.success) {
         setLeaves(data.data);
@@ -82,6 +110,31 @@ export default function AdminLeavesPage() {
       setLoading(false);
     }
   };
+
+  // Filtrage combiné (Date / Mois, Statut, Type de congé, Recherche Salarié)
+  const filteredLeaves = leaves.filter((leave) => {
+    if (currentMonth) {
+      const startM = leave.startDate.slice(0, 7);
+      const endM = leave.endDate.slice(0, 7);
+      if (startM !== currentMonth && endM !== currentMonth) return false;
+    }
+    if (filter !== "all" && leave.status !== filter) return false;
+    if (typeFilter !== "all" && leave.leaveType !== typeFilter) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const name = (leave.userId?.name || "").toLowerCase();
+      const email = (leave.userId?.email || "").toLowerCase();
+      const empId = (leave.userId?.employeeId || "").toLowerCase();
+      const reason = (leave.reason || "").toLowerCase();
+      if (!name.includes(q) && !email.includes(q) && !empId.includes(q) && !reason.includes(q)) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  const totalPages = Math.ceil(filteredLeaves.length / itemsPerPage);
+  const paginatedLeaves = filteredLeaves.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleApprove = async (id: string) => {
     setActionLoading(id);
@@ -199,25 +252,32 @@ export default function AdminLeavesPage() {
         </div>
       </div>
 
-      {/* Filtres par statut */}
-      <div className="flex flex-wrap gap-2">
-        {["all", "pending", "approved", "rejected"].map((f) => (
-          <button
-            key={f}
-            onClick={() => {
-              setFilter(f);
-              setCurrentPage(1);
-            }}
-            className={`px-3 py-1 text-center rounded-lg text-sm capitalize transition-all duration-200 ${
-              filter === f
-                ? "bg-[var(--neu-accent)] text-white shadow-sm scale-105"
-                : "bg-[var(--neu-surface)] text-[var(--neu-text-secondary)] hover:bg-[var(--neu-surface-light)] hover:text-[var(--neu-text)]"
-            }`}
-          >
-            {f === "all" ? "Tous" : f === "pending" ? "En attente" : f === "approved" ? "Approuvés" : "Rejetés"}
-          </button>
-        ))}
-      </div>
+      {/* Barre de filtrage par Date / Mois, Statut, Type et Recherche */}
+      <LeaveFilterBar
+        currentMonth={currentMonth}
+        getMonthName={getMonthName}
+        getPreviousMonth={getPreviousMonth}
+        getNextMonth={getNextMonth}
+        onMonthChange={(m) => {
+          setCurrentMonth(m);
+          setCurrentPage(1);
+        }}
+        statusFilter={filter}
+        onStatusFilterChange={(s) => {
+          setFilter(s);
+          setCurrentPage(1);
+        }}
+        typeFilter={typeFilter}
+        onTypeFilterChange={(t) => {
+          setTypeFilter(t);
+          setCurrentPage(1);
+        }}
+        searchQuery={searchQuery}
+        onSearchChange={(q) => {
+          setSearchQuery(q);
+          setCurrentPage(1);
+        }}
+      />
 
       {/* Leaves Table */}
       <NeuCard>
@@ -226,7 +286,7 @@ export default function AdminLeavesPage() {
             <div className="flex justify-center py-8">
               <ChipLoader label="Chargement des congés..." />
             </div>
-          ) : leaves.length === 0 ? (
+          ) : filteredLeaves.length === 0 ? (
             <EmptyState
               icon={Calendar}
               title="Aucune demande de congé"
@@ -306,11 +366,11 @@ export default function AdminLeavesPage() {
             />
           )}
         </NeuCardContent>
-        {leaves.length > 0 && (
+        {filteredLeaves.length > 0 && (
           <NeuPagination
             currentPage={currentPage}
             totalPages={totalPages}
-            totalItems={leaves.length}
+            totalItems={filteredLeaves.length}
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}
           />
