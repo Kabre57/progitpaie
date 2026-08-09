@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ClipboardCheck } from "lucide-react";
+import { ClipboardCheck, Download, FileSpreadsheet } from "lucide-react";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuSelect } from "@/components/ui/neu-select";
 import { NeuInput } from "@/components/ui/neu-input";
@@ -105,7 +105,7 @@ export default function AdminAttendancePage() {
   const getMonthName = (monthStr: string) => {
     const [year, month] = monthStr.split("-");
     const date = new Date(parseInt(year), parseInt(month) - 1);
-    return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    return date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
   };
 
   const filteredRecords = records.filter((record) => {
@@ -151,9 +151,16 @@ export default function AdminAttendancePage() {
     }
   };
 
+  const handleDownloadTemplate = () => {
+    window.open("/api/attendance/template", "_blank");
+  };
+
   const handleImport = async () => {
     if (!importFile) return;
     setIsSubmitting(true);
+    setError(null);
+    setImportResult(null);
+
     const formData = new FormData();
     formData.append("file", importFile);
     try {
@@ -166,10 +173,10 @@ export default function AdminAttendancePage() {
         setImportResult(data.data);
         fetchAttendance();
       } else {
-        setError(data.error || "Failed to import");
+        setError(data.error || "Erreur lors de l'importation Excel");
       }
     } catch {
-      setError("Failed to import");
+      setError("Erreur lors de l'importation du fichier Excel");
     } finally {
       setIsSubmitting(false);
     }
@@ -208,7 +215,12 @@ export default function AdminAttendancePage() {
         statusOptions={statusOptions}
         searchQuery={filters.search}
         onSearchChange={(sc) => setFilters((prev) => ({ ...prev, search: sc }))}
-        onOpenImportDialog={() => setIsImportDialogOpen(true)}
+        onOpenImportDialog={() => {
+          setImportFile(null);
+          setImportResult(null);
+          setIsImportDialogOpen(true);
+        }}
+        onDownloadTemplate={handleDownloadTemplate}
         recordsCount={filteredRecords.length}
       />
 
@@ -254,30 +266,62 @@ export default function AdminAttendancePage() {
         </div>
       </NeuDialog>
 
-      {/* Modale d'importation CSV */}
+      {/* Modale d'importation Excel */}
       <NeuDialog
         open={isImportDialogOpen}
         onClose={() => setIsImportDialogOpen(false)}
-        title="Importer les pointages CSV"
+        title="Importer les pointages depuis un fichier Excel"
       >
         <div className="space-y-4">
-          <input
-            type="file"
-            accept=".csv"
-            onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-            className="w-full text-sm text-[var(--neu-text)]"
-          />
+          <div className="p-3 bg-[var(--neu-surface-light)] border border-[var(--neu-border)] rounded-lg text-xs space-y-1.5">
+            <div className="flex items-center justify-between font-semibold text-[var(--neu-text)]">
+              <span className="flex items-center gap-1.5">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-500" /> Format recommandé : Excel (.xlsx / .xls)
+              </span>
+              <button
+                type="button"
+                onClick={handleDownloadTemplate}
+                className="text-[var(--neu-accent)] hover:underline flex items-center gap-1 text-xs font-medium"
+              >
+                <Download className="w-3.5 h-3.5" /> Télécharger Modèle
+              </button>
+            </div>
+            <p className="text-[var(--neu-text-secondary)]">
+              Le fichier doit contenir les colonnes : <code>Matricule</code>, <code>Date</code> (AAAA-MM-JJ), <code>Statut</code> (Présent, Absent, En retard, Demi-journée, En congé), et optionnellement les heures supp.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-[var(--neu-text)]">Sélectionner le fichier Excel</label>
+            <input
+              type="file"
+              accept=".xlsx, .xls"
+              onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+              className="w-full text-sm text-[var(--neu-text)] file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[var(--neu-accent)] file:text-white hover:file:opacity-90 cursor-pointer"
+            />
+          </div>
+
           {importResult && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs rounded-lg">
-              {importResult.imported} pointages importés avec succès, {importResult.skipped} ignorés.
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs rounded-lg space-y-1">
+              <p className="font-semibold">
+                ✅ Importation réussie : {importResult.imported} pointage(s) importé(s), {importResult.skipped} ignoré(s).
+              </p>
+              {importResult.errors.length > 0 && (
+                <ul className="list-disc list-inside mt-1 space-y-0.5 text-rose-400">
+                  {importResult.errors.map((err, idx) => (
+                    <li key={idx}>{err}</li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
+
           <div className="flex justify-end gap-3 pt-3 border-t border-[var(--neu-border)]">
             <NeuButton variant="ghost" onClick={() => setIsImportDialogOpen(false)}>
               Fermer
             </NeuButton>
             <NeuButton variant="accent" onClick={handleImport} disabled={!importFile || isSubmitting}>
-              {isSubmitting ? "Importation..." : "Lancer l'importation"}
+              {isSubmitting ? "Importation..." : "Lancer l'importation Excel"}
             </NeuButton>
           </div>
         </div>

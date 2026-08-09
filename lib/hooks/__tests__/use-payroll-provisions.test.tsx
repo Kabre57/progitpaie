@@ -31,21 +31,36 @@ describe("usePayrollProvisions", () => {
 
   it("récupère correctement les provisions V2", async () => {
     mockFetchProvisions.mockResolvedValueOnce({
-      success: true,
+      apiVersion: "v2",
       data: {
-        provisions: [],
-        totals: { totalTerminationBenefit: 0, totalLeaveEntitlement: 0, totalProvision: 0 },
-        count: 0,
+        companyId: "company-1",
+        referenceDate: "2026-08-01",
+        ruleVersion: "v2",
+        calculatedAt: new Date().toISOString(),
+        leaveProvisions: [],
+        terminationBenefits: [],
+        totalLeaveProvision: 0,
+        totalTerminationExposure: 0,
+        totalExposure: 0,
+        employeesProcessed: 0,
+        employeesWithWarnings: 0,
+        warnings: [],
+        dataQuality: {
+          completeSalaryHistories: 0,
+          incompleteSalaryHistories: 0,
+          contractFallbacks: 0,
+          legacyLeaveBalances: 0,
+        },
       },
     });
 
-    const { result } = renderHook(() => usePayrollProvisions({ year: 2026, month: 1 }), {
+    const { result } = renderHook(() => usePayrollProvisions({ year: 2026 }), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(mockFetchProvisions).toHaveBeenCalledWith({ year: 2026, month: 1 }, expect.anything());
+    expect(mockFetchProvisions).toHaveBeenCalledWith({ year: 2026 }, expect.anything());
     expect(result.current.data).toBeDefined();
   });
 });

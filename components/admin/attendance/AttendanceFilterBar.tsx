@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ChevronLeft, ChevronRight, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, FileSpreadsheet } from "lucide-react";
 import { NeuCard, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuSelect } from "@/components/ui/neu-select";
@@ -18,6 +18,7 @@ interface AttendanceFilterBarProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   onOpenImportDialog: () => void;
+  onDownloadTemplate: () => void;
   recordsCount: number;
 }
 
@@ -33,6 +34,7 @@ export function AttendanceFilterBar({
   searchQuery,
   onSearchChange,
   onOpenImportDialog,
+  onDownloadTemplate,
 }: AttendanceFilterBarProps) {
   return (
     <NeuCard>
@@ -76,10 +78,13 @@ export function AttendanceFilterBar({
           />
         </div>
 
-        {/* Actions Import / Export */}
+        {/* Actions Import / Export Excel */}
         <div className="flex items-center gap-2">
-          <NeuButton size="sm" variant="ghost" onClick={onOpenImportDialog}>
-            <Upload className="w-4 h-4 mr-1.5" /> Importer CSV
+          <NeuButton size="sm" variant="ghost" onClick={onDownloadTemplate} title="Télécharger le fichier exemple Excel pré-rempli">
+            <Download className="w-4 h-4 mr-1.5 text-emerald-500" /> Modèle Excel
+          </NeuButton>
+          <NeuButton size="sm" variant="accent" onClick={onOpenImportDialog}>
+            <FileSpreadsheet className="w-4 h-4 mr-1.5" /> Importer Excel (.xlsx)
           </NeuButton>
         </div>
       </NeuCardContent>
