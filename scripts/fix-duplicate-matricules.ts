@@ -31,15 +31,28 @@ async function fixDuplicateMatricules() {
 
     console.log(` 🏢 Entreprise ${company.name} : ${employees.length} salarié(s) à vérifier/numéroter.`);
 
-    let index = 1;
-    for (const emp of employees) {
-      const nextMatricule = `EMP-${String(index).padStart(3, "0")}`;
-      await prisma.user.update({
-        where: { id: emp.id },
-        data: { employeeId: nextMatricule },
+    if (employees.length > 0) {
+      // Libérer temporairement les matricules pour éviter les collisions de contrainte d'unicité pendant la réattribution
+      await prisma.user.updateMany({
+        where: {
+          companyId: company.id,
+          role: "employee",
+        },
+        data: {
+          employeeId: null,
+        },
       });
-      console.log(`   ➜ [${emp.name}] matricule fixé à ${nextMatricule}`);
-      index++;
+
+      let index = 1;
+      for (const emp of employees) {
+        const nextMatricule = `EMP-${String(index).padStart(3, "0")}`;
+        await prisma.user.update({
+          where: { id: emp.id },
+          data: { employeeId: nextMatricule },
+        });
+        console.log(`   ➜ [${emp.name}] matricule fixé à ${nextMatricule}`);
+        index++;
+      }
     }
   }
 

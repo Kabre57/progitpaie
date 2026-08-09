@@ -9,7 +9,7 @@ model User {
   email                String    @unique // Adresse email professionnelle
   password             String // Mot de passe haché (Bcrypt)
   role                 UserRole  @default(employee) // Rôle (admin / employee)
-  employeeId           String?   @unique // Matricule unique (ex: EMP-001)
+  employeeId           String?   // Matricule unique au sein de l'entreprise (ex: EMP-001)
   departmentId         String? // Département rattaché
   shiftId              String? // Horaire de travail (Shift) rattaché
   salary               Float     @default(0) // Salaire catégoriel de base
@@ -84,5 +84,6 @@ model User {
   provisionSnapshots   ProvisionCalculationSnapshot[] @relation("ProvisionCalculatedBy")
 
   @@index([email])
+  @@unique([companyId, employeeId])
   @@map("users")
 }
