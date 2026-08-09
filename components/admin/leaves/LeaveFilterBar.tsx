@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, CalendarX } from "lucide-react";
 import { NeuCard, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuSelect } from "@/components/ui/neu-select";
@@ -49,6 +49,26 @@ export function LeaveFilterBar({
     { value: "unpaid", label: "Congé Sans Solde" },
   ];
 
+  const handlePrev = () => {
+    if (!currentMonth) {
+      const now = new Date();
+      const mStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      onMonthChange(getPreviousMonth(mStr));
+    } else {
+      onMonthChange(getPreviousMonth(currentMonth));
+    }
+  };
+
+  const handleNext = () => {
+    if (!currentMonth) {
+      const now = new Date();
+      const mStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      onMonthChange(getNextMonth(mStr));
+    } else {
+      onMonthChange(getNextMonth(currentMonth));
+    }
+  };
+
   return (
     <NeuCard>
       <NeuCardContent className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -57,7 +77,7 @@ export function LeaveFilterBar({
           <NeuButton
             size="sm"
             variant="ghost"
-            onClick={() => onMonthChange(getPreviousMonth(currentMonth))}
+            onClick={handlePrev}
             title="Mois précédent"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -68,11 +88,22 @@ export function LeaveFilterBar({
           <NeuButton
             size="sm"
             variant="ghost"
-            onClick={() => onMonthChange(getNextMonth(currentMonth))}
+            onClick={handleNext}
             title="Mois suivant"
           >
             <ChevronRight className="w-4 h-4" />
           </NeuButton>
+          {currentMonth && (
+            <NeuButton
+              size="sm"
+              variant="ghost"
+              onClick={() => onMonthChange("")}
+              title="Voir tous les mois"
+              className="text-xs text-[var(--neu-text-secondary)]"
+            >
+              <CalendarX className="w-3.5 h-3.5 mr-1" /> Tous les mois
+            </NeuButton>
+          )}
         </div>
 
         {/* Filtres & Recherche */}

@@ -5,7 +5,7 @@ import { NeuCard, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuBadge } from "@/components/ui/neu-badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CheckCircle, XCircle, Calendar, FileText, Download, FileSpreadsheet, Upload, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle, Calendar, FileText, FileSpreadsheet, Upload, AlertCircle } from "lucide-react";
 import { useToast } from "@/components/ui/neu-toast";
 import { ChipLoader } from "@/components/ui/chip-loader";
 import { List2 } from "@/components/ui/list-2";
@@ -33,13 +33,17 @@ interface ImportResultData {
 }
 
 const getMonthName = (monthStr: string) => {
-  if (!monthStr) return "";
+  if (!monthStr) return "Tous les mois";
   const [year, month] = monthStr.split("-");
   const date = new Date(parseInt(year), parseInt(month) - 1, 1);
   return date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 };
 
 const getPreviousMonth = (monthStr: string) => {
+  if (!monthStr) {
+    const now = new Date();
+    monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  }
   const [year, month] = monthStr.split("-").map(Number);
   const date = new Date(year, month - 2, 1);
   const y = date.getFullYear();
@@ -48,6 +52,10 @@ const getPreviousMonth = (monthStr: string) => {
 };
 
 const getNextMonth = (monthStr: string) => {
+  if (!monthStr) {
+    const now = new Date();
+    monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  }
   const [year, month] = monthStr.split("-").map(Number);
   const date = new Date(year, month, 1);
   const y = date.getFullYear();
@@ -56,17 +64,14 @@ const getNextMonth = (monthStr: string) => {
 };
 
 export default function AdminLeavesPage() {
-  const now = new Date();
-  const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // States pour la barre de filtrage
-  const [currentMonth, setCurrentMonth] = useState<string>(defaultMonth);
+  // States pour la barre de filtrage (par défaut: Tous les mois)
+  const [currentMonth, setCurrentMonth] = useState<string>("");
   const [filter, setFilter] = useState("all"); // status filter
   const [typeFilter, setTypeFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -111,7 +116,7 @@ export default function AdminLeavesPage() {
     }
   };
 
-  // Filtrage combiné (Date / Mois, Statut, Type de congé, Recherche Salarié)
+  // Filtrage combiné (Mois si sélectionné, Statut, Type de congé, Recherche Salarié)
   const filteredLeaves = leaves.filter((leave) => {
     if (currentMonth) {
       const startM = leave.startDate.slice(0, 7);
@@ -207,6 +212,7 @@ export default function AdminLeavesPage() {
       if (data.success) {
         setImportResult(data.data);
         toastSuccess(`${data.data.imported} congé(s) importé(s) avec succès`);
+        setCurrentMonth(""); // Réinitialiser le filtre mois pour afficher les congés importés
         fetchLeaves();
       } else {
         setImportError(data.error || "Erreur lors de l'importation Excel");
@@ -243,9 +249,32 @@ export default function AdminLeavesPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <NeuButton
+            onClick={() => {
+              const now = new Date();
+              const startStr = now.toISOString().split("T")[0];
+              const endStr = new Date(now.getTime() + 15 * 86400000).toISOString().split("T")[0];
+              const returnStr = new Date(now.getTime() + 16 * 86400000).toISOString().split("T")[0];
+              setActiveEditDoc({
+                userId: "",
+                name: "Salarié",
+                startDate: startStr,
+                endDate: endStr,
+                returnDate: returnStr,
+                docType: "attestation_conge",
+              });
+            }}
+            variant="ghost"
+            size="sm"
+            className="border border-[var(--neu-border)] text-[var(--neu-accent)] font-semibold"
+          >
+            <FileText className="w-4 h-4 mr-1 text-[var(--neu-accent)]" /> Imprimer Attestation PDF
+          </NeuButton>
+
           <NeuButton onClick={handleDownloadTemplate} variant="ghost" size="sm">
             <FileSpreadsheet className="w-4 h-4 mr-1 text-emerald-500" /> Modèle Excel
           </NeuButton>
+
           <NeuButton onClick={() => setShowImportModal(true)} variant="accent" size="sm">
             <Upload className="w-4 h-4 mr-1" /> Importer Excel (.xlsx)
           </NeuButton>
@@ -319,23 +348,22 @@ export default function AdminLeavesPage() {
                   badge: getStatusBadge(leave.status),
                   actions: (
                     <div className="flex items-center gap-2">
-                      {leave.status === "approved" && (
-                        <NeuButton
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setActiveEditDoc({
-                            userId: leave.userId?._id || leave.userId?.id || "",
-                            name: leave.userId?.name || "Employé",
-                            startDate: sDate.toISOString().split('T')[0],
-                            endDate: eDate.toISOString().split('T')[0],
-                            returnDate: rDate.toISOString().split('T')[0],
-                            docType: "attestation_conge"
-                          })}
-                          title="Aperçu & Téléchargement Attestation PDF"
-                        >
-                          <FileText className="w-4 h-4 mr-1 text-[var(--neu-accent)]" /> Attestation
-                        </NeuButton>
-                      )}
+                      <NeuButton
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setActiveEditDoc({
+                          userId: leave.userId?._id || leave.userId?.id || "",
+                          name: leave.userId?.name || "Employé",
+                          startDate: sDate.toISOString().split('T')[0],
+                          endDate: eDate.toISOString().split('T')[0],
+                          returnDate: rDate.toISOString().split('T')[0],
+                          docType: "attestation_conge"
+                        })}
+                        title="Aperçu & Impression Attestation de Congé PDF"
+                        className="border border-[var(--neu-border)] text-xs text-[var(--neu-accent)] font-medium"
+                      >
+                        <FileText className="w-4 h-4 mr-1 text-[var(--neu-accent)]" /> Attestation PDF
+                      </NeuButton>
 
                       {leave.status === "pending" && (
                         <>
