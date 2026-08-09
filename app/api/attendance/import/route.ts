@@ -109,7 +109,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       const rawDate = row["Date"] || row["date"];
       const rawStatus = row["Statut"] || row["statut"] || row["Status"] || row["status"];
       const rawCheckIn = String(row["Heure Entree"] || row["Heure Entrée"] || row["checkIn"] || "08:00").trim();
-      const rawCheckOut = String(row["Heure Sortie"] || row["checkOut"] || "").trim();
+      const rawCheckOut = String(row["Heure Sortie"] || row["checkOut"] || "17:00").trim();
       const rawOvertime = Number(row["Heures Supp (minutes)"] || row["overtimeMinutes"] || 0);
       const rawNotes = String(row["Notes"] || row["notes"] || "").trim();
 
@@ -141,6 +141,28 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       const checkInDate = new Date(`${dateStr}T${rawCheckIn.includes(":") ? rawCheckIn : "08:00"}:00.000Z`);
       const checkOutDate = rawCheckOut && rawCheckOut.includes(":") ? new Date(`${dateStr}T${rawCheckOut}:00.000Z`) : null;
 
+      // Calcul des heures travaillées
+      let workingMinutes = 0;
+      let hoursWorked = 0;
+
+      if (checkInDate && checkOutDate) {
+        const diffMs = checkOutDate.getTime() - checkInDate.getTime();
+        const elapsedMinutes = Math.floor(diffMs / (1000 * 60));
+        if (elapsedMinutes >= 540) {
+          workingMinutes = 480; // 8 heures effectives (pause déjeuner de 1h déduite)
+          hoursWorked = 8.0;
+        } else if (elapsedMinutes > 0) {
+          workingMinutes = Math.min(elapsedMinutes, 480);
+          hoursWorked = Math.round((workingMinutes / 60) * 10) / 10;
+        }
+      } else if (status === AttendanceStatus.present || status === AttendanceStatus.late) {
+        workingMinutes = 480;
+        hoursWorked = 8.0;
+      } else if (status === AttendanceStatus.half_day) {
+        workingMinutes = 240;
+        hoursWorked = 4.0;
+      }
+
       // Upsert du pointage dans Prisma
       await prisma.attendance.upsert({
         where: {
@@ -153,6 +175,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
           status,
           checkIn: checkInDate,
           checkOut: checkOutDate,
+          hoursWorked,
+          workingMinutes,
           overtimeMinutes: isNaN(rawOvertime) ? 0 : rawOvertime,
           notes: rawNotes || undefined,
         },
@@ -163,6 +187,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
           status,
           checkIn: checkInDate,
           checkOut: checkOutDate,
+          hoursWorked,
+          workingMinutes,
           overtimeMinutes: isNaN(rawOvertime) ? 0 : rawOvertime,
           notes: rawNotes || undefined,
         },

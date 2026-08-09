@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { listAttendanceQuerySchema } from "@/shared/validation/attendance-v2.schema";
 import { ApiResponse } from "@/types";
 
-// GET /api/v2/attendance - Liste des pointages avec filtre mois et données utilisateur
+// GET /api/v2/attendance - Liste des pointages avec filtre mois et calcul automatique des heures
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request);
@@ -58,24 +58,39 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       orderBy: [{ date: "desc" }, { checkIn: "desc" }],
     });
 
-    const formatted = records.map((r) => ({
-      _id: r.id,
-      id: r.id,
-      userId: {
-        _id: r.user.id,
-        id: r.user.id,
-        name: r.user.name,
-        email: r.user.email,
-        employeeId: r.user.employeeId || undefined,
-      },
-      date: r.date,
-      checkIn: r.checkIn.toISOString(),
-      checkOut: r.checkOut ? r.checkOut.toISOString() : null,
-      status: r.status === "half_day" ? "half-day" : r.status === "on_leave" ? "on-leave" : r.status,
-      hoursWorked: r.hoursWorked,
-      notes: r.notes || "",
-      overtimeMinutes: r.overtimeMinutes,
-    }));
+    const formatted = records.map((r) => {
+      let hoursWorked = r.hoursWorked;
+      if (hoursWorked === 0) {
+        if (r.checkIn && r.checkOut) {
+          const diffMs = r.checkOut.getTime() - r.checkIn.getTime();
+          const elapsed = Math.floor(diffMs / (1000 * 60));
+          hoursWorked = elapsed >= 540 ? 8.0 : elapsed > 0 ? Math.round((Math.min(elapsed, 480) / 60) * 10) / 10 : 8.0;
+        } else if (r.status === "present" || r.status === "late") {
+          hoursWorked = 8.0;
+        } else if (r.status === "half_day") {
+          hoursWorked = 4.0;
+        }
+      }
+
+      return {
+        _id: r.id,
+        id: r.id,
+        userId: {
+          _id: r.user.id,
+          id: r.user.id,
+          name: r.user.name,
+          email: r.user.email,
+          employeeId: r.user.employeeId || undefined,
+        },
+        date: r.date,
+        checkIn: r.checkIn.toISOString(),
+        checkOut: r.checkOut ? r.checkOut.toISOString() : null,
+        status: r.status === "half_day" ? "half-day" : r.status === "on_leave" ? "on-leave" : r.status,
+        hoursWorked,
+        notes: r.notes || "",
+        overtimeMinutes: r.overtimeMinutes,
+      };
+    });
 
     return NextResponse.json(
       {
