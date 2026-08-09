@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { PrismaLeaveRepository } from "@/lib/infrastructure/repositories/prisma/PrismaLeaveRepository";
-import { ListLeavesUseCase } from "@/lib/application/leave/use-cases/ListLeavesUseCase";
+import { prisma } from "@/lib/db";
 import { listLeavesQuerySchema } from "@/shared/validation/leave-v2.schema";
 import { ApiResponse } from "@/types";
 
-const repository = new PrismaLeaveRepository();
-const listUseCase = new ListLeavesUseCase(repository);
-
-// GET /api/v2/leaves - Liste des demandes de congés (V2 Clean Architecture)
+// GET /api/v2/leaves - Liste des demandes de congés avec données utilisateur
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request, "admin");
@@ -23,12 +19,43 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       );
     }
 
-    const data = await listUseCase.execute({
-      companyId: authResult.companyId,
-      userId: parseResult.data.userId,
-      status: parseResult.data.status,
-      leaveType: parseResult.data.leaveType,
+    const records = await prisma.leave.findMany({
+      where: {
+        companyId: authResult.companyId,
+        ...(parseResult.data.userId ? { userId: parseResult.data.userId } : {}),
+        ...(parseResult.data.status ? { status: parseResult.data.status as any } : {}),
+        ...(parseResult.data.leaveType ? { leaveType: parseResult.data.leaveType as any } : {}),
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, employeeId: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
     });
+
+    const data = records.map((r) => ({
+      _id: r.id,
+      id: r.id,
+      companyId: r.companyId,
+      userId: {
+        _id: r.user.id,
+        id: r.user.id,
+        name: r.user.name,
+        email: r.user.email,
+        employeeId: r.user.employeeId || undefined,
+      },
+      leaveType: r.leaveType,
+      startDate: r.startDate.toISOString(),
+      endDate: r.endDate.toISOString(),
+      totalDays: r.totalDays,
+      reason: r.reason,
+      status: r.status,
+      approvedById: r.approvedById,
+      adminComment: r.adminComment,
+      appliedAt: r.appliedAt.toISOString(),
+      createdAt: r.createdAt.toISOString(),
+    }));
 
     return NextResponse.json({ success: true, data }, { status: 200 });
   } catch (error: any) {
