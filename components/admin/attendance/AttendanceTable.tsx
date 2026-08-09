@@ -70,12 +70,12 @@ export function AttendanceTable({
 
   const getLocationBadge = (record: AttendanceRecord) => {
     if (!record.location?.lat || !record.location?.lng) {
-      return <NeuBadge variant="default">No GPS</NeuBadge>;
+      return <NeuBadge variant="default">Sans GPS</NeuBadge>;
     }
     if (record.outOfOffice) {
-      return <NeuBadge variant="warning">Out of Office</NeuBadge>;
+      return <NeuBadge variant="warning">Mission Extérieure</NeuBadge>;
     }
-    return <NeuBadge variant="success">In Office</NeuBadge>;
+    return <NeuBadge variant="success">Au Bureau</NeuBadge>;
   };
 
   return (
