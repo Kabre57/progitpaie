@@ -9,6 +9,7 @@ interface ImportResultData {
   imported: number;
   skipped: number;
   errors: string[];
+  importedMonth?: string;
 }
 
 function mapStatusToEnum(rawStatus?: string): AttendanceStatus {
@@ -97,6 +98,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 
     let imported = 0;
     let skipped = 0;
+    let importedMonth: string | undefined = undefined;
     const errors: string[] = [];
 
     for (let i = 0; i < rawRows.length; i++) {
@@ -129,6 +131,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         skipped++;
         errors.push(`Ligne ${lineNum} ignorée : Date invalide "${rawDate}" pour ${rawMatricule}`);
         continue;
+      }
+
+      if (!importedMonth && dateStr.length >= 7) {
+        importedMonth = dateStr.slice(0, 7); // e.g. "2025-01"
       }
 
       const status = mapStatusToEnum(rawStatus);
@@ -167,7 +173,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 
     return NextResponse.json({
       success: true,
-      data: { imported, skipped, errors },
+      data: { imported, skipped, errors, importedMonth },
       message: `${imported} pointage(s) importé(s) avec succès`,
     });
   } catch (error: any) {

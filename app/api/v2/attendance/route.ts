@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { PrismaAttendanceRepository } from "@/lib/infrastructure/repositories/prisma/PrismaAttendanceRepository";
-import { ListAttendanceUseCase } from "@/lib/application/attendance/use-cases/ListAttendanceUseCase";
+import { prisma } from "@/lib/db";
 import { listAttendanceQuerySchema } from "@/shared/validation/attendance-v2.schema";
 import { ApiResponse } from "@/types";
 
-const repository = new PrismaAttendanceRepository();
-const listUseCase = new ListAttendanceUseCase(repository);
-
-// GET /api/v2/attendance - Liste des pointages (V2 Clean Architecture)
+// GET /api/v2/attendance - Liste des pointages avec filtre mois et données utilisateur
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request);
@@ -23,16 +19,74 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       );
     }
 
-    const data = await listUseCase.execute({
-      companyId: authResult.companyId,
-      userId: parseResult.data.userId || (authResult.role === "employee" ? authResult.userId : undefined),
-      startDate: parseResult.data.startDate,
-      endDate: parseResult.data.endDate,
-      status: parseResult.data.status,
-      departmentId: parseResult.data.departmentId,
+    let startDate = parseResult.data.startDate;
+    let endDate = parseResult.data.endDate;
+
+    if (!startDate && !endDate && parseResult.data.month) {
+      const [y, m] = parseResult.data.month.split("-").map(Number);
+      if (y && m) {
+        const lastDay = new Date(y, m, 0).getDate();
+        startDate = `${y}-${String(m).padStart(2, "0")}-01`;
+        endDate = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      }
+    }
+
+    const records = await prisma.attendance.findMany({
+      where: {
+        companyId: authResult.companyId,
+        ...(parseResult.data.userId || authResult.role === "employee"
+          ? { userId: parseResult.data.userId || authResult.userId }
+          : {}),
+        ...(parseResult.data.status ? { status: parseResult.data.status as any } : {}),
+        ...(startDate || endDate
+          ? {
+              date: {
+                ...(startDate ? { gte: startDate } : {}),
+                ...(endDate ? { lte: endDate } : {}),
+              },
+            }
+          : {}),
+        ...(parseResult.data.departmentId
+          ? { user: { departmentId: parseResult.data.departmentId } }
+          : {}),
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, employeeId: true },
+        },
+      },
+      orderBy: [{ date: "desc" }, { checkIn: "desc" }],
     });
 
-    return NextResponse.json({ success: true, data }, { status: 200 });
+    const formatted = records.map((r) => ({
+      _id: r.id,
+      id: r.id,
+      userId: {
+        _id: r.user.id,
+        id: r.user.id,
+        name: r.user.name,
+        email: r.user.email,
+        employeeId: r.user.employeeId || undefined,
+      },
+      date: r.date,
+      checkIn: r.checkIn.toISOString(),
+      checkOut: r.checkOut ? r.checkOut.toISOString() : null,
+      status: r.status === "half_day" ? "half-day" : r.status === "on_leave" ? "on-leave" : r.status,
+      hoursWorked: r.hoursWorked,
+      notes: r.notes || "",
+      overtimeMinutes: r.overtimeMinutes,
+    }));
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          records: formatted,
+          total: formatted.length,
+        },
+      },
+      { status: 200 }
+    );
   } catch (error: any) {
     console.error("GET /api/v2/attendance error:", error);
     return NextResponse.json(

@@ -15,6 +15,7 @@ export const overrideAttendanceStatusSchema = z.object({
 
 export const listAttendanceQuerySchema = z.object({
   userId: z.string().optional(),
+  month: z.string().optional(), // YYYY-MM
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   status: z.string().optional(),

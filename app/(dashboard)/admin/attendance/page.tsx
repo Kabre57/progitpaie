@@ -171,7 +171,11 @@ export default function AdminAttendancePage() {
       const data = await response.json();
       if (data.success) {
         setImportResult(data.data);
-        fetchAttendance();
+        if (data.data.importedMonth) {
+          setCurrentMonth(data.data.importedMonth);
+        } else {
+          fetchAttendance();
+        }
       } else {
         setError(data.error || "Erreur lors de l'importation Excel");
       }
