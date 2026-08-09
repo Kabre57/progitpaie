@@ -1,9 +1,6 @@
-"use client"
+"use client";
 
-import {
-  ArrowRight,
-  LucideIcon,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +14,8 @@ export interface ListItem {
   link?: string;
   onClick?: () => void;
   status?: React.ReactNode;
+  badge?: React.ReactNode;
+  actions?: React.ReactNode;
   children?: React.ReactNode;
 }
 
@@ -59,8 +58,10 @@ export const List2 = ({
                   <div className="order-2 text-base md:text-lg font-bold md:order-none md:col-span-2 text-[var(--neu-text)]">
                     {item.description}
                   </div>
-                  <div className="flex items-center gap-3 ml-auto order-3 md:order-none">
+                  <div className="flex flex-wrap items-center gap-3 ml-auto order-3 md:order-none justify-end">
+                    {item.badge}
                     {item.status}
+                    {item.actions}
                     {(item.link || item.onClick) && (
                       <Button 
                         variant="outline" 
