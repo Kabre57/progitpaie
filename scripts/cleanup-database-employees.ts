@@ -8,7 +8,7 @@ async function cleanupData() {
 
   // 1. Récupération de la liste complète des utilisateurs
   const allUsers = await prisma.user.findMany({
-    select: { id: true, employeeId: true, name: true, email: true, role: true },
+    select: { id: true, employeeId: true, name: true, email: true, role: true, companyId: true },
   });
 
   const keptUsers = allUsers.filter((u) => {
@@ -64,9 +64,15 @@ async function cleanupData() {
   });
   console.log(` - Contrats RH supprimés : ${deletedContracts.count}`);
 
-  // Bulletins de Paie
+  // Bulletins de Paie (Supprimer aussi les bulletins résiduels générés sur des comptes administrateurs)
   const deletedPayrolls = await prisma.payroll.deleteMany({
-    where: { userId: { in: userIdsToDelete } },
+    where: {
+      OR: [
+        { userId: { in: userIdsToDelete } },
+        { user: { role: { not: "employee" } } },
+        { user: { employeeId: null } },
+      ],
+    },
   });
   console.log(` - Bulletins de Paie supprimés : ${deletedPayrolls.count}`);
 
@@ -86,14 +92,14 @@ async function cleanupData() {
   const deletedProvisionSnapshots = await prisma.provisionCalculationSnapshot.deleteMany({});
   console.log(` - Instantanés de calcul des provisions réinitialisés : ${deletedProvisionSnapshots.count}`);
 
-  // 3. Suppression finale des comptes utilisateurs
+  // 3. Suppression finale des comptes utilisateurs non conservés
   if (userIdsToDelete.length > 0) {
     const deletedUsers = await prisma.user.deleteMany({
       where: { id: { in: userIdsToDelete } },
     });
     console.log(`✨ Suppression finale des ${deletedUsers.count} comptes salariés non conservés effectuée avec succès !`);
   } else {
-    console.log("✨ Aucun compte salarié à supprimer.");
+    console.log("✨ Aucun compte salarié supplémentaire à supprimer.");
   }
 }
 

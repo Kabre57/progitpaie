@@ -50,7 +50,7 @@ export class PrismaPayrollRepository implements PayrollRepository {
 
   public async findActiveEmployees(companyId: string): Promise<readonly EmployeeGenerationInput[]> {
     const users = await prisma.user.findMany({
-      where: { companyId, isActive: true },
+      where: { companyId, isActive: true, role: "employee" },
       select: {
         id: true,
         companyId: true,
