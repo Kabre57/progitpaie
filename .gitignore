@@ -6,7 +6,7 @@
 /node_modules
 /.pnp
 .pnp.*
-.yarn/*
+/.yarn/*
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
@@ -73,3 +73,29 @@ deploy-local.sh
 
 # ── Dossier nginx (géré directement sur le VPS, pas via Git) ─────────────────
 # nginx/  ← décommentez si votre config nginx est gérée manuellement sur le VPS
+
+# ── Fichiers de configuration locale ──────────────────────────────────────────
+*.local
+*.dev
+*.staging
+
+# ── Fichiers d'IDE ────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ── Fichiers de cache ────────────────────────────────────────────────────────
+.cache/
+.parcel-cache/
+.next/cache/
+
+# ── Rapports de sécurité ──────────────────────────────────────────────────────
+security-report.html
+vulnerability-report.json
+
+# ── Fichiers de configuration personnelle ────────────────────────────────────
+*.config.user.*
+*.config.local.*
