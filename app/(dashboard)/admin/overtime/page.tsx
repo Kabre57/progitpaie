@@ -188,8 +188,8 @@ export default function OvertimePage() {
                   return (
                     <tr key={o.id} className="hover:bg-[var(--neu-surface-light)] transition-colors">
                       <td className="px-6 py-4 font-medium">
-                        <div className="font-bold">{o.user?.name}</div>
-                        <div className="text-xs text-[var(--neu-text-secondary)]">{o.user?.employeeId || "EMP"}</div>
+                        <div className="font-bold">{o.user?.name || "Salarié"}</div>
+                        <div className="text-xs text-[var(--neu-text-secondary)]">{o.user?.employeeId || o.user?.email || "EMP"}</div>
                       </td>
                       <td className="px-6 py-4 font-mono text-xs">
                         {new Date(o.date).toLocaleDateString("fr-FR")}

@@ -46,7 +46,7 @@ function parseExcelDate(val: any): string | null {
   return null;
 }
 
-// POST /api/attendance/import - Importation des pointages via fichier Excel (.xlsx / .xls)
+// POST /api/attendance/import - Importation des pointages & heures supp via fichier Excel (.xlsx / .xls)
 export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<ImportResultData>>> {
   try {
     const authResult = await requireTenant(request, "admin");
@@ -110,7 +110,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       const rawStatus = row["Statut"] || row["statut"] || row["Status"] || row["status"];
       const rawCheckIn = String(row["Heure Entree"] || row["Heure Entrée"] || row["checkIn"] || "08:00").trim();
       const rawCheckOut = String(row["Heure Sortie"] || row["checkOut"] || "17:00").trim();
-      const rawOvertime = Number(row["Heures Supp (minutes)"] || row["overtimeMinutes"] || 0);
+      const rawOvertime = Number(row["Heures Supp (minutes)"] || row["overtimeMinutes"] || row["Heures Supp"] || 0);
+      const rawRateStr = String(row["Taux Majoration"] || row["Taux"] || row["rate"] || "").trim();
       const rawNotes = String(row["Notes"] || row["notes"] || "").trim();
 
       if (!rawMatricule) {
@@ -119,11 +120,22 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         continue;
       }
 
-      const userId = empMap.get(rawMatricule.toLowerCase());
+      let userId = empMap.get(rawMatricule.toLowerCase());
       if (!userId) {
-        skipped++;
-        errors.push(`Ligne ${lineNum} ignorée : Salarié non trouvé avec le matricule "${rawMatricule}"`);
-        continue;
+        // Auto-création du salarié s'il n'existe pas encore
+        const rawName = String(row["Nom & Prénoms"] || row["Nom"] || row["name"] || `Salarié ${rawMatricule}`).trim();
+        const newEmp = await prisma.user.create({
+          data: {
+            companyId: authResult.companyId,
+            employeeId: rawMatricule,
+            name: rawName,
+            email: `${rawMatricule.toLowerCase().replace(/[^a-z0-9]/g, "")}@progitpaie.local`,
+            role: "employee",
+            password: "$2a$10$UnmanagedPasswordPlaceholderHashToSatisfySchemaConstraint",
+          },
+        });
+        userId = newEmp.id;
+        empMap.set(rawMatricule.toLowerCase(), userId);
       }
 
       const dateStr = parseExcelDate(rawDate);
@@ -194,13 +206,56 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         },
       });
 
+      // Traitement des Heures Supplémentaires (+15%, +50%, +75%, +100%)
+      if (rawOvertime > 0) {
+        let rate = 1.15;
+        if (rawRateStr.includes("100") || rawRateStr.includes("2.0")) rate = 2.0;
+        else if (rawRateStr.includes("75") || rawRateStr.includes("1.75")) rate = 1.75;
+        else if (rawRateStr.includes("50") || rawRateStr.includes("1.5")) rate = 1.5;
+        else if (rawRateStr.includes("15") || rawRateStr.includes("1.15")) rate = 1.15;
+
+        const reason = String(row["Motif Heures Supp"] || row["Motif"] || rawNotes || "Heures supplémentaires importées").trim();
+        const overtimeDate = new Date(`${dateStr}T00:00:00.000Z`);
+
+        const existingOvertime = await prisma.overtime.findFirst({
+          where: {
+            companyId: authResult.companyId,
+            userId,
+            date: overtimeDate,
+          },
+        });
+
+        if (existingOvertime) {
+          await prisma.overtime.update({
+            where: { id: existingOvertime.id },
+            data: {
+              minutes: rawOvertime,
+              rate,
+              reason,
+            },
+          });
+        } else {
+          await prisma.overtime.create({
+            data: {
+              companyId: authResult.companyId,
+              userId,
+              date: overtimeDate,
+              minutes: rawOvertime,
+              rate,
+              reason,
+              status: "pending",
+            },
+          });
+        }
+      }
+
       imported++;
     }
 
     return NextResponse.json({
       success: true,
       data: { imported, skipped, errors, importedMonth },
-      message: `${imported} pointage(s) importé(s) avec succès`,
+      message: `${imported} pointage(s) & heure(s) supp importé(s) avec succès`,
     });
   } catch (error: any) {
     console.error("POST /api/attendance/import error:", error);
