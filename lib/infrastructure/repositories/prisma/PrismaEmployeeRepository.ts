@@ -8,6 +8,7 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
   public async list(query: ListEmployeesQuery): Promise<readonly Employee[]> {
     const where: Prisma.UserWhereInput = {
       companyId: query.companyId,
+      role: "employee",
     };
     if (query.isActive !== undefined) where.isActive = query.isActive;
     if (query.departmentId) where.departmentId = query.departmentId;
