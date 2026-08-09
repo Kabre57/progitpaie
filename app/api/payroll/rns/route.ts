@@ -41,7 +41,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         employeeRnsMap[uId] = {
           userId: p.user.id,
           name: p.user.name,
-          employeeId: p.user.employeeId || "EMP-000",
+          employeeId: p.user.employeeId || "-",
           cnpsNumber: p.user.cnpsNumber || "N/A",
           joiningDate: p.user.joiningDate,
           exitDate: p.user.exitDate,

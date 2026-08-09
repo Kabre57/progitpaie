@@ -57,7 +57,7 @@ export async function GET(
       name: user.name,
       email: user.email,
       role: user.role,
-      employeeId: user.employeeId || "EMP-001",
+      employeeId: user.employeeId || null,
       department: user.department?.name || null,
       departmentId: user.departmentId,
       leaveBalance: {

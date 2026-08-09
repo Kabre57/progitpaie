@@ -49,7 +49,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       bankSummaryMap[bankName].employees.push({
         userId: p.userId,
         name: p.user?.name,
-        employeeId: p.user?.employeeId || "EMP-000",
+        employeeId: p.user?.employeeId || "-",
         bankAccount: p.user?.bankAccount || "Sans RIB",
         netSalary: Math.round(p.netSalary),
       });

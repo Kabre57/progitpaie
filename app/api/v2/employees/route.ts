@@ -58,9 +58,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       );
     }
 
+    let finalEmployeeId = parseResult.data.employeeId;
+    if (!finalEmployeeId && (parseResult.data.role === "employee" || !parseResult.data.role)) {
+      const { generateNextEmployeeId } = await import("@/lib/utils/matricule-generator");
+      finalEmployeeId = await generateNextEmployeeId(authResult.companyId);
+    }
+
     const data = await createUseCase.execute({
       companyId: authResult.companyId,
       ...parseResult.data,
+      employeeId: finalEmployeeId,
     });
 
     return NextResponse.json(

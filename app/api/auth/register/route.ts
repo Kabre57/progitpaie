@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         email: email.toLowerCase().trim(),
         password: hashedPassword,
         role: UserRole.admin,
-        employeeId: "EMP-001",
+        employeeId: null,
         departmentId: finalDepartmentId,
         leaveBalanceAnnual: 20,
         leaveBalanceSick: 10,

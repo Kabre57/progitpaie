@@ -56,7 +56,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       return {
         userId: emp.id,
         name: emp.name,
-        employeeId: emp.employeeId || "EMP-000",
+        employeeId: emp.employeeId || "-",
         department: emp.department?.name || "Général",
         joiningDate: emp.joiningDate,
         presenceDays,

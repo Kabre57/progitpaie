@@ -82,7 +82,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         employeeMap.set(uId, {
           userId: uId,
           name: p.user?.name || "Inconnu",
-          employeeId: p.user?.employeeId || "EMP-000",
+          employeeId: p.user?.employeeId || "-",
           department: p.user?.department?.name || "Général",
           monthsPaid: 0,
           cumulBasicSalary: 0,

@@ -64,7 +64,7 @@ export function EmployeeTable({
                 employees.map((emp) => (
                   <tr key={emp.id || emp._id} className="hover:bg-[var(--neu-surface-light)] transition-colors">
                     <td className="px-3 py-3 font-mono font-bold text-[var(--neu-accent)]">
-                      {emp.employeeId || "EMP-000"}
+                      {emp.employeeId || "-"}
                     </td>
                     <td className="px-3 py-3">
                       <div className="font-semibold text-[var(--neu-text)]">
