@@ -1,7 +1,9 @@
-import { prisma } from "../lib/db";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 async function seedEmployees() {
-  console.log("🌱 Initialisation des salariés de référence (EMP-001 & EMP-003)...");
+  console.log("🌱 Initialisation des salariés de référence (EMP-000, EMP-001 & EMP-003)...");
 
   const companies = await prisma.company.findMany({ select: { id: true, name: true } });
   if (companies.length === 0) {
@@ -12,90 +14,142 @@ async function seedEmployees() {
   for (const company of companies) {
     console.log(` ➜ Entreprise : ${company.name} (${company.id})`);
 
+    // EMP-000
+    const emp0 = await prisma.user.findFirst({ where: { employeeId: "EMP-000" } });
+    if (emp0) {
+      await prisma.user.update({
+        where: { id: emp0.id },
+        data: {
+          companyId: company.id,
+          name: "Theodore KABRE",
+          role: "employee",
+          isActive: true,
+          salary: 400000,
+          sursalaire: 60000,
+          transportAllowance: 30000,
+          partsIGR: 2.5,
+          contractType: "CDI",
+          category: "6A",
+          jobTitle: "Directeur Général",
+          direction: "DIRECTION GENERALE",
+          service: "ADMINISTRATION",
+        },
+      });
+    } else {
+      await prisma.user.create({
+        data: {
+          companyId: company.id,
+          name: "Theodore KABRE",
+          email: `emp000_${company.id}@progitpaie.local`,
+          password: "$2a$10$UnmanagedPasswordPlaceholderHashToSatisfySchemaConstraint",
+          employeeId: "EMP-000",
+          role: "employee",
+          isActive: true,
+          salary: 400000,
+          sursalaire: 60000,
+          transportAllowance: 30000,
+          partsIGR: 2.5,
+          contractType: "CDI",
+          category: "6A",
+          jobTitle: "Directeur Général",
+          direction: "DIRECTION GENERALE",
+          service: "ADMINISTRATION",
+        },
+      });
+    }
+
     // EMP-001
-    await prisma.user.upsert({
-      where: {
-        email: `emp001_${company.id}@progitpaie.local`,
-      },
-      update: {
-        name: "Kouassi Jean",
-        employeeId: "EMP-001",
-        salary: 350000,
-        sursalaire: 50000,
-        transportAllowance: 30000,
-        partsIGR: 2.0,
-        contractType: "CDI",
-        category: "5B",
-        jobTitle: "Responsable RH",
-        direction: "ADMINISTRATION",
-        service: "RESSOURCES HUMAINES",
-        role: "employee",
-        isActive: true,
-      },
-      create: {
-        companyId: company.id,
-        name: "Kouassi Jean",
-        email: `emp001_${company.id}@progitpaie.local`,
-        password: "$2a$10$UnmanagedPasswordPlaceholderHashToSatisfySchemaConstraint",
-        employeeId: "EMP-001",
-        salary: 350000,
-        sursalaire: 50000,
-        transportAllowance: 30000,
-        partsIGR: 2.0,
-        contractType: "CDI",
-        category: "5B",
-        jobTitle: "Responsable RH",
-        direction: "ADMINISTRATION",
-        service: "RESSOURCES HUMAINES",
-        role: "employee",
-        isActive: true,
-      },
-    });
+    const emp1 = await prisma.user.findFirst({ where: { employeeId: "EMP-001" } });
+    if (emp1) {
+      await prisma.user.update({
+        where: { id: emp1.id },
+        data: {
+          companyId: company.id,
+          name: "Kouassi Jean",
+          role: "employee",
+          isActive: true,
+          salary: 350000,
+          sursalaire: 50000,
+          transportAllowance: 30000,
+          partsIGR: 2.0,
+          contractType: "CDI",
+          category: "5B",
+          jobTitle: "Responsable RH",
+          direction: "ADMINISTRATION",
+          service: "RESSOURCES HUMAINES",
+        },
+      });
+    } else {
+      await prisma.user.create({
+        data: {
+          companyId: company.id,
+          name: "Kouassi Jean",
+          email: `emp001_${company.id}@progitpaie.local`,
+          password: "$2a$10$UnmanagedPasswordPlaceholderHashToSatisfySchemaConstraint",
+          employeeId: "EMP-001",
+          role: "employee",
+          isActive: true,
+          salary: 350000,
+          sursalaire: 50000,
+          transportAllowance: 30000,
+          partsIGR: 2.0,
+          contractType: "CDI",
+          category: "5B",
+          jobTitle: "Responsable RH",
+          direction: "ADMINISTRATION",
+          service: "RESSOURCES HUMAINES",
+        },
+      });
+    }
 
     // EMP-003
-    await prisma.user.upsert({
-      where: {
-        email: `emp003_${company.id}@progitpaie.local`,
-      },
-      update: {
-        name: "KOUAME Marc",
-        employeeId: "EMP-003",
-        salary: 300000,
-        sursalaire: 40000,
-        transportAllowance: 30000,
-        partsIGR: 1.5,
-        contractType: "CDI",
-        category: "4A",
-        jobTitle: "Développeur Sénior",
-        direction: "INFORMATIQUE",
-        service: "DEVELOPPEMENT",
-        role: "employee",
-        isActive: true,
-      },
-      create: {
-        companyId: company.id,
-        name: "KOUAME Marc",
-        email: `emp003_${company.id}@progitpaie.local`,
-        password: "$2a$10$UnmanagedPasswordPlaceholderHashToSatisfySchemaConstraint",
-        employeeId: "EMP-003",
-        salary: 300000,
-        sursalaire: 40000,
-        transportAllowance: 30000,
-        partsIGR: 1.5,
-        contractType: "CDI",
-        category: "4A",
-        jobTitle: "Développeur Sénior",
-        direction: "INFORMATIQUE",
-        service: "DEVELOPPEMENT",
-        role: "employee",
-        isActive: true,
-      },
-    });
+    const emp3 = await prisma.user.findFirst({ where: { employeeId: "EMP-003" } });
+    if (emp3) {
+      await prisma.user.update({
+        where: { id: emp3.id },
+        data: {
+          companyId: company.id,
+          name: "KOUAME Marc",
+          role: "employee",
+          isActive: true,
+          salary: 300000,
+          sursalaire: 40000,
+          transportAllowance: 30000,
+          partsIGR: 1.5,
+          contractType: "CDI",
+          category: "4A",
+          jobTitle: "Développeur Sénior",
+          direction: "INFORMATIQUE",
+          service: "DEVELOPPEMENT",
+        },
+      });
+    } else {
+      await prisma.user.create({
+        data: {
+          companyId: company.id,
+          name: "KOUAME Marc",
+          email: `emp003_${company.id}@progitpaie.local`,
+          password: "$2a$10$UnmanagedPasswordPlaceholderHashToSatisfySchemaConstraint",
+          employeeId: "EMP-003",
+          role: "employee",
+          isActive: true,
+          salary: 300000,
+          sursalaire: 40000,
+          transportAllowance: 30000,
+          partsIGR: 1.5,
+          contractType: "CDI",
+          category: "4A",
+          jobTitle: "Développeur Sénior",
+          direction: "INFORMATIQUE",
+          service: "DEVELOPPEMENT",
+        },
+      });
+    }
 
-    console.log(` ✅ EMP-001 (Kouassi Jean) et EMP-003 (KOUAME Marc) configurés pour ${company.name}`);
+    console.log(` ✅ EMP-000, EMP-001 et EMP-003 créés/mis à jour pour ${company.name}`);
   }
 
-  console.log("✨ Initialisation des salariés de référence terminée avec succès !");
+  console.log("✨ Initialisation des salariés terminée avec succès !");
 }
 
 seedEmployees()
