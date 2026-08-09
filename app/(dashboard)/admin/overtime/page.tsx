@@ -6,7 +6,7 @@ import { NeuButton } from "@/components/ui/neu-button";
 import { NeuBadge } from "@/components/ui/neu-badge";
 import { NeuInput } from "@/components/ui/neu-input";
 import { NeuSelect } from "@/components/ui/neu-select";
-import { Timer, CheckCircle, XCircle, Clock, RefreshCw, Plus } from "lucide-react";
+import { Timer, CheckCircle, XCircle, Clock, RefreshCw, Plus, AlertTriangle } from "lucide-react";
 import { NeuDialog } from "@/components/ui/neu-dialog";
 import { NeuPagination } from "@/components/ui/neu-pagination";
 import { OvertimeFilterBar } from "@/components/admin/overtime/OvertimeFilterBar";
@@ -52,6 +52,11 @@ export default function OvertimePage() {
   const [rateFilter, setRateFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // State pour la justification obligatoire des mois passés
+  const [showJustificationModal, setShowJustificationModal] = useState(false);
+  const [selectedOvertimeForJustification, setSelectedOvertimeForJustification] = useState<any | null>(null);
+  const [justificationReason, setJustificationReason] = useState("");
+
   // Form State for 5 legal tranches
   const [selectedUserId, setSelectedUserId] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -94,6 +99,13 @@ export default function OvertimePage() {
     }
   };
 
+  // Détermine si un pointage appartient à un mois antérieur
+  const isRecordPastMonth = (dateStr: string) => {
+    const recordMonth = new Date(dateStr).toISOString().slice(0, 7);
+    const nowMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    return recordMonth < nowMonth;
+  };
+
   // Logique de filtrage des heures supplémentaires
   const filteredOvertimes = overtimes.filter((o) => {
     if (currentMonth) {
@@ -118,12 +130,36 @@ export default function OvertimePage() {
   const totalPages = Math.ceil(filteredOvertimes.length / itemsPerPage);
   const paginatedOvertimes = filteredOvertimes.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const handleApproveReject = async (id: string, action: "approve" | "reject") => {
+  const handleValidateClick = (o: any) => {
+    if (isRecordPastMonth(o.date)) {
+      setSelectedOvertimeForJustification(o);
+      setJustificationReason("");
+      setShowJustificationModal(true);
+    } else {
+      handleApproveReject(o.id, "approve");
+    }
+  };
+
+  const handleConfirmPastMonthApproval = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOvertimeForJustification) return;
+    if (justificationReason.trim().length < 5) {
+      alert("La justification doit contenir au moins 5 caractères.");
+      return;
+    }
+
+    await handleApproveReject(selectedOvertimeForJustification.id, "approve", justificationReason.trim());
+    setShowJustificationModal(false);
+    setSelectedOvertimeForJustification(null);
+    setJustificationReason("");
+  };
+
+  const handleApproveReject = async (id: string, action: "approve" | "reject", justification?: string) => {
     try {
       const res = await fetch(`/api/overtime/${id}/approve`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, justification }),
       });
       const json = await res.json();
       if (json.success) {
@@ -265,17 +301,25 @@ export default function OvertimePage() {
                 paginatedOvertimes.map((o) => {
                   const hours = (o.minutes / 60).toFixed(1);
                   const ratePercent = Math.round((o.rate - 1) * 100);
+                  const isPast = isRecordPastMonth(o.date);
 
                   return (
                     <tr key={o.id} className="hover:bg-[var(--neu-surface-light)] transition-colors">
                       <td className="px-6 py-4 font-medium">
                         <div className="font-bold">{o.user?.name || "Salarié"}</div>
-                        <div className="text-xs text-[var(--neu-text-secondary)]">
+                        <div className="text-xs text-[var(--neu-text-secondary)] font-mono">
                           {o.user?.employeeId || o.user?.email || "EMP"}
                         </div>
                       </td>
                       <td className="px-6 py-4 font-mono text-xs">
-                        {new Date(o.date).toLocaleDateString("fr-FR")}
+                        <span className="flex items-center gap-1">
+                          {new Date(o.date).toLocaleDateString("fr-FR")}
+                          {isPast && (
+                            <span className="text-[10px] text-amber-500 font-semibold px-1 py-0.5 rounded bg-amber-500/10" title="Mois antérieur (Justification requise)">
+                              Mois Passé
+                            </span>
+                          )}
+                        </span>
                       </td>
                       <td className="px-6 py-4 font-semibold text-[var(--neu-accent)]">
                         <span className="flex items-center gap-1">
@@ -302,8 +346,9 @@ export default function OvertimePage() {
                           <>
                             <NeuButton
                               size="sm"
-                              onClick={() => handleApproveReject(o.id, "approve")}
+                              onClick={() => handleValidateClick(o)}
                               className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                              title={isPast ? "Mois passé : Justification obligatoire" : "Valider"}
                             >
                               <CheckCircle size={14} className="mr-1" /> Valider
                             </NeuButton>
@@ -333,6 +378,66 @@ export default function OvertimePage() {
           onPageChange={setCurrentPage}
         />
       </NeuCard>
+
+      {/* Modal Justification Obligatoire pour Mois Passé */}
+      <NeuDialog
+        open={showJustificationModal}
+        onClose={() => setShowJustificationModal(false)}
+        title="Justification Obligatoire (Mois Passé)"
+      >
+        <form onSubmit={handleConfirmPastMonthApproval} className="space-y-4">
+          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-600 font-medium flex items-start gap-2">
+            <AlertTriangle className="w-5 h-5 shrink-0 text-amber-500 mt-0.5" />
+            <div>
+              <p className="font-semibold">Pointage d'un mois passé sélectionné</p>
+              <p className="mt-1">
+                Ce pointage d'heures supplémentaires appartient à un mois antérieur à la période en cours.
+                Une justification explicite est <strong>obligatoire</strong> pour autoriser la régularisation et déverrouiller le bouton <strong>Valider</strong>.
+              </p>
+            </div>
+          </div>
+
+          {selectedOvertimeForJustification && (
+            <div className="text-xs space-y-1 text-[var(--neu-text-secondary)] bg-[var(--neu-surface-light)] p-3 rounded-lg border border-[var(--neu-border)]">
+              <p><strong>Salarié :</strong> {selectedOvertimeForJustification.user?.name} ({selectedOvertimeForJustification.user?.employeeId || "EMP"})</p>
+              <p><strong>Date du pointage :</strong> {new Date(selectedOvertimeForJustification.date).toLocaleDateString("fr-FR")}</p>
+              <p><strong>Durée / Majoration :</strong> {(selectedOvertimeForJustification.minutes / 60).toFixed(1)}h (+{Math.round((selectedOvertimeForJustification.rate - 1) * 100)}%)</p>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-[var(--neu-text)]">Motif / Justification de Régularisation *</label>
+            <textarea
+              rows={3}
+              value={justificationReason}
+              onChange={(e) => setJustificationReason(e.target.value)}
+              placeholder="Ex: Régularisation exceptionnelle suite audit des temps de présence RH..."
+              className="w-full p-2.5 text-xs rounded-lg border border-[var(--neu-border)] bg-[var(--neu-surface)] text-[var(--neu-text)] focus:ring-2 focus:ring-[var(--neu-accent)] focus:outline-none"
+              required
+            />
+            <p className="text-[10px] text-[var(--neu-text-secondary)] flex justify-between">
+              <span>Au moins 5 caractères requis pour activer le bouton <strong>Valider</strong></span>
+              <span className={justificationReason.trim().length >= 5 ? "text-emerald-500 font-bold" : "text-rose-400"}>
+                {justificationReason.trim().length}/5
+              </span>
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <NeuButton type="button" variant="ghost" onClick={() => setShowJustificationModal(false)}>
+              Annuler
+            </NeuButton>
+            <NeuButton
+              type="submit"
+              variant="accent"
+              disabled={justificationReason.trim().length < 5}
+              className={justificationReason.trim().length < 5 ? "opacity-50 cursor-not-allowed" : "bg-emerald-600 hover:bg-emerald-700 text-white"}
+            >
+              Valider la Régularisation
+            </NeuButton>
+          </div>
+        </form>
+      </NeuDialog>
 
       {/* Modal Saisie Heures Supp */}
       <NeuDialog open={showAddModal} onClose={() => setShowAddModal(false)} title="Saisie des Heures Supplémentaires (5 Tranches Légales)">
