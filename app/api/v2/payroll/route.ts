@@ -27,6 +27,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     const records = await prisma.payroll.findMany({
       where: {
         companyId: authResult.companyId,
+        user: { role: "employee" },
         ...(parseResult.data.month ? { month: parseResult.data.month } : {}),
         ...(parseResult.data.year ? { year: parseResult.data.year } : {}),
         ...(parseResult.data.status ? { status: parseResult.data.status as any } : {}),
