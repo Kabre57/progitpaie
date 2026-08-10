@@ -101,49 +101,35 @@ export default function AdminReportsPage() {
       setError(null);
 
       try {
-        // Fetch all data in parallel
-        const [statsRes, monthlyRes, deptRes, trendRes, performersRes] = await Promise.all([
-          fetch("/api/attendance/stats"),
-          fetch(`/api/reports/monthly?month=${selectedMonth}&year=${selectedYear}`),
-          fetch(`/api/reports/department?month=${selectedMonth}&year=${selectedYear}`),
-          fetch("/api/reports/trend?months=6"),
-          fetch(`/api/reports/top-performers?month=${selectedMonth}&year=${selectedYear}&limit=10`),
+        const [summaryJson, analyticsJson] = await Promise.all([
+          fetch("/api/v2/attendance/today-summary").then((r) => r.json()).catch(() => ({ success: false })),
+          fetch("/api/v2/reports/analytics").then((r) => r.json()).catch(() => ({ success: false })),
         ]);
 
-        const statsData = await statsRes.json();
-        const monthlyData = await monthlyRes.json();
-        const deptData = await deptRes.json();
-        const trendData = await trendRes.json();
-        const performersData = await performersRes.json();
-
-        if (statsData.success) {
-          setTodayStats(statsData.data);
+        if (summaryJson.success && summaryJson.data) {
+          const d = summaryJson.data;
+          setTodayStats({
+            totalEmployees: d.totalEmployees || 0,
+            presentToday: d.presentCount ?? d.presentToday ?? 0,
+            absentToday: d.absentCount ?? d.absentToday ?? 0,
+            onLeaveToday: d.onLeaveCount ?? d.onLeaveToday ?? 0,
+          });
         }
 
-        if (monthlyData.success) {
-          setMonthlyData(monthlyData.data || []);
-        }
-
-        if (deptData.success) {
-          // Transform department data for pie chart
-          const pieData = deptData.data
-            .filter((d: { totalEmployees: number }) => d.totalEmployees > 0)
-            .map((d: { departmentName: string; totalEmployees: number }) => ({
-              name: d.departmentName,
-              value: d.totalEmployees,
-            }));
-          setDepartmentData(pieData);
-        }
-
-        if (trendData.success) {
-          setTrendData(trendData.data || []);
-        }
-
-        if (performersData.success) {
-          setTopPerformers(performersData.data || []);
+        if (analyticsJson.success && analyticsJson.data) {
+          const a = analyticsJson.data;
+          if (Array.isArray(a.departmentBreakdown)) {
+            const pieData = a.departmentBreakdown
+              .filter((dept: { count: number }) => dept.count > 0)
+              .map((dept: { name: string; count: number }) => ({
+                name: dept.name,
+                value: dept.count,
+              }));
+            setDepartmentData(pieData);
+          }
         }
       } catch (err) {
-        setError("Failed to load reports");
+        console.error("Reports fetch error:", err);
       } finally {
         setIsLoading(false);
       }

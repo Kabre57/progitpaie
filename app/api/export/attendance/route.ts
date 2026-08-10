@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireTenant } from "@/lib/database/tenant-context";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import { ApiResponse } from "@/types";
 
 // GET /api/export/attendance?month=1&year=2025&dept=deptId&format=excel|pdf
@@ -128,7 +128,7 @@ export async function GET(
       doc.setFontSize(16);
       doc.text(`Attendance Report - ${monthName} ${year}`, 14, 20);
 
-      (doc as any).autoTable({
+      autoTable(doc, {
         head: [["Employee Name", "Employee ID", "Department", "Date", "Check-in", "Check-out", "Status", "Hours"]],
         body: rows.map((r) => [
           r["Employee Name"],

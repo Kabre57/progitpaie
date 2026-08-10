@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import { PayslipAppearanceConfig, PayslipLegalConfig } from "@/lib/payslip-config";
 
 function cleanText(text: string | null | undefined): string {
@@ -190,7 +190,7 @@ export function generatePayslipPdf(options: PayslipPdfOptions): Buffer {
     ["81", "TAXE FORMATION CONTINUE (TFC - FDFP)", "0.60%", brutSocial.toLocaleString(), "-", "-", "0.60%", options.tfcVal.toLocaleString(), "-"],
   ].filter((row) => row.length > 0);
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 92,
     head: [["N°", "DÉSIGNATION DES RUBRIQUES", "BASE / TAUX", "GAINS", "RETENUES SAL.", "SALAIRE BRUT", "TAUX PAT.", "RETENUES PAT.", "NET A PAYER"]],
     body: tableBody,
@@ -219,10 +219,10 @@ export function generatePayslipPdf(options: PayslipPdfOptions): Buffer {
     },
   });
 
-  const finalTableY = doc.lastAutoTable?.finalY || 195;
+  const finalTableY = (doc as any).lastAutoTable?.finalY || 195;
 
   // 4. RÉCAPITULATIF TOTAUX
-  doc.autoTable({
+  autoTable(doc, {
     startY: finalTableY + 4,
     head: [["TOTAL GAINS BRUTS", "TOTAL RETENUES SALARIALES", "TOTAL CHARGES PATRONALES", "NET A PAYER SALARIÉ"]],
     body: [[
@@ -237,10 +237,10 @@ export function generatePayslipPdf(options: PayslipPdfOptions): Buffer {
     bodyStyles: { fillColor: [248, 249, 250], textColor: [20, 20, 20] },
   });
 
-  const cumulsFinalY = doc.lastAutoTable?.finalY || (finalTableY + 30);
+  const cumulsFinalY = (doc as any).lastAutoTable?.finalY || (finalTableY + 30);
 
   // 5. CUMULS ANNUELS FISCAUX & CNPS
-  doc.autoTable({
+  autoTable(doc, {
     startY: cumulsFinalY + 4,
     head: [["CUMUL BRUT FISCAL (ANNÉE)", "CUMUL NET IMPOSABLE (ANNÉE)", "CUMUL ITS PAYÉ", "CUMUL CNPS SALARIAL"]],
     body: [[
@@ -255,7 +255,7 @@ export function generatePayslipPdf(options: PayslipPdfOptions): Buffer {
   });
 
   // 6. ZONE DE SIGNATURE ET MENTIONS LÉGALES
-  const signatureY = (doc.lastAutoTable?.finalY || cumulsFinalY) + 6;
+  const signatureY = ((doc as any).lastAutoTable?.finalY || cumulsFinalY) + 6;
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(50, 50, 50);
