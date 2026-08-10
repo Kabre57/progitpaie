@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db";
 import { GeneratePayrollUseCase } from "@/lib/application/payroll/use-cases/GeneratePayroll";
 import { PrismaPayrollRepository } from "@/lib/infrastructure/repositories/prisma/PrismaPayrollRepository";
 import { listPayrollsQuerySchema, generatePayrollSchema } from "@/shared/validation/payroll-v2.schema";
+import { PayrollGenerationRulesDTO } from "@/shared/validation/payroll-settings-v2.schema";
+import { PayrollGenerationRulesService } from "@/lib/domain/payroll/services/payroll-generation-rules.service";
 import { ApiResponse } from "@/types";
 
 const repository = new PrismaPayrollRepository();
@@ -113,11 +115,55 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       );
     }
 
+    const { month, year } = parseResult.data;
+    const justification = typeof body.justification === "string" ? body.justification : undefined;
+
+    // Récupération des règles de génération de la paie dans CompanySettings
+    const settingRecord = await prisma.companySettings.findUnique({
+      where: { companyId_key: { companyId: authResult.companyId, key: "payroll_generation_rules" } },
+    });
+
+    const rules: PayrollGenerationRulesDTO = {
+      startDayOfMonth: 25,
+      allowEarlyGenerationWithReason: true,
+      minJustificationLength: 10,
+      ...(settingRecord?.value ? (settingRecord.value as any) : {}),
+    };
+
+    const check = PayrollGenerationRulesService.checkGenerationAllowed(month, year, rules, justification);
+
+    if (!check.isAllowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: check.errorReason || "Génération non autorisée pour cette période",
+          code: "EARLY_PAYROLL_RESTRICTION",
+          requiresJustification: check.requiresJustification,
+          isEarly: check.isEarly,
+          startDayOfMonth: rules.startDayOfMonth,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Si génération anticipée sur justification, journaliser dans les logs d'audit
+    if (check.isEarly && justification) {
+      await prisma.auditLog.create({
+        data: {
+          companyId: authResult.companyId,
+          performedById: authResult.userId,
+          action: "EARLY_PAYROLL_GENERATION",
+          targetModel: "Payroll",
+          newValues: { month, year, justification },
+        },
+      }).catch(() => null);
+    }
+
     const result = await generateUseCase.execute({
       companyId: authResult.companyId,
       adminId: authResult.userId,
-      month: parseResult.data.month,
-      year: parseResult.data.year,
+      month,
+      year,
     });
 
     return NextResponse.json(

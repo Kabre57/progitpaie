@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { 
-  Building2, Calculator, Grid, Sliders, Landmark, MapPin, FileText 
+  Building2, Calculator, Grid, Sliders, Landmark, MapPin, FileText, Calendar 
 } from "lucide-react";
 import { NeuToast } from "@/components/ui/neu-toast";
 import { Spinner } from "@/components/ui/spinner";
@@ -22,9 +22,12 @@ import {
   DEFAULT_PAYSLIP_LEGAL,
 } from "@/lib/payslip-config";
 
+import { PayrollPeriodSettingsCard } from "@/components/settings/payroll-period-settings-card";
+import { PayrollGenerationRulesDTO } from "@/shared/validation/payroll-settings-v2.schema";
+
 export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<
-    "company" | "rates" | "salary_grid" | "other" | "banks" | "location" | "payslip"
+    "company" | "rates" | "salary_grid" | "other" | "banks" | "location" | "payslip" | "payroll_period"
   >("company");
 
   const [loading, setLoading] = useState(true);
@@ -120,6 +123,12 @@ export default function AdminSettingsPage() {
   const [payslipAppearance, setPayslipAppearance] = useState<PayslipAppearanceConfig>(DEFAULT_PAYSLIP_APPEARANCE);
   const [payslipLegal, setPayslipLegal] = useState<PayslipLegalConfig>(DEFAULT_PAYSLIP_LEGAL);
 
+  const [payrollRules, setPayrollRules] = useState<PayrollGenerationRulesDTO>({
+    startDayOfMonth: 25,
+    allowEarlyGenerationWithReason: true,
+    minJustificationLength: 10,
+  });
+
   // Chargement 100% Dynamique depuis l'API /api/settings
   useEffect(() => {
     async function loadAllSettings() {
@@ -140,6 +149,9 @@ export default function AdminSettingsPage() {
             setBanks(json.data.bank_list);
           }
           if (json.data.location) setLocation(json.data.location);
+          if (json.data.payroll_generation_rules) {
+            setPayrollRules((prev) => ({ ...prev, ...json.data.payroll_generation_rules }));
+          }
 
           // Charger la configuration du bulletin (apparence + légal)
           if (json.data.payslip_appearance) {
@@ -319,6 +331,17 @@ export default function AdminSettingsPage() {
         >
           <FileText className="w-4 h-4" /> Bulletin de Paie
         </button>
+
+        <button
+          onClick={() => setActiveTab("payroll_period")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === "payroll_period"
+              ? "bg-[var(--neu-accent)] text-white shadow-md"
+              : "bg-[var(--neu-surface)] text-[var(--neu-text-secondary)] hover:bg-[var(--neu-surface-light)]"
+          }`}
+        >
+          <Calendar className="w-4 h-4" /> Période & Contrôle Paie
+        </button>
       </div>
 
       {/* Tab 1: Identification Entreprise & Période */}
@@ -397,6 +420,16 @@ export default function AdminSettingsPage() {
           legal={payslipLegal}
           setLegal={setPayslipLegal}
           onSave={savePayslipConfig}
+          saving={saving}
+        />
+      )}
+
+      {/* Tab 8: Période & Contrôles de Génération de Paie */}
+      {activeTab === "payroll_period" && (
+        <PayrollPeriodSettingsCard
+          rules={payrollRules}
+          setRules={setPayrollRules}
+          onSave={() => saveSettingsKey("payroll_generation_rules", payrollRules)}
           saving={saving}
         />
       )}

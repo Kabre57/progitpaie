@@ -71,16 +71,37 @@ export default function AdminPayrollPage() {
   const totalPages = Math.ceil(payroll.length / itemsPerPage);
   const paginatedPayroll = payroll.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const handleGenerate = async () => {
+  const [showJustificationModal, setShowJustificationModal] = useState(false);
+  const [justificationReason, setJustificationReason] = useState("");
+  const [earlyRestrictionData, setEarlyRestrictionData] = useState<{
+    error: string;
+    startDayOfMonth: number;
+    requiresJustification: boolean;
+  } | null>(null);
+
+  const handleGenerate = async (justification?: string) => {
     setGenerating(true);
     try {
       const response = await fetch("/api/payroll", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month, year }),
+        body: JSON.stringify({ month, year, justification }),
       });
-      if (response.ok) {
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setShowJustificationModal(false);
+        setJustificationReason("");
+        setEarlyRestrictionData(null);
         fetchPayroll();
+      } else if (data.code === "EARLY_PAYROLL_RESTRICTION") {
+        setEarlyRestrictionData({
+          error: data.error,
+          startDayOfMonth: data.startDayOfMonth || 25,
+          requiresJustification: data.requiresJustification ?? true,
+        });
+        setShowJustificationModal(true);
+      } else {
+        alert(data.error || "Erreur de génération de la paie");
       }
     } catch (error) {
       console.error("Failed to generate payroll", error);
@@ -190,7 +211,7 @@ export default function AdminPayrollPage() {
             </>
           )}
 
-          <NeuButton onClick={handleGenerate} loading={generating} variant="accent">
+          <NeuButton onClick={() => handleGenerate()} loading={generating} variant="accent">
             <DollarSign className="w-4 h-4 mr-1" />
             Générer la Paie du Mois
           </NeuButton>
@@ -297,6 +318,64 @@ export default function AdminPayrollPage() {
           defaultSalary={activeEditDoc.salary}
           docType={activeEditDoc.docType}
         />
+      )}
+
+      {/* Modal Dérogation & Justification Génération Anticipée de la Paie */}
+      {showJustificationModal && earlyRestrictionData && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <NeuCard className="w-full max-w-xl p-6 space-y-4">
+            <h2 className="text-lg font-bold text-amber-500 flex items-center gap-2 border-b border-[var(--neu-border)] pb-3">
+              🛡️ Période & Dérogation de Génération de Paie
+            </h2>
+
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-700 dark:text-amber-300 space-y-1">
+              <p className="font-semibold">{earlyRestrictionData.error}</p>
+              <p className="opacity-80">
+                La période légale autorisée par votre entreprise s'ouvre le <strong>{earlyRestrictionData.startDayOfMonth} du mois</strong>.
+              </p>
+            </div>
+
+            {earlyRestrictionData.requiresJustification ? (
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-[var(--neu-text-secondary)]">
+                  Justification / Motif de la Génération Anticipée * (min. 10 caractères)
+                </label>
+                <textarea
+                  value={justificationReason}
+                  onChange={(e) => setJustificationReason(e.target.value)}
+                  placeholder="ex: Fermeture annuelle anticipée de l'entreprise, vacances collectives de fin d'année..."
+                  rows={3}
+                  className="w-full p-3 rounded-xl bg-[var(--neu-surface-light)] border border-[var(--neu-border)] text-xs text-[var(--neu-text)] focus:outline-none focus:border-[var(--neu-accent)]"
+                />
+                <p className="text-[10px] opacity-70 text-[var(--neu-text-secondary)]">
+                  ℹ️ Cette justification sera enregistrée dans les journaux d'audit de l'entreprise.
+                </p>
+              </div>
+            ) : null}
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-[var(--neu-border)]">
+              <NeuButton
+                variant="ghost"
+                onClick={() => {
+                  setShowJustificationModal(false);
+                  setJustificationReason("");
+                  setEarlyRestrictionData(null);
+                }}
+              >
+                Annuler
+              </NeuButton>
+              {earlyRestrictionData.requiresJustification && (
+                <NeuButton
+                  variant="accent"
+                  disabled={generating || justificationReason.trim().length < 10}
+                  onClick={() => handleGenerate(justificationReason.trim())}
+                >
+                  {generating ? "Traitement..." : "Débloquer & Générer la Paie"}
+                </NeuButton>
+              )}
+            </div>
+          </NeuCard>
+        </div>
       )}
     </div>
   );
