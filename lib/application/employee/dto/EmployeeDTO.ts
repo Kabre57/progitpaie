@@ -25,6 +25,8 @@ export interface EmployeeDTO {
   direction?: string | null;
   service?: string | null;
   contractType?: string | null;
+  managerId?: string | null;
+  managerName?: string | null;
   seniorityMonths?: number;
   seniorityYears?: number;
   isActive: boolean;

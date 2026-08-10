@@ -29,6 +29,8 @@ enum LeaveType {
 /// Statut de validation de la demande de congé
 enum LeaveStatus {
   pending
+  pending_n1
+  pending_n2
   approved
   rejected
 }

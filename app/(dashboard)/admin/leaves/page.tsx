@@ -227,7 +227,11 @@ export default function AdminLeavesPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "approved":
-        return <NeuBadge variant="present">Validé</NeuBadge>;
+        return <NeuBadge variant="present">Validé (RH)</NeuBadge>;
+      case "pending_n1":
+        return <NeuBadge variant="warning">Attente N1 (Manager)</NeuBadge>;
+      case "pending_n2":
+        return <NeuBadge variant="warning">Attente N2 (RH)</NeuBadge>;
       case "rejected":
         return <NeuBadge variant="absent">Rejeté</NeuBadge>;
       default:

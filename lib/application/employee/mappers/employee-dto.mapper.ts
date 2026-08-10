@@ -34,6 +34,8 @@ export function toEmployeeDTO(
     direction: employee.direction || null,
     service: employee.service || null,
     contractType: employee.contractType || null,
+    managerId: employee.managerId || null,
+    managerName: employee.managerName || null,
     seniorityMonths: seniority.totalMonths,
     seniorityYears: seniority.totalYears,
     isActive: employee.isActive,

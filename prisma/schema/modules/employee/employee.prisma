@@ -60,6 +60,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  managerId          String? // ID du supérieur hiérarchique direct N1
+  manager            User?                          @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  subordinates       User[]                         @relation("EmployeeManager")
+
   // Relations principales
   company    Company     @relation("CompanyEmployees", fields: [companyId], references: [id], onDelete: Restrict)
   department Department? @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
@@ -70,6 +74,8 @@ model User {
   overriddenRecords    Attendance[]                   @relation("OverriddenAttendances")
   leaves               Leave[]                        @relation("UserLeaves")
   approvedLeaves       Leave[]                        @relation("ApprovedLeaves")
+  approvedLeavesN1     Leave[]                        @relation("ApprovedLeavesN1")
+  approvedLeavesN2     Leave[]                        @relation("ApprovedLeavesN2")
   payrolls             Payroll[]
   notifications        Notification[]
   auditLogs            AuditLog[]

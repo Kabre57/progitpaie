@@ -8,7 +8,7 @@ import { ApiResponse } from "@/types";
 const repository = new PrismaLeaveRepository();
 const approveUseCase = new ApproveLeaveUseCase(repository);
 
-// PUT /api/v2/leaves/[id]/approve - Approuver un congé (V2 Clean Architecture)
+// PUT /api/v2/leaves/[id]/approve - Approuver un congé avec workflow N1/N2
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -27,6 +27,37 @@ export async function PUT(
       );
     }
 
+    const { prisma } = await import("@/lib/db");
+    const leave = await prisma.leave.findFirst({
+      where: { id, companyId: authResult.companyId },
+    });
+
+    if (!leave) {
+      return NextResponse.json(
+        { success: false, error: "Demande de congé non trouvée", code: "NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    // Si statut = pending_n1 ➔ Validation N1 ➔ passage à pending_n2
+    if (leave.status === "pending_n1") {
+      const updated = await prisma.leave.update({
+        where: { id },
+        data: {
+          status: "pending_n2",
+          approvedByN1Id: authResult.userId,
+          approvedByN1At: new Date(),
+          adminComment: parseResult.data.comment || leave.adminComment,
+        },
+      });
+
+      return NextResponse.json(
+        { success: true, data: updated, message: "Validation N1 effectuée avec succès. Transmise à la Direction RH (N2)." },
+        { status: 200 }
+      );
+    }
+
+    // Sinon (pending_n2 ou pending) ➔ Validation finale N2 & décompte du solde
     const data = await approveUseCase.execute({
       companyId: authResult.companyId,
       adminId: authResult.userId,
@@ -34,8 +65,16 @@ export async function PUT(
       comment: parseResult.data.comment,
     });
 
+    await prisma.leave.update({
+      where: { id },
+      data: {
+        approvedByN2Id: authResult.userId,
+        approvedByN2At: new Date(),
+      },
+    }).catch(() => null);
+
     return NextResponse.json(
-      { success: true, data, message: "Demande de congé approuvée" },
+      { success: true, data, message: "Demande de congé approuvée définitivement (N2)." },
       { status: 200 }
     );
   } catch (error: any) {

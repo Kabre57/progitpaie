@@ -12,8 +12,12 @@ model Leave {
   endDate      DateTime // Date de fin
   totalDays    Int // Nombre de jours ouvrés
   reason       String // Motif de la demande
-  status       LeaveStatus @default(pending) // Statut de validation
-  approvedById String? // Validé/Rejeté par (Admin ID)
+  status       LeaveStatus @default(pending) // Statut de validation (pending_n1, pending_n2, approved, rejected)
+  approvedById String? // Validé/Rejeté par (Legacy / Direct Admin ID)
+  approvedByN1Id String? // Validé par Manager N1
+  approvedByN1At DateTime? // Date validation N1
+  approvedByN2Id String? // Validé par Direction RH N2
+  approvedByN2At DateTime? // Date validation N2
   adminComment String      @default("") // Commentaire de l'administrateur
   appliedAt    DateTime    @default(now())
 
@@ -21,9 +25,11 @@ model Leave {
   updatedAt DateTime @updatedAt
 
   // Relations
-  user       User    @relation("UserLeaves", fields: [userId], references: [id], onDelete: Cascade)
-  company    Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  approvedBy User?   @relation("ApprovedLeaves", fields: [approvedById], references: [id], onDelete: SetNull)
+  user         User    @relation("UserLeaves", fields: [userId], references: [id], onDelete: Cascade)
+  company      Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  approvedBy   User?   @relation("ApprovedLeaves", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedByN1 User?   @relation("ApprovedLeavesN1", fields: [approvedByN1Id], references: [id], onDelete: SetNull)
+  approvedByN2 User?   @relation("ApprovedLeavesN2", fields: [approvedByN2Id], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([status])

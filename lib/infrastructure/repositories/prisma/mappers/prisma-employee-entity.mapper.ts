@@ -29,6 +29,7 @@ export function mapPrismaToDomainEmployee(user: PrismaUser): Employee {
     direction: user.direction,
     service: user.service,
     contractType: user.contractType,
+    managerId: user.managerId,
     isActive: user.isActive,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,

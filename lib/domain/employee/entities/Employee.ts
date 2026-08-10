@@ -27,6 +27,8 @@ export interface EmployeeProps {
   direction?: string | null;
   service?: string | null;
   contractType?: string | null;
+  managerId?: string | null;
+  managerName?: string | null;
   isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -85,6 +87,8 @@ export class Employee {
     this.direction = props.direction;
     this.service = props.service;
     this.contractType = props.contractType;
+    this.managerId = props.managerId;
+    this.managerName = props.managerName;
     this._isActive = props.isActive;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
@@ -95,6 +99,8 @@ export class Employee {
   public readonly direction?: string | null;
   public readonly service?: string | null;
   public readonly contractType?: string | null;
+  public readonly managerId?: string | null;
+  public readonly managerName?: string | null;
 
   public get name(): string {
     return this._name;

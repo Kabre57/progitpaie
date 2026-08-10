@@ -32,6 +32,7 @@ import {
   LayoutGrid,
   Archive,
   Key,
+  Network,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSidebar } from "@/lib/SidebarContext";
@@ -49,6 +50,7 @@ const superAdminNavItems = [
 const tenantAdminNavItems = [
   { name: "Tableau de Bord", href: "/admin", icon: LayoutDashboard },
   { name: "Salariés & Personnel", href: "/admin/employees", icon: Users },
+  { name: "Organigramme RH", href: "/admin/org-chart", icon: Network },
   { name: "Contrats RH", href: "/admin/contracts", icon: FileText },
   { name: "Pointages & Présences", href: "/admin/attendance", icon: ClipboardCheck },
   { name: "Heures Supp", href: "/admin/overtime", icon: Timer },
