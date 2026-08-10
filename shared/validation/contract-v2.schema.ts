@@ -9,9 +9,9 @@ export const createContractSchema = z.object({
   endDate: z.string().optional().nullable(),
   probationPeriodMonths: z.number().min(0).optional(),
   baseSalary: z.number().min(0, "Le salaire de base doit être supérieur ou égal à zéro"),
-  sursalaire: z.number().min(0).optional(),
-  transportAllowance: z.number().min(0).optional(),
-  housingAllowance: z.number().min(0).optional(),
+  sursalaire: z.number().min(0).nullish().transform((v) => v ?? 0),
+  transportAllowance: z.number().min(0).nullish().transform((v) => v ?? 0),
+  housingAllowance: z.number().min(0).nullish().transform((v) => v ?? 0),
   documentUrl: z.string().optional(),
 }).passthrough();
 

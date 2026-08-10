@@ -117,10 +117,10 @@ export default function ContractsPage() {
           jobTitle,
           startDate,
           endDate: endDate || null,
-          baseSalary: parseFloat(baseSalary),
-          sursalaire: parseFloat(sursalaire),
-          transportAllowance: parseFloat(transportAllowance),
-          housingAllowance: parseFloat(housingAllowance),
+          baseSalary: parseFloat(baseSalary) || 0,
+          sursalaire: parseFloat(sursalaire) || 0,
+          transportAllowance: parseFloat(transportAllowance) || 0,
+          housingAllowance: parseFloat(housingAllowance) || 0,
         }),
       });
       const json = await res.json();
