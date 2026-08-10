@@ -11,6 +11,7 @@ import { NeuBadge } from "@/components/ui/neu-badge";
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
 
 import { NeuPagination } from "@/components/ui/neu-pagination";
+import { useVisualNotice } from "@/components/ui/visual-notice-modal";
 
 interface PayrollRecord {
   _id: string;
@@ -34,6 +35,7 @@ interface PayrollRecord {
 }
 
 export default function AdminPayrollPage() {
+  const { showValidationPayment, showErrorForm, showErrorTech } = useVisualNotice();
   const [payroll, setPayroll] = useState<PayrollRecord[]>([]);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -93,6 +95,11 @@ export default function AdminPayrollPage() {
         setJustificationReason("");
         setEarlyRestrictionData(null);
         fetchPayroll();
+        showValidationPayment({
+          title: "PAIE GÉNÉRÉE AVEC SUCCÈS",
+          description: data.message || `Le calcul de la paie pour ${month}/${year} a bien été effectué et enregistré.`,
+          confirmLabel: "Consulter les bulletins",
+        });
       } else if (data.code === "EARLY_PAYROLL_RESTRICTION") {
         setEarlyRestrictionData({
           error: data.error,
@@ -101,10 +108,20 @@ export default function AdminPayrollPage() {
         });
         setShowJustificationModal(true);
       } else {
-        alert(data.error || "Erreur de génération de la paie");
+        showErrorForm({
+          title: "ACTION IMPOSSIBLE",
+          description: data.error || "Impossible de générer la paie du mois.",
+          confirmLabel: "Fermer",
+        });
       }
     } catch (error) {
       console.error("Failed to generate payroll", error);
+      showErrorTech({
+        title: "OUPS ! UNE ERREUR EST SURVENUE",
+        description: "Le serveur ne répond pas. Veuillez réessayer dans un instant.",
+        confirmLabel: "Réessayer",
+        secondaryLabel: "Retour",
+      });
     } finally {
       setGenerating(false);
     }

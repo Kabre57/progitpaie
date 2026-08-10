@@ -10,9 +10,11 @@ import { FileText, Plus, Download, Search, CheckCircle, RefreshCw, Edit3 } from 
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
 
 import { NeuPagination } from "@/components/ui/neu-pagination";
+import { useVisualNotice } from "@/components/ui/visual-notice-modal";
 import { ContractItemDTO, EmployeeOptionDTO } from "@/shared/types/contracts/contracts.contract";
 
 export default function ContractsPage() {
+  const { showValidationSubmission, showErrorForm, showErrorTech } = useVisualNotice();
   const [contracts, setContracts] = useState<ContractItemDTO[]>([]);
   const [employees, setEmployees] = useState<EmployeeOptionDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,11 +129,26 @@ export default function ContractsPage() {
       if (json.success) {
         setShowModal(false);
         fetchContracts();
+        showValidationSubmission({
+          title: "CONTRAT ÉTABLI !",
+          description: "Le contrat de travail a été enregistré avec succès dans le registre de l'entreprise.",
+          confirmLabel: "Continuer",
+        });
       } else {
-        alert(json.error || "Erreur lors de la création du contrat");
+        showErrorForm({
+          title: "ACTION IMPOSSIBLE",
+          description: json.error || "Certains champs obligatoires sont manquants ou incorrects. Veuillez vérifier vos informations.",
+          confirmLabel: "Corriger les erreurs",
+        });
       }
     } catch (err) {
       console.error("Create contract error:", err);
+      showErrorTech({
+        title: "OUPS ! UNE ERREUR EST SURVENUE",
+        description: "Le serveur ne répond pas. Veuillez vérifier votre connexion et réessayer.",
+        confirmLabel: "Réessayer",
+        secondaryLabel: "Retour",
+      });
     } finally {
       setSubmitting(false);
     }

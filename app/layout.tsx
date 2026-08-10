@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/neu-toast";
+import { VisualNoticeProvider } from "@/components/ui/visual-notice-modal";
 import { ThemeProvider } from "@/lib/ThemeProvider";
 import { SidebarProvider } from "@/lib/SidebarContext";
 import QueryProvider from "@/components/providers/QueryProvider";
@@ -42,7 +43,9 @@ export default function RootLayout({
         <QueryProvider>
           <ThemeProvider>
             <SidebarProvider>
-              <ToastProvider>{children}</ToastProvider>
+              <VisualNoticeProvider>
+                <ToastProvider>{children}</ToastProvider>
+              </VisualNoticeProvider>
             </SidebarProvider>
           </ThemeProvider>
         </QueryProvider>
