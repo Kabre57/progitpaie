@@ -32,6 +32,8 @@ export interface EmployeeOptionDTO {
   salary?: number;
   sursalaire?: number;
   transport?: number;
+  transportAllowance?: number;
+  housingAllowance?: number;
   joiningDate?: string;
   contractType?: string;
 }

@@ -239,6 +239,23 @@ export default function SeverancePage() {
                 />
               </div>
 
+              {userId && (() => {
+                const emp = employees.find((x) => (x.id || x._id) === userId);
+                if (!emp) return null;
+                const jDate = emp.joiningDate ? new Date(emp.joiningDate).toLocaleDateString("fr-FR") : "Non définie";
+                return (
+                  <div className="p-3 bg-[var(--neu-surface-light)] border border-[var(--neu-border)] rounded-xl text-xs space-y-1">
+                    <p className="font-semibold text-[var(--neu-accent)]">ℹ️ Fiche Salarié (Registre du Personnel) :</p>
+                    <div className="grid grid-cols-2 gap-2 text-[var(--neu-text-secondary)]">
+                      <span>• Date d'Embauche : <strong className="text-[var(--neu-text)]">{jDate}</strong></span>
+                      <span>• Poste / Fonction : <strong className="text-[var(--neu-text)]">{emp.jobTitle || "Collaborateur"}</strong></span>
+                      <span>• Salaire de Base : <strong className="text-[var(--neu-text)]">{(emp.salary || 0).toLocaleString()} FCFA</strong></span>
+                      <span>• Sursalaire : <strong className="text-[var(--neu-text)]">{(emp.sursalaire || 0).toLocaleString()} FCFA</strong></span>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-[var(--neu-text-secondary)] mb-1">Motif de la Rupture *</label>

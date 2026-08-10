@@ -194,7 +194,21 @@ export default function LoansPage() {
             <form onSubmit={handleCreateLoan} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-[var(--neu-text-secondary)] mb-1">Employé *</label>
-                <NeuSelect value={userId} onChange={(e) => setUserId(e.target.value)} required>
+                <NeuSelect
+                  value={userId}
+                  onChange={(e) => {
+                    const selId = e.target.value;
+                    setUserId(selId);
+                    const emp = employees.find((x) => x.id === selId);
+                    if (emp && emp.salary) {
+                      const maxDeduct = Math.round(emp.salary * 0.33);
+                      if (!monthlyDeduction || monthlyDeduction === "0") {
+                        setMonthlyDeduction(String(maxDeduct));
+                      }
+                    }
+                  }}
+                  required
+                >
                   <option value="">Sélectionner un employé...</option>
                   {employees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
@@ -203,6 +217,23 @@ export default function LoansPage() {
                   ))}
                 </NeuSelect>
               </div>
+
+              {userId && (() => {
+                const emp = employees.find((x) => x.id === userId);
+                if (!emp) return null;
+                const maxDeduct = Math.round((emp.salary || 0) * 0.33);
+                return (
+                  <div className="p-3 bg-[var(--neu-surface-light)] border border-[var(--neu-border)] rounded-xl text-xs space-y-1">
+                    <p className="font-semibold text-[var(--neu-accent)]">ℹ️ Fiche Salarié (Registre du Personnel) :</p>
+                    <div className="grid grid-cols-2 gap-2 text-[var(--neu-text-secondary)]">
+                      <span>• Salaire de Base : <strong className="text-[var(--neu-text)]">{(emp.salary || 0).toLocaleString()} FCFA</strong></span>
+                      <span>• Fonction / Poste : <strong className="text-[var(--neu-text)]">{emp.jobTitle || "Collaborateur"}</strong></span>
+                      <span>• Sursalaire : <strong className="text-[var(--neu-text)]">{(emp.sursalaire || 0).toLocaleString()} FCFA</strong></span>
+                      <span>• Retenue Max Conseillée (33%) : <strong className="text-[var(--neu-text)]">{maxDeduct.toLocaleString()} FCFA/mois</strong></span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

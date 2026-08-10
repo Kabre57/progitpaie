@@ -465,6 +465,23 @@ export default function OvertimePage() {
             />
           </div>
 
+          {selectedUserId && (() => {
+            const emp = employees.find((x) => x.id === selectedUserId);
+            if (!emp) return null;
+            const hourlyRate = emp.salary ? Math.round(emp.salary / 173.33) : 0;
+            return (
+              <div className="p-3 bg-[var(--neu-surface-light)] border border-[var(--neu-border)] rounded-xl text-xs space-y-1">
+                <p className="font-semibold text-[var(--neu-accent)]">ℹ️ Fiche Salarié (Registre du Personnel) :</p>
+                <div className="grid grid-cols-2 gap-2 text-[var(--neu-text-secondary)]">
+                  <span>• Salaire de Base : <strong className="text-[var(--neu-text)]">{(emp.salary || 0).toLocaleString()} FCFA</strong></span>
+                  <span>• Taux Horaire Léguel (173,33h) : <strong className="text-[var(--neu-text)]">{hourlyRate.toLocaleString()} FCFA/h</strong></span>
+                  <span>• Fonction / Poste : <strong className="text-[var(--neu-text)]">{emp.jobTitle || "Collaborateur"}</strong></span>
+                  <span>• Service / Direction : <strong className="text-[var(--neu-text)]">{emp.service || emp.direction || "Général"}</strong></span>
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-b border-[var(--neu-border)] py-3">
             <NeuInput
               type="number"

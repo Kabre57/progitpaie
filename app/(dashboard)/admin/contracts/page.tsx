@@ -41,12 +41,27 @@ export default function ContractsPage() {
   const [jobTitle, setJobTitle] = useState("");
   const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
   const [endDate, setEndDate] = useState("");
-  const [baseSalary, setBaseSalary] = useState("300000");
+  const [baseSalary, setBaseSalary] = useState("0");
   const [sursalaire, setSursalaire] = useState("0");
-  const [transportAllowance, setTransportAllowance] = useState("30000");
+  const [transportAllowance, setTransportAllowance] = useState("0");
   const [housingAllowance, setHousingAllowance] = useState("0");
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const handleEmployeeSelect = (selectedUserId: string) => {
+    setUserId(selectedUserId);
+    const emp = employees.find((e) => e.id === selectedUserId);
+    if (emp) {
+      setBaseSalary(emp.salary ? String(emp.salary) : "0");
+      setSursalaire(emp.sursalaire ? String(emp.sursalaire) : "0");
+      const tVal = emp.transportAllowance ?? emp.transport ?? 30000;
+      setTransportAllowance(String(tVal));
+      const hVal = emp.housingAllowance ?? 0;
+      setHousingAllowance(String(hVal));
+      if (emp.jobTitle) setJobTitle(emp.jobTitle);
+      if (emp.category) setCategory(emp.category);
+    }
+  };
 
   useEffect(() => {
     fetchContracts();
@@ -327,7 +342,7 @@ export default function ContractsPage() {
             <form onSubmit={handleCreateContract} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-[var(--neu-text-secondary)] mb-1">Employé *</label>
-                <NeuSelect value={userId} onChange={(e) => setUserId(e.target.value)} required>
+                <NeuSelect value={userId} onChange={(e) => handleEmployeeSelect(e.target.value)} required>
                   <option value="">Sélectionner un employé...</option>
                   {employees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
