@@ -60,7 +60,7 @@ export class CreateEmployeeUseCase {
       idCardNumber: command.idCardNumber || null,
       bankAccount: command.bankAccount || null,
       bankName: command.bankName || null,
-      paymentMethod: command.paymentMethod || "CASH",
+      paymentMethod: command.paymentMethod || "ESPÈCES",
       joiningDate: command.joiningDate ? new Date(command.joiningDate) : null,
       isActive: true,
     });

@@ -20,6 +20,11 @@ export interface EmployeeDTO {
   bankName?: string | null;
   paymentMethod: string;
   joiningDate?: string | null;
+  jobTitle?: string | null;
+  category?: string | null;
+  direction?: string | null;
+  service?: string | null;
+  contractType?: string | null;
   seniorityMonths?: number;
   seniorityYears?: number;
   isActive: boolean;

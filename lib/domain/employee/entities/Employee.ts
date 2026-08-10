@@ -22,6 +22,11 @@ export interface EmployeeProps {
   bankName?: string | null;
   paymentMethod: string;
   joiningDate?: Date | null;
+  jobTitle?: string | null;
+  category?: string | null;
+  direction?: string | null;
+  service?: string | null;
+  contractType?: string | null;
   isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -73,12 +78,23 @@ export class Employee {
     this.idCardNumber = props.idCardNumber;
     this.bankAccount = props.bankAccount;
     this.bankName = props.bankName;
-    this.paymentMethod = props.paymentMethod || "CASH";
+    this.paymentMethod = props.paymentMethod || "ESPÈCES";
     this.joiningDate = props.joiningDate;
+    this.jobTitle = props.jobTitle;
+    this.category = props.category;
+    this.direction = props.direction;
+    this.service = props.service;
+    this.contractType = props.contractType;
     this._isActive = props.isActive;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
   }
+
+  public readonly jobTitle?: string | null;
+  public readonly category?: string | null;
+  public readonly direction?: string | null;
+  public readonly service?: string | null;
+  public readonly contractType?: string | null;
 
   public get name(): string {
     return this._name;

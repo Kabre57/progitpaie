@@ -51,7 +51,7 @@ describe("Domaine Employee — Tests Unitaires Purs", () => {
       transportAllowance: Money.zero(),
       housingAllowance: Money.zero(),
       partsIGR: 1,
-      paymentMethod: "CASH",
+      paymentMethod: "ESPÈCES",
       isActive: true,
     });
 
