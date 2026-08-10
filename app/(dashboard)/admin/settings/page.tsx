@@ -34,11 +34,18 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
+  const now = new Date();
+  const monthsFr = ["JANVIER", "FEVRIER", "MARS", "AVRIL", "MAI", "JUIN", "JUILLET", "AOUT", "SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DECEMBRE"];
+  const currentMonthFr = monthsFr[now.getMonth()];
+  const currentYearNum = now.getFullYear();
+  const lastDayOfMonthNum = new Date(currentYearNum, now.getMonth() + 1, 0);
+  const currentPayDateStr = `${String(lastDayOfMonthNum.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${currentYearNum}`;
+
   // States 100% dynamiques alimentés par PostgreSQL via l'API /api/settings
   const [company, setCompany] = useState<CompanySettingsData>({
-    periodMonth: "JANVIER",
-    periodYear: 2026,
-    payDate: "31/01/2026",
+    periodMonth: currentMonthFr,
+    periodYear: currentYearNum,
+    payDate: currentPayDateStr,
     name: "",
     sigle: "",
     activity: "",
@@ -97,7 +104,7 @@ export default function AdminSettingsPage() {
     seniorityBonusActive: true,
     roundNetSalary: "5",
     leaveDaysPerMonth: 2.75,
-    signatoryName: "KOUASSI Joseph Eric",
+    signatoryName: "",
     signatoryRole: "Directeur Général",
     primes: [
       { name: "Prime de Transport", fiscalNature: "Exonéré jusqu'à 30 000 FCFA (Surplus Imposable)", socialNature: "Exonéré jusqu'à 30 000 FCFA" },
@@ -142,7 +149,7 @@ export default function AdminSettingsPage() {
 
           if (json.data.tax_rates) setRates(json.data.tax_rates);
           if (json.data.salary_grid && json.data.salary_grid.length > 0) setSalaryGrid(json.data.salary_grid);
-          if (json.data.other_params && json.data.other_params.primes && json.data.other_params.primes.length > 0) {
+          if (json.data.other_params) {
             setOtherParams((prev) => ({ ...prev, ...json.data.other_params }));
           }
           if (json.data.bank_list && json.data.bank_list.length > 0) {

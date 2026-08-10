@@ -50,8 +50,8 @@ const superAdminNavItems = [
 const tenantAdminNavItems = [
   { name: "Tableau de Bord", href: "/admin", icon: LayoutDashboard },
   { name: "Salariés & Personnel", href: "/admin/employees", icon: Users },
-  { name: "Organigramme RH", href: "/admin/org-chart", icon: Network },
   { name: "Contrats RH", href: "/admin/contracts", icon: FileText },
+  { name: "Organigramme RH", href: "/admin/org-chart", icon: Network },
   { name: "Pointages & Présences", href: "/admin/attendance", icon: ClipboardCheck },
   { name: "Heures Supp", href: "/admin/overtime", icon: Timer },
   { name: "Congés & Absences", href: "/admin/leaves", icon: Calendar },
