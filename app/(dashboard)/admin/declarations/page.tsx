@@ -8,11 +8,28 @@ import { NeuBadge } from "@/components/ui/neu-badge";
 import { FileSpreadsheet, Building, ShieldCheck, RefreshCw, Printer, FileText, Eye } from "lucide-react";
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
 
+interface ItsDeclarationSummary {
+  totalEmployees?: number;
+  totalGrossSalary?: number;
+  totalITS?: number;
+  totalIGR?: number;
+  totalCE?: number;
+  totalTaxToPay?: number;
+}
+
+interface CnpsDeclarationSummary {
+  totalEmployees?: number;
+  totalGrossSalary?: number;
+  cnpsEmployeeTotal?: number;
+  cnpsEmployerTotal?: number;
+  totalCNPSToPay?: number;
+}
+
 export default function DeclarationsPage() {
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
-  const [itsData, setItsData] = useState<any>(null);
-  const [cnpsData, setCnpsData] = useState<any>(null);
+  const [itsData, setItsData] = useState<ItsDeclarationSummary | null>(null);
+  const [cnpsData, setCnpsData] = useState<CnpsDeclarationSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
   const [previewDoc, setPreviewDoc] = useState<"declaration_its" | "declaration_fdfp" | "declaration_cnps" | null>(null);
@@ -301,8 +318,8 @@ export default function DeclarationsPage() {
           docType={previewDoc}
           month={month}
           year={year}
-          itsData={itsData}
-          cnpsData={cnpsData}
+          itsData={itsData ?? undefined}
+          cnpsData={cnpsData ?? undefined}
         />
       )}
     </div>

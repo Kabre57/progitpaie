@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/security/requireSuperAdmin";
 import { GlobalSettingsUseCase } from "@/lib/application/admin/use-cases/GlobalSettingsUseCase";
@@ -26,10 +27,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const updated = await settingsUC.reset(parsed.data.section);
     return NextResponse.json({ success: true, data: updated });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/v2/admin/settings/global/reset error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Échec de la réinitialisation" },
+      { success: false, error: getErrorMessage(error) || "Échec de la réinitialisation" },
       { status: 500 }
     );
   }

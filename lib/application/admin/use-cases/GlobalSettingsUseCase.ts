@@ -1,4 +1,3 @@
-import { prisma } from "@/lib/db";
 import {
   GlobalSettingsDTO,
   GlobalCNPSRates,
@@ -6,6 +5,8 @@ import {
   GlobalSecurityPolicy,
 } from "../dto/GlobalSettingsDTO";
 import { DEFAULT_PAYROLL_RATES } from "@/lib/rates-config";
+import { SuperAdminRepository } from "../ports/SuperAdminRepository";
+import { PrismaSuperAdminRepository } from "@/lib/infrastructure/repositories/prisma/PrismaSuperAdminRepository";
 
 // ─── Storage Keys in Settings table ──────────────────────────────────────────
 const KEY_CNPS = "global_cnps_rates";
@@ -46,25 +47,25 @@ const DEFAULT_SECURITY: GlobalSecurityPolicy = {
 };
 
 export class GlobalSettingsUseCase {
+  constructor(private readonly superAdminRepo: SuperAdminRepository = new PrismaSuperAdminRepository()) {}
+
   /** Read all global settings from DB, falling back to defaults if not set */
   public async get(): Promise<GlobalSettingsDTO> {
-    const rows = await prisma.settings.findMany({
-      where: { key: { in: [KEY_CNPS, KEY_LEAVE, KEY_SECURITY] } },
-    });
+    const rows = await this.superAdminRepo.getGlobalSettingsRows([KEY_CNPS, KEY_LEAVE, KEY_SECURITY]);
 
     const rowMap = new Map(rows.map((r) => [r.key, r]));
 
     const cnpsRates: GlobalCNPSRates = {
       ...DEFAULT_CNPS,
-      ...(rowMap.get(KEY_CNPS)?.value as Partial<GlobalCNPSRates> | undefined ?? {}),
+      ...((rowMap.get(KEY_CNPS)?.value as Partial<GlobalCNPSRates> | undefined) ?? {}),
     };
     const leavePolicy: GlobalLeavePolicy = {
       ...DEFAULT_LEAVE,
-      ...(rowMap.get(KEY_LEAVE)?.value as Partial<GlobalLeavePolicy> | undefined ?? {}),
+      ...((rowMap.get(KEY_LEAVE)?.value as Partial<GlobalLeavePolicy> | undefined) ?? {}),
     };
     const securityPolicy: GlobalSecurityPolicy = {
       ...DEFAULT_SECURITY,
-      ...(rowMap.get(KEY_SECURITY)?.value as Partial<GlobalSecurityPolicy> | undefined ?? {}),
+      ...((rowMap.get(KEY_SECURITY)?.value as Partial<GlobalSecurityPolicy> | undefined) ?? {}),
     };
 
     const lastRow = rows.sort(
@@ -91,35 +92,17 @@ export class GlobalSettingsUseCase {
 
     if (input.cnpsRates) {
       const merged = { ...current.cnpsRates, ...input.cnpsRates };
-      ops.push(
-        prisma.settings.upsert({
-          where: { key: KEY_CNPS },
-          create: { key: KEY_CNPS, value: merged as any },
-          update: { value: merged as any },
-        })
-      );
+      ops.push(this.superAdminRepo.upsertGlobalSetting(KEY_CNPS, merged));
     }
 
     if (input.leavePolicy) {
       const merged = { ...current.leavePolicy, ...input.leavePolicy };
-      ops.push(
-        prisma.settings.upsert({
-          where: { key: KEY_LEAVE },
-          create: { key: KEY_LEAVE, value: merged as any },
-          update: { value: merged as any },
-        })
-      );
+      ops.push(this.superAdminRepo.upsertGlobalSetting(KEY_LEAVE, merged));
     }
 
     if (input.securityPolicy) {
       const merged = { ...current.securityPolicy, ...input.securityPolicy };
-      ops.push(
-        prisma.settings.upsert({
-          where: { key: KEY_SECURITY },
-          create: { key: KEY_SECURITY, value: merged as any },
-          update: { value: merged as any },
-        })
-      );
+      ops.push(this.superAdminRepo.upsertGlobalSetting(KEY_SECURITY, merged));
     }
 
     await Promise.all(ops);
@@ -139,11 +122,7 @@ export class GlobalSettingsUseCase {
       securityPolicy: DEFAULT_SECURITY,
     };
 
-    await prisma.settings.upsert({
-      where: { key: keyMap[section] },
-      create: { key: keyMap[section], value: defaultMap[section] as any },
-      update: { value: defaultMap[section] as any },
-    });
+    await this.superAdminRepo.upsertGlobalSetting(keyMap[section], defaultMap[section]);
 
     return this.get();
   }

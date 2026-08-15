@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant } from "@/lib/database/tenant-context";
 import { PrismaLoanRepository } from "@/lib/infrastructure/repositories/prisma/PrismaLoanRepository";
@@ -26,10 +27,10 @@ export async function GET(
     }
 
     return NextResponse.json({ success: true, data }, { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/v2/loans/[id] error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur", code: "SERVER_ERROR" },
+      { success: false, error: getErrorMessage(error) || "Erreur serveur", code: "SERVER_ERROR" },
       { status: 500 }
     );
   }

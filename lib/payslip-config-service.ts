@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { SettingsRepository } from "@/lib/infrastructure/repositories/settings-repository";
 import {
   PayslipAppearanceConfig,
   PayslipLegalConfig,
@@ -20,6 +20,7 @@ import { PayrollRatesConfig } from "./rates-config";
  */
 export class PayslipConfigService {
   private static instance: PayslipConfigService;
+  private settingsRepo: SettingsRepository;
 
   private cachedAppearance: PayslipAppearanceConfig | null = null;
   private cachedLegal: PayslipLegalConfig | null = null;
@@ -27,7 +28,9 @@ export class PayslipConfigService {
   private lastFetchLegal: number = 0;
   private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL
 
-  private constructor() {}
+  private constructor() {
+    this.settingsRepo = new SettingsRepository();
+  }
 
   public static getInstance(): PayslipConfigService {
     if (!PayslipConfigService.instance) {
@@ -50,12 +53,9 @@ export class PayslipConfigService {
     }
 
     try {
-      const doc = await prisma.settings.findUnique({
-        where: { key: "payslip_appearance" },
-      });
+      const val = await this.settingsRepo.getByKey<Partial<PayslipAppearanceConfig>>("payslip_appearance");
 
-      if (doc && doc.value) {
-        const val = doc.value as unknown as Partial<PayslipAppearanceConfig>;
+      if (val) {
         // deepMerge avec les defaults (Réserve 3.2 — rétrocompatibilité)
         this.cachedAppearance = {
           ...DEFAULT_PAYSLIP_APPEARANCE,
@@ -83,12 +83,9 @@ export class PayslipConfigService {
     }
 
     try {
-      const doc = await prisma.settings.findUnique({
-        where: { key: "payslip_legal" },
-      });
+      const val = await this.settingsRepo.getByKey<Partial<PayslipLegalConfig>>("payslip_legal");
 
-      if (doc && doc.value) {
-        const val = doc.value as unknown as Partial<PayslipLegalConfig>;
+      if (val) {
         // deepMerge avec les defaults (Réserve 3.2 — rétrocompatibilité)
         this.cachedLegal = {
           ...DEFAULT_PAYSLIP_LEGAL,
@@ -119,11 +116,7 @@ export class PayslipConfigService {
     const current = await this.getAppearance();
     const updated: PayslipAppearanceConfig = { ...current, ...config };
 
-    await prisma.settings.upsert({
-      where: { key: "payslip_appearance" },
-      update: { value: updated as any },
-      create: { key: "payslip_appearance", value: updated as any },
-    });
+    await this.settingsRepo.saveByKey("payslip_appearance", updated);
 
     // Invalidation immédiate (Réserve 3.3 — cache & invalidation)
     this.cachedAppearance = updated;
@@ -140,11 +133,7 @@ export class PayslipConfigService {
     const current = await this.getLegal();
     const updated: PayslipLegalConfig = { ...current, ...config };
 
-    await prisma.settings.upsert({
-      where: { key: "payslip_legal" },
-      update: { value: updated as any },
-      create: { key: "payslip_legal", value: updated as any },
-    });
+    await this.settingsRepo.saveByKey("payslip_legal", updated);
 
     // Invalidation immédiate (Réserve 3.3)
     this.cachedLegal = updated;
@@ -167,11 +156,8 @@ export class PayslipConfigService {
    * la taille JSON. Seule la référence "logoBase64 present" est stockée.
    */
   public async createSnapshot(adminId: string): Promise<string> {
-    const admin = await prisma.user.findUnique({
-      where: { id: adminId },
-      select: { companyId: true },
-    });
-    if (!admin) throw new Error("Administrateur introuvable");
+    const companyId = await this.settingsRepo.getUserCompanyId(adminId);
+    if (!companyId) throw new Error("Administrateur introuvable");
     const appearance = await this.getAppearance();
     const legal = await this.getLegal();
     const rateService = RateService.getInstance();
@@ -186,17 +172,13 @@ export class PayslipConfigService {
       hasLogo: !!appearance.logoBase64,
     };
 
-    const snapshot = await prisma.payslipConfigSnapshot.create({
-      data: {
-        companyId: admin.companyId,
-        appearanceConfig: appearanceForSnapshot as any,
-        legalConfig: legal as any,
-        ratesConfig: rates as unknown as any,
-        createdById: adminId,
-      },
+    return this.settingsRepo.createPayslipConfigSnapshot({
+      companyId,
+      appearanceConfig: appearanceForSnapshot,
+      legalConfig: legal,
+      ratesConfig: rates,
+      createdById: adminId,
     });
-
-    return snapshot.id;
   }
 
   /**
@@ -212,9 +194,7 @@ export class PayslipConfigService {
     rates: PayrollRatesConfig;
   } | null> {
     try {
-      const snapshot = await prisma.payslipConfigSnapshot.findUnique({
-        where: { id: snapshotId },
-      });
+      const snapshot = await this.settingsRepo.getPayslipConfigSnapshot(snapshotId);
 
       if (!snapshot) return null;
 

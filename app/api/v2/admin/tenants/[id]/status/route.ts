@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/security/requireSuperAdmin";
 import { PrismaTenantRepository } from "@/lib/infrastructure/repositories/prisma/PrismaTenantRepository";
@@ -31,10 +32,10 @@ export async function PATCH(
       success: true,
       data: updated,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`PATCH /api/v2/admin/tenants/[id]/status error:`, error);
     return NextResponse.json(
-      { success: false, error: error.message || "Échec de modification du statut" },
+      { success: false, error: getErrorMessage(error) || "Échec de modification du statut" },
       { status: 400 }
     );
   }

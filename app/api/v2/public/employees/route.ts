@@ -1,67 +1,50 @@
-/**
- * ═══════════════════════════════════════════════════════════════════════════════
- * PROGITPAIE — Route Publique v2 Employees pour ERP partenaires 🔌
- * Accès par Clé API (X-API-Key: pk_live_...) — Rate limit : 120 req/min
- * ═══════════════════════════════════════════════════════════════════════════════
- */
-
 import { NextRequest, NextResponse } from "next/server";
-import { authenticatePublicApi } from "@/lib/infrastructure/api-gateway/api-middleware";
-import { prisma } from "@/lib/db";
+import { z } from "zod";
+import { authenticatePublicApi, getPublicApiContext } from "@/lib/infrastructure/api-gateway/api-middleware";
+import { ListPublicEmployeeDirectoryUseCase } from "@/lib/application/employee/use-cases/ListPublicEmployeeDirectoryUseCase";
+import { PrismaPublicEmployeeDirectoryRepository } from "@/lib/infrastructure/repositories/prisma/PrismaPublicEmployeeDirectoryRepository";
+
+const listPublicEmployees = new ListPublicEmployeeDirectoryUseCase(new PrismaPublicEmployeeDirectoryRepository());
+const querySchema = z.object({
+  search: z.string().trim().max(120).optional(),
+  departmentId: z.string().trim().min(1).max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(200).catch(50),
+  page: z.coerce.number().int().min(1).max(10_000).catch(1),
+});
 
 export async function GET(request: NextRequest): Promise<Response> {
-  // 1. Authentification par clé API
   const authError = await authenticatePublicApi(request);
   if (authError) return authError;
 
+  const context = getPublicApiContext(request);
+  if (!context) {
+    return NextResponse.json({ success: false, error: "Contexte API invalide" }, { status: 403 });
+  }
+
   try {
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search") || "";
-    const departmentId = searchParams.get("departmentId") || undefined;
-    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 200);
-    const page = Math.max(parseInt(searchParams.get("page") || "1"), 1);
-    const skip = (page - 1) * limit;
-
-    const where = {
-      isActive: true,
-      ...(search && {
-        OR: [
-          { name: { contains: search, mode: "insensitive" as const } },
-          { email: { contains: search, mode: "insensitive" as const } },
-          { employeeId: { contains: search, mode: "insensitive" as const } },
-        ],
-      }),
-      ...(departmentId && { departmentId }),
-    };
-
-    const [employees, total] = await Promise.all([
-      prisma.user.findMany({
-        where,
-        skip,
-        take: limit,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          employeeId: true,
-          jobTitle: true,
-          contractType: true,
-          isActive: true,
-          department: { select: { id: true, name: true } },
-        },
-        orderBy: { name: "asc" },
-      }),
-      prisma.user.count({ where }),
-    ]);
+    const searchParams = request.nextUrl.searchParams;
+    const query = querySchema.parse({
+      search: searchParams.get("search") ?? undefined,
+      departmentId: searchParams.get("departmentId") ?? undefined,
+      limit: searchParams.get("limit") ?? undefined,
+      page: searchParams.get("page") ?? undefined,
+    });
+    const result = await listPublicEmployees.execute({ companyId: context.companyId, ...query });
 
     return NextResponse.json({
       success: true,
       apiVersion: "2.0",
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-      count: employees.length,
-      data: employees,
+      pagination: {
+        page: query.page,
+        limit: query.limit,
+        total: result.total,
+        totalPages: Math.ceil(result.total / query.limit),
+      },
+      count: result.employees.length,
+      data: result.employees,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    console.error("GET /api/v2/public/employees error:", error);
     return NextResponse.json(
       { success: false, error: "Erreur serveur API v2 Employees" },
       { status: 500 }

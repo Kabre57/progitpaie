@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant } from "@/lib/database/tenant-context";
 import { PrismaAttendanceRepository } from "@/lib/infrastructure/repositories/prisma/PrismaAttendanceRepository";
@@ -22,10 +23,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       { success: true, data, message: "Pointage de sortie enregistré" },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/v2/attendance/check-out error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur lors du pointage de sortie", code: "SERVER_ERROR" },
+      { success: false, error: getErrorMessage(error) || "Erreur lors du pointage de sortie", code: "SERVER_ERROR" },
       { status: 400 }
     );
   }

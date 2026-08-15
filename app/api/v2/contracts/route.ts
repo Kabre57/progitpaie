@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant } from "@/lib/database/tenant-context";
 import { PrismaContractRepository } from "@/lib/infrastructure/repositories/prisma/PrismaContractRepository";
@@ -33,10 +34,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     });
 
     return NextResponse.json({ success: true, data }, { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/v2/contracts error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur", code: "SERVER_ERROR" },
+      { success: false, error: getErrorMessage(error) || "Erreur serveur", code: "SERVER_ERROR" },
       { status: 500 }
     );
   }
@@ -68,10 +69,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       { success: true, data, message: "Contrat de travail créé avec succès" },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/v2/contracts error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur de création de contrat", code: "SERVER_ERROR" },
+      { success: false, error: getErrorMessage(error) || "Erreur de création de contrat", code: "SERVER_ERROR" },
       { status: 400 }
     );
   }

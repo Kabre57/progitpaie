@@ -18,7 +18,7 @@ interface TaxRatesCardProps {
 }
 
 /** Labels lisibles pour les champs de taux légaux */
-const LEGAL_RATE_LABELS: Record<string, string> = {
+const LEGAL_RATE_LABELS = {
   cnpsEmployeeRetraite: "CNPS Retraite Salarié",
   cnpsEmployerRetraite: "CNPS Retraite Employeur",
   cnpsEmployerAT: "CNPS Accidents du Travail",
@@ -29,7 +29,7 @@ const LEGAL_RATE_LABELS: Record<string, string> = {
   cmuBase: "CMU Base Cotisation",
   cmuEmployeeRate: "CMU Part Salarié",
   cmuEmployerRate: "CMU Part Employeur",
-};
+} satisfies Partial<Record<keyof PayrollRatesConfig, string>>;
 
 export function TaxRatesCard({
   rates,
@@ -61,10 +61,11 @@ export function TaxRatesCard({
     const changes: typeof changedRates = [];
 
     // Détecter les changements de taux légaux
-    for (const [key, label] of Object.entries(LEGAL_RATE_LABELS)) {
-      const oldVal = (prev as any)[key];
-      const newVal = (rates as any)[key];
-      if (oldVal !== undefined && newVal !== undefined && oldVal !== newVal) {
+    for (const key of Object.keys(LEGAL_RATE_LABELS) as Array<keyof typeof LEGAL_RATE_LABELS>) {
+      const label = LEGAL_RATE_LABELS[key];
+      const oldVal = prev[key];
+      const newVal = rates[key];
+      if (typeof oldVal === "number" && typeof newVal === "number" && oldVal !== newVal) {
         changes.push({ key, label, oldValue: oldVal, newValue: newVal });
       }
     }

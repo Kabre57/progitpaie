@@ -41,11 +41,12 @@ export async function PUT(
       { success: true, data, message: "Bulletin de paie mis à jour" },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("PUT /api/v2/payroll/[id] error:", error);
-    const status = error.message.includes("non trouvé") ? 404 : 400;
+    const message = error instanceof Error ? error.message : "Erreur de traitement";
+    const status = message.includes("non trouvé") ? 404 : 400;
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur de mise à jour", code: "SERVER_ERROR" },
+      { success: false, error: error instanceof Error ? error.message : "Erreur de mise à jour", code: "SERVER_ERROR" },
       { status }
     );
   }
@@ -70,11 +71,12 @@ export async function PATCH(
       { success: true, data, message: "Bulletin de paie finalisé avec succès" },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("PATCH /api/v2/payroll/[id] error:", error);
-    const status = error.message.includes("non trouvé") ? 404 : 400;
+    const message = error instanceof Error ? error.message : "Erreur de traitement";
+    const status = message.includes("non trouvé") ? 404 : 400;
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur de finalisation", code: "SERVER_ERROR" },
+      { success: false, error: error instanceof Error ? error.message : "Erreur de finalisation", code: "SERVER_ERROR" },
       { status }
     );
   }

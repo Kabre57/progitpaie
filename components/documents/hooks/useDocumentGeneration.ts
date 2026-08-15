@@ -1,10 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { DocumentPreviewModalProps } from "../core/types";
+import type { ArticleItem, DocumentPreviewModalProps } from "../core/types";
 import { downloadDocumentPDF } from "../utils/pdfGenerator";
 
-export function useDocumentGeneration(props: DocumentPreviewModalProps, editorState: any) {
+export interface DocumentEditorState {
+  name?: string;
+  jobTitle?: string;
+  department?: string;
+  salary?: number;
+  sursalaire?: number;
+  bodyText?: string;
+  leaveStart?: string;
+  leaveEnd?: string;
+  leaveReturn?: string;
+  companyName?: string;
+  companyAddress?: string;
+  companyRepresentative?: string;
+  employeeBirth?: string;
+  employeeCni?: string;
+  employeeNationality?: string;
+  employeeAddress?: string;
+  articles: ArticleItem[];
+}
+
+export function useDocumentGeneration(props: DocumentPreviewModalProps, editorState: DocumentEditorState) {
   const [generating, setGenerating] = useState(false);
 
   const handleDownload = async () => {
@@ -29,7 +49,7 @@ export function useDocumentGeneration(props: DocumentPreviewModalProps, editorSt
         employeeCni: editorState.employeeCni,
         employeeNationality: editorState.employeeNationality,
         employeeAddress: editorState.employeeAddress,
-        articles: editorState.articles.map((a: any) => ({ title: a.title, content: a.content })),
+        articles: editorState.articles.map((article) => ({ title: article.title, content: article.content })),
       };
 
       if (props.docType === "ordre_virement") {

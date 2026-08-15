@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as XLSX from "xlsx";
-import { LeaveStatus, LeaveType } from "@prisma/client";
+import { excelSerialDateToIso, readFirstWorksheetRecords } from "@/lib/infrastructure/excel/exceljs-reader";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { prisma } from "@/lib/db";
+import type { ImportedLeaveStatus, ImportedLeaveType } from "@/lib/application/leave/ports/LeaveImportRepository";
+import { PrismaLeaveImportRepository } from "@/lib/infrastructure/repositories/prisma/PrismaLeaveImportRepository";
 import { ApiResponse } from "@/types";
 
 interface ImportResultData {
@@ -11,33 +11,29 @@ interface ImportResultData {
   errors: string[];
 }
 
-function mapLeaveTypeToEnum(raw?: string): LeaveType {
-  if (!raw) return LeaveType.annual;
+const leaveImportRepository = new PrismaLeaveImportRepository();
+
+function mapLeaveTypeToEnum(raw?: unknown): ImportedLeaveType {
+  if (!raw) return "annual";
   const str = String(raw).trim().toLowerCase();
-  if (str.includes("maladie") || str === "sick") return LeaveType.sick;
-  if (str.includes("permission") || str.includes("événement") || str.includes("evenement") || str === "casual") return LeaveType.casual;
-  if (str.includes("sans solde") || str === "unpaid") return LeaveType.unpaid;
-  return LeaveType.annual;
+  if (str.includes("maladie") || str === "sick") return "sick";
+  if (str.includes("permission") || str.includes("événement") || str.includes("evenement") || str === "casual") return "casual";
+  if (str.includes("sans solde") || str === "unpaid") return "unpaid";
+  return "annual";
 }
 
-function mapLeaveStatusToEnum(raw?: string): LeaveStatus {
-  if (!raw) return LeaveStatus.pending;
+function mapLeaveStatusToEnum(raw?: unknown): ImportedLeaveStatus {
+  if (!raw) return "pending";
   const str = String(raw).trim().toLowerCase();
-  if (str.includes("valid") || str.includes("approuv") || str === "approved") return LeaveStatus.approved;
-  if (str.includes("rejet") || str.includes("refus") || str === "rejected") return LeaveStatus.rejected;
-  return LeaveStatus.pending;
+  if (str.includes("valid") || str.includes("approuv") || str === "approved") return "approved";
+  if (str.includes("rejet") || str.includes("refus") || str === "rejected") return "rejected";
+  return "pending";
 }
 
-function parseExcelDate(val: any): string | null {
+function parseExcelDate(val: unknown): string | null {
   if (!val) return null;
   if (typeof val === "number") {
-    const dateObj = XLSX.SSF.parse_date_code(val);
-    if (dateObj) {
-      const y = dateObj.y;
-      const m = String(dateObj.m).padStart(2, "0");
-      const d = String(dateObj.d).padStart(2, "0");
-      return `${y}-${m}-${d}`;
-    }
+    return excelSerialDateToIso(val);
   }
   if (val instanceof Date) {
     return val.toISOString().split("T")[0];
@@ -85,20 +81,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       );
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
-
-    const firstSheetName = workbook.SheetNames[0];
-    if (!firstSheetName) {
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
       return NextResponse.json(
-        { success: false, error: "Le fichier Excel est vide ou corrompu" },
+        { success: false, error: "Format non pris en charge : utilisez un fichier .xlsx" },
         { status: 400 }
       );
     }
 
-    const sheet = workbook.Sheets[firstSheetName];
-    const rawRows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+    const arrayBuffer = await file.arrayBuffer();
+    const rawRows = await readFirstWorksheetRecords(Buffer.from(arrayBuffer));
 
     if (rawRows.length === 0) {
       return NextResponse.json(
@@ -108,10 +99,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     }
 
     // Indexation des salariés par matricule et par email
-    const companyEmployees = await prisma.user.findMany({
-      where: { companyId: authResult.companyId },
-      select: { id: true, employeeId: true, email: true },
-    });
+    const companyEmployees = await leaveImportRepository.listEmployees(authResult.companyId);
 
     const empMap = new Map<string, string>();
     companyEmployees.forEach((emp) => {
@@ -144,16 +132,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       if (!userId) {
         // Auto-création du salarié s'il n'existe pas encore
         const rawName = String(row["Nom & Prénoms"] || row["Nom"] || row["name"] || `Salarié ${rawMatricule}`).trim();
-        const newEmp = await prisma.user.create({
-          data: {
-            companyId: authResult.companyId,
-            employeeId: rawMatricule,
-            name: rawName,
-            email: `${rawMatricule.toLowerCase().replace(/[^a-z0-9]/g, "")}@progitpaie.local`,
-            role: "employee",
-            password: "$2a$10$UnmanagedPasswordPlaceholderHashToSatisfySchemaConstraint",
-          },
-        });
+        const newEmp = await leaveImportRepository.createEmployee(
+          authResult.companyId,
+          rawMatricule,
+          rawName
+        );
         userId = newEmp.id;
         empMap.set(rawMatricule.toLowerCase(), userId);
       }
@@ -174,19 +157,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       const startDateObj = new Date(`${startDateStr}T00:00:00.000Z`);
       const endDateObj = new Date(`${endDateStr}T23:59:59.999Z`);
 
-      // Création de la demande de congé dans Prisma
-      await prisma.leave.create({
-        data: {
-          companyId: authResult.companyId,
-          userId,
-          leaveType,
-          startDate: startDateObj,
-          endDate: endDateObj,
-          totalDays,
-          reason: rawReason,
-          status,
-          approvedById: status === LeaveStatus.approved ? authResult.userId : undefined,
-        },
+      await leaveImportRepository.createLeave({
+        companyId: authResult.companyId,
+        userId,
+        leaveType,
+        startDate: startDateObj,
+        endDate: endDateObj,
+        totalDays,
+        reason: rawReason,
+        status,
+        approvedById: status === "approved" ? authResult.userId : undefined,
       });
 
       imported++;
@@ -197,10 +177,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       data: { imported, skipped, errors },
       message: `${imported} demande(s) de congé importée(s) avec succès`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/leaves/import error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur lors de l'importation Excel des congés" },
+      { success: false, error: "Erreur serveur lors de l'importation Excel des congés" },
       { status: 500 }
     );
   }

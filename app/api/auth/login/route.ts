@@ -1,76 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { prisma } from "@/lib/db";
 import { comparePassword, generateToken } from "@/lib/auth";
 import { cacheSession } from "@/lib/redis";
 import { validateBody } from "@/lib/validate";
 import { loginSchema } from "@/lib/validators/auth.schema";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { AuthenticateUserUseCase } from "@/lib/application/auth/use-cases/AuthenticateUserUseCase";
+import { PrismaAuthIdentityRepository } from "@/lib/infrastructure/repositories/prisma/PrismaAuthIdentityRepository";
 
-export async function POST(request: NextRequest) {
+const authenticateUser = new AuthenticateUserUseCase(new PrismaAuthIdentityRepository(), comparePassword);
+
+export async function POST(request: NextRequest): Promise<Response> {
   try {
     const rateLimitResponse = await enforceRateLimit(request, "login", 10, 60);
     if (rateLimitResponse) return rateLimitResponse;
 
-    // Validation centralisée Zod du corps de la requête
     const validation = await validateBody(request, loginSchema);
-    if (!validation.success) {
-      return validation.response;
-    }
+    if (!validation.success) return validation.response;
 
-    const { email, password } = validation.data;
-
-    // Chercher l'utilisateur par email
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: "Email ou mot de passe incorrect", code: "AUTH_ERROR" },
-        { status: 401 }
-      );
-    }
-
-    if (!user.isActive) {
-      return NextResponse.json(
-        { success: false, error: "Le compte est inactif", code: "ACCOUNT_INACTIVE" },
-        { status: 403 }
-      );
-    }
-
-    // Vérifier le mot de passe
-    const isPasswordValid = await comparePassword(password, user.password);
-
-    if (!isPasswordValid) {
-      return NextResponse.json(
-        { success: false, error: "Email ou mot de passe incorrect", code: "AUTH_ERROR" },
-        { status: 401 }
-      );
-    }
-
-    // Générer le token JWT
+    const user = await authenticateUser.execute(validation.data.email, validation.data.password);
     const token = generateToken(user.id, user.email, user.role);
+    await cacheSession(user.id, { id: user.id, name: user.name, email: user.email, role: user.role });
 
-    // Mettre en cache la session utilisateur dans Redis
-    await cacheSession(user.id, {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    });
-
-    // Définir le cookie HTTP-only
     const cookieStore = await cookies();
     cookieStore.set("rbeas_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 60 * 60 * 24 * 7, // 7 jours
+      maxAge: 60 * 60 * 24 * 7,
       path: "/",
     });
 
-    // Retourner les données utilisateur (sans le mot de passe)
     return NextResponse.json(
       {
         success: true,
@@ -81,16 +41,28 @@ export async function POST(request: NextRequest) {
             _id: user.id,
             name: user.name,
             role: user.role,
-            mustChangePassword: user.mustChangePassword ?? false,
+            mustChangePassword: user.mustChangePassword,
           },
         },
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "AUTH_INVALID_CREDENTIALS") {
+      return NextResponse.json(
+        { success: false, error: "Email ou mot de passe incorrect", code: "AUTH_ERROR" },
+        { status: 401 }
+      );
+    }
+    if (error instanceof Error && error.message === "AUTH_ACCOUNT_INACTIVE") {
+      return NextResponse.json(
+        { success: false, error: "Le compte est inactif", code: "ACCOUNT_INACTIVE" },
+        { status: 403 }
+      );
+    }
     console.error("Login error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur interne du serveur", code: "SERVER_ERROR" },
+      { success: false, error: "Erreur interne du serveur", code: "SERVER_ERROR" },
       { status: 500 }
     );
   }

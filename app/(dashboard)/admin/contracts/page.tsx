@@ -12,6 +12,7 @@ import { DocumentPreviewModal } from "@/components/documents/document-preview-mo
 import { NeuPagination } from "@/components/ui/neu-pagination";
 import { useVisualNotice } from "@/components/ui/visual-notice-modal";
 import { ContractItemDTO, EmployeeOptionDTO } from "@/shared/types/contracts/contracts.contract";
+import { NewContractManagerModal } from "@/components/contracts/new-contract-manager-modal";
 
 export default function ContractsPage() {
   const { showValidationSubmission, showErrorForm, showErrorTech } = useVisualNotice();
@@ -349,102 +350,13 @@ export default function ContractsPage() {
         />
       </NeuCard>
 
-      {/* Modal Création Contrat */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <NeuCard className="w-full max-w-3xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-[var(--neu-text)] flex items-center gap-2 border-b border-[var(--neu-border)] pb-3">
-              <FileText className="text-[var(--neu-accent)]" /> Nouveau Contrat de Travail
-            </h2>
-            <form onSubmit={handleCreateContract} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[var(--neu-text-secondary)] mb-1">Employé *</label>
-                <NeuSelect value={userId} onChange={(e) => handleEmployeeSelect(e.target.value)} required>
-                  <option value="">Sélectionner un employé...</option>
-                  {employees.map((emp) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.name} ({emp.email})
-                    </option>
-                  ))}
-                </NeuSelect>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-[var(--neu-text-secondary)] mb-1">Type de Contrat *</label>
-                  <NeuSelect value={type} onChange={(e) => setType(e.target.value)}>
-                    <option value="CDI">CDI (Indéterminée)</option>
-                    <option value="CDD">CDD (Déterminée)</option>
-                    <option value="STAGE">STAGE</option>
-                    <option value="FREELANCE">FREELANCE</option>
-                  </NeuSelect>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[var(--neu-text-secondary)] mb-1">Catégorie RH</label>
-                  <NeuSelect value={category} onChange={(e) => setCategory(e.target.value)}>
-                    <option value="employe">Employé</option>
-                    <option value="cadre">Cadre</option>
-                    <option value="maitrise">Agent de Maîtrise</option>
-                    <option value="ouvrier">Ouvrier</option>
-                  </NeuSelect>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[var(--neu-text-secondary)] mb-1">Intitulé du Poste *</label>
-                <NeuInput
-                  placeholder="ex: Comptable Général / Développeur Full-Stack"
-                  value={jobTitle}
-                  onChange={(e) => setJobTitle(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-[var(--neu-text-secondary)] mb-1">Date de Début *</label>
-                  <NeuInput type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[var(--neu-text-secondary)] mb-1">Date de Fin (si CDD)</label>
-                  <NeuInput type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-[var(--neu-text-secondary)] mb-1">Salaire de Base (FCFA) *</label>
-                  <NeuInput type="number" value={baseSalary} onChange={(e) => setBaseSalary(e.target.value)} required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[var(--neu-text-secondary)] mb-1">Sursalaire (FCFA)</label>
-                  <NeuInput type="number" value={sursalaire} onChange={(e) => setSursalaire(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-[var(--neu-text-secondary)] mb-1">Indemnité Transport (FCFA)</label>
-                  <NeuInput type="number" value={transportAllowance} onChange={(e) => setTransportAllowance(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[var(--neu-text-secondary)] mb-1">Indemnité Logement (FCFA)</label>
-                  <NeuInput type="number" value={housingAllowance} onChange={(e) => setHousingAllowance(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-[var(--neu-border)]">
-                <NeuButton type="button" variant="ghost" onClick={() => setShowModal(false)}>
-                  Annuler
-                </NeuButton>
-                <NeuButton type="submit" disabled={submitting}>
-                  {submitting ? "Création..." : "Établir le Contrat"}
-                </NeuButton>
-              </div>
-            </form>
-          </NeuCard>
-        </div>
-      )}
+      {/* Modal Création Contrat (Simplifié & Manager View) */}
+      <NewContractManagerModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        employees={employees}
+        onSuccess={fetchContracts}
+      />
 
       {/* Modal Édition & Génération Document RH */}
       {activeEditDoc && (

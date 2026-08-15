@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/security/requireSuperAdmin";
 import { GetDashboardStatsUseCase } from "@/lib/application/admin/use-cases/GetDashboardStatsUseCase";
@@ -15,10 +16,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       success: true,
       data: stats,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/v2/admin/dashboard/stats error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur interne" },
+      { success: false, error: getErrorMessage(error) || "Erreur serveur interne" },
       { status: 500 }
     );
   }

@@ -1,123 +1,89 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { z } from "zod";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { ApiResponse, CreateDepartmentBody } from "@/types";
+import { ApiResponse } from "@/types";
+import {
+  CreateDepartmentUseCase,
+  ListDepartmentsUseCase,
+} from "@/lib/application/hr/use-cases/DepartmentUseCases";
+import type { DepartmentRecord } from "@/lib/application/hr/ports/DepartmentRepository";
+import { PrismaDepartmentRepository } from "@/lib/infrastructure/repositories/prisma/PrismaDepartmentRepository";
+
+const repository = new PrismaDepartmentRepository();
+const listDepartments = new ListDepartmentsUseCase(repository);
+const createDepartment = new CreateDepartmentUseCase(repository);
+const createDepartmentSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  description: z.string().trim().max(1_000).optional(),
+  managerId: z.string().trim().min(1).nullable().optional(),
+});
+
+function serializeDepartment(department: DepartmentRecord): Record<string, unknown> {
+  return {
+    ...department,
+    _id: department.id,
+    managerId: department.manager
+      ? { ...department.manager, _id: department.manager.id }
+      : department.managerId,
+  };
+}
 
 // GET /api/departments - Get all active departments
-export async function GET(
-  request: NextRequest
-): Promise<NextResponse<ApiResponse<unknown>>> {
+export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request);
     if (authResult instanceof NextResponse) return authResult;
 
-    const { searchParams } = new URL(request.url);
-    const includeInactive = searchParams.get("includeInactive") === "true";
-
-    const departments = await prisma.department.findMany({
-      where: { companyId: authResult.companyId, ...(includeInactive ? {} : { isActive: true }) },
-      include: {
-        manager: { select: { id: true, name: true, email: true } },
-      },
-      orderBy: { name: "asc" },
-    });
-
-    const formattedDepartments = departments.map((d) => ({
-      ...d,
-      _id: d.id,
-      managerId: d.manager ? { ...d.manager, _id: d.manager.id } : d.managerId,
-    }));
-
+    const includeInactive = new URL(request.url).searchParams.get("includeInactive") === "true";
+    const departments = await listDepartments.execute(authResult.companyId, includeInactive);
     return NextResponse.json(
-      {
-        success: true,
-        data: formattedDepartments,
-        message: "Departments fetched successfully",
-      },
+      { success: true, data: departments.map(serializeDepartment), message: "Départements récupérés avec succès" },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Get departments error:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to fetch departments",
-        code: "SERVER_ERROR",
-      },
+      { success: false, error: "Impossible de récupérer les départements", code: "SERVER_ERROR" },
       { status: 500 }
     );
   }
 }
 
 // POST /api/departments - Create new department (admin only)
-export async function POST(
-  request: NextRequest
-): Promise<NextResponse<ApiResponse<unknown>>> {
+export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request, "admin");
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
+    if (authResult instanceof NextResponse) return authResult;
 
-    const body: CreateDepartmentBody = await request.json();
-
-    if (!body.name || body.name.trim() === "") {
+    const parsed = createDepartmentSchema.safeParse(await request.json());
+    if (!parsed.success) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Department name is required",
-          code: "VALIDATION_ERROR",
-        },
+        { success: false, error: "Données de département invalides", details: parsed.error.issues, code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
 
-    const existingDepartment = await prisma.department.findFirst({
-      where: { companyId: authResult.companyId, name: { equals: body.name.trim(), mode: "insensitive" } },
+    const department = await createDepartment.execute({
+      companyId: authResult.companyId,
+      name: parsed.data.name,
+      description: parsed.data.description ?? "",
+      managerId: parsed.data.managerId ?? null,
     });
 
-    if (existingDepartment) {
+    return NextResponse.json(
+      { success: true, data: serializeDepartment(department), message: "Département créé avec succès" },
+      { status: 201 }
+    );
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "DEPARTMENT_NAME_ALREADY_EXISTS") {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Department with this name already exists",
-          code: "DUPLICATE_ERROR",
-        },
+        { success: false, error: "Un département avec ce nom existe déjà", code: "DUPLICATE_ERROR" },
         { status: 409 }
       );
     }
-
-    const department = await prisma.department.create({
-      data: {
-        companyId: authResult.companyId,
-        name: body.name.trim(),
-        description: body.description?.trim() || "",
-        managerId: body.managerId || null,
-        isActive: true,
-      },
-    });
-
-    const responseData = {
-      ...department,
-      _id: department.id,
-    };
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: responseData,
-        message: "Department created successfully",
-      },
-      { status: 201 }
-    );
-  } catch (error) {
     console.error("Create department error:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to create department",
-        code: "SERVER_ERROR",
-      },
+      { success: false, error: "Impossible de créer le département", code: "SERVER_ERROR" },
       { status: 500 }
     );
   }

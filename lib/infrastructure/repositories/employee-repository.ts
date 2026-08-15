@@ -11,6 +11,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 import { decryptData } from "@/lib/crypto";
 import type { EmployeePayrollData } from "@/lib/domain/payroll/types/payroll-types";
 
@@ -19,26 +20,32 @@ export interface IEmployeeRepository {
   findAllActive(companyId?: string): Promise<ReadonlyArray<EmployeePayrollData>>;
 }
 
+type UserWithDepartment = Prisma.UserGetPayload<{
+  include: { department: true };
+}>;
+
 export class EmployeeRepository implements IEmployeeRepository {
   /**
    * Mappe un enregistrement Prisma User vers le modèle de domaine EmployeePayrollData
    */
-  private mapToDomain(user: any): EmployeePayrollData {
+  private mapToDomain(user: UserWithDepartment): EmployeePayrollData {
     const rawCnps = user.cnpsNumber ? decryptData(user.cnpsNumber) : "Exonéré";
+    const ct = user.contractType;
+    const contractType = (ct === "CDD" || ct === "STAGE" || ct === "INTERIM") ? ct : "CDI";
 
     return {
       id: user.id,
       name: user.name || "SALARIE",
       employeeId: user.employeeId || "001",
-      baseSalary: user.baseSalary || 0,
+      baseSalary: user.salary || 0,
       sursalaire: user.sursalaire || 0,
       transportAllowance: user.transportAllowance || 30000,
       category: user.category || "1A",
       partsIGR: user.partsIGR || 1.0,
       cnpsNumber: rawCnps,
       joiningDate: user.joiningDate ? new Date(user.joiningDate).toISOString() : new Date().toISOString(),
-      contractType: (user.contractType as any) || "CDI",
-      isExpatriate: user.isExpatriate || false,
+      contractType,
+      isExpatriate: false,
       departmentName: user.direction || user.department?.name || "ADMINISTRATION",
       jobTitle: user.jobTitle || "Employé",
     };
@@ -61,7 +68,7 @@ export class EmployeeRepository implements IEmployeeRepository {
    * Récupère tous les employés actifs (optionnellement filtrés par entreprise)
    */
   public async findAllActive(companyId?: string): Promise<ReadonlyArray<EmployeePayrollData>> {
-    const whereCondition: any = { isActive: true };
+    const whereCondition: Prisma.UserWhereInput = { isActive: true };
     if (companyId) {
       whereCondition.companyId = companyId;
     }

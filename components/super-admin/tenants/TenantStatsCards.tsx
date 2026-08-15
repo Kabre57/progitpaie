@@ -1,13 +1,14 @@
 "use client";
 
 import React from "react";
-import { Building2, CheckCircle2, AlertCircle, ShieldCheck } from "lucide-react";
+import { Building2, CheckCircle2, AlertCircle, ShieldCheck, FlaskConical } from "lucide-react";
 import { NeuCard } from "@/components/ui/neu-card";
 
 export interface TenantSummaryItem {
   id: string;
   name: string;
   isMain: boolean;
+  isDemo?: boolean;
   status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
 }
 
@@ -19,9 +20,10 @@ export function TenantStatsCards({ tenants }: TenantStatsCardsProps) {
   const activeCount = tenants.filter((t) => t.status === "ACTIVE").length;
   const inactiveCount = tenants.filter((t) => t.status === "INACTIVE" || t.status === "SUSPENDED").length;
   const mainTenant = tenants.find((t) => t.isMain);
+  const demoCount = tenants.filter((t) => t.isDemo).length;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
       <NeuCard className="p-4 flex items-center gap-4">
         <div className="p-3 bg-[#666cff]/15 text-[#666cff] rounded-xl">
           <Building2 size={22} />
@@ -57,10 +59,20 @@ export function TenantStatsCards({ tenants }: TenantStatsCardsProps) {
           <ShieldCheck size={22} />
         </div>
         <div>
-          <div className="text-xs text-[var(--neu-text-secondary)]">Siège Principal</div>
+          <div className="text-xs text-[var(--neu-text-secondary)]">Siège Historique</div>
           <div className="text-sm font-bold text-[var(--neu-text)] truncate max-w-[140px]">
             {mainTenant?.name || "Aucun"}
           </div>
+        </div>
+      </NeuCard>
+
+      <NeuCard className="p-4 flex items-center gap-4">
+        <div className="p-3 bg-amber-500/15 text-amber-600 rounded-xl">
+          <FlaskConical size={22} />
+        </div>
+        <div>
+          <div className="text-xs text-[var(--neu-text-secondary)]">Espaces Démo</div>
+          <div className="text-xl font-bold text-amber-600">{demoCount}</div>
         </div>
       </NeuCard>
     </div>

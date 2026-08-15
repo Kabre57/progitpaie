@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { requireTenant } from "@/lib/database/tenant-context";
+import { PrismaPayrollRepository } from "@/lib/infrastructure/repositories/prisma/PrismaPayrollRepository";
+
+const payrollRepo = new PrismaPayrollRepository();
 
 // GET /api/payroll/accounting?month=1&year=2026 - Journal d'Imputation Comptable OHADA (SYSCOHADA)
 export async function GET(request: NextRequest): Promise<Response> {
@@ -14,8 +16,10 @@ export async function GET(request: NextRequest): Promise<Response> {
     const month = parseInt(searchParams.get("month") || new Date().getMonth() + 1 + "", 10);
     const year = parseInt(searchParams.get("year") || new Date().getFullYear() + "", 10);
 
-    const payrolls = await prisma.payroll.findMany({
-      where: { month, year, companyId: authResult.companyId },
+    const payrolls = await payrollRepo.list({
+      companyId: authResult.companyId,
+      month,
+      year,
     });
 
     let totalBasic = 0;
@@ -30,16 +34,20 @@ export async function GET(request: NextRequest): Promise<Response> {
     let totalNet = 0;
 
     payrolls.forEach((p) => {
-      totalBasic += Math.round(p.basicSalary || 0);
-      totalSursalaire += Math.round(p.sursalaire || 0);
-      totalBonusesOvertimeHousing += Math.round((p.bonuses || 0) + (p.overtimePay || 0) + (p.housingAllowance || 0));
-      totalTransport += Math.round(p.transportAllowance || 0);
-      totalIts += Math.round(p.itsTax || 0);
-      totalIgr += Math.round(p.igrTax || 0);
-      totalCnpsEmployee += Math.round(p.cnpsEmployee || 0);
-      totalCnpsEmployer += Math.round(p.cnpsEmployer || 0);
-      totalFdfp += Math.round(p.fdfpTax || 0);
-      totalNet += Math.round(p.netSalary || 0);
+      totalBasic += Math.round(p.earnings.basicSalary.toNumber() || 0);
+      totalSursalaire += Math.round(p.earnings.sursalaire.toNumber() || 0);
+      totalBonusesOvertimeHousing += Math.round(
+        (p.earnings.bonuses.toNumber() || 0) +
+        (p.earnings.overtimePay.toNumber() || 0) +
+        (p.earnings.housingAllowance.toNumber() || 0)
+      );
+      totalTransport += Math.round(p.earnings.transportAllowance.toNumber() || 0);
+      totalIts += Math.round(p.itsTax.toNumber() || 0);
+      totalIgr += Math.round(p.igrTax.toNumber() || 0);
+      totalCnpsEmployee += Math.round(p.cnpsEmployee.toNumber() || 0);
+      totalCnpsEmployer += Math.round(p.cnpsEmployer.toNumber() || 0);
+      totalFdfp += Math.round(p.fdfpTax.toNumber() || 0);
+      totalNet += Math.round(p.netSalary.toNumber() || 0);
     });
 
     // Écritures comptables de centralisation de paie aux normes SYSCOHADA (OHADA)

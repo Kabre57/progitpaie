@@ -4,6 +4,8 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
+import type { jsPDF } from "jspdf";
+
 export interface PDFSignBlockOptions {
   startY: number;
   showEmployerStamp?: boolean;
@@ -13,7 +15,7 @@ export interface PDFSignBlockOptions {
   noticeText?: string;
 }
 
-export function drawPDFSignBlock(doc: any, options: PDFSignBlockOptions): number {
+export function drawPDFSignBlock(doc: jsPDF, options: PDFSignBlockOptions): number {
   let y = options.startY;
 
   if (options.city || options.dateStr) {

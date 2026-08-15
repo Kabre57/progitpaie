@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/security/requireSuperAdmin";
 import { ManageCompanyKybUseCase } from "@/lib/application/admin/use-cases/ManageCompanyKybUseCase";
@@ -17,10 +18,10 @@ export async function GET(
     const details = await kybUC.getKybDetails(id);
 
     return NextResponse.json({ success: true, data: details });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/v2/admin/tenants/[id]/documents error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur" },
+      { success: false, error: getErrorMessage(error) || "Erreur serveur" },
       { status: 500 }
     );
   }
@@ -53,10 +54,10 @@ export async function POST(
     });
 
     return NextResponse.json({ success: true, data: doc }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/v2/admin/tenants/[id]/documents error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur lors de l'ajout du document" },
+      { success: false, error: getErrorMessage(error) || "Erreur lors de l'ajout du document" },
       { status: 500 }
     );
   }

@@ -12,7 +12,7 @@
  *   - CMU — Couverture Maladie Universelle (salarié + employeur)
  *
  * Plafonds CNPS :
- *   - Retraite : 2 421 250 FCFA/mois (plafond 2024)
+ *   - Retraite : 3 375 000 FCFA/mois (décret n° 2022-986, effectif le 01/01/2023)
  *   - PF + AT  : 70 000 FCFA/mois
  *
  * ADR-001 : Fonctions pures, testables unitairement, zéro side effect.
@@ -148,8 +148,9 @@ export function calculateAllEmployeeContributions(
     rates.cnpsMonthlyRetirementCeiling
   );
 
+  const cmuBaseVal = rates.cmuBase ?? 1000;
   const cmu = includeCMU
-    ? calculateCMU(0, rates.cmuEmployeeRate, rates.cmuEmployerRate).employee
+    ? calculateCMU(cmuBaseVal, rates.cmuEmployeeRate, rates.cmuEmployerRate).employee
     : 0;
 
   return {
@@ -187,8 +188,9 @@ export function calculateAllEmployerContributions(
     rates.cnpsAccidentRate,
     rates.cnpsMonthlyCeiling70K
   );
+  const cmuBaseVal = rates.cmuBase ?? 1000;
   const cmu = includeCMU
-    ? calculateCMU(0, rates.cmuEmployeeRate, rates.cmuEmployerRate).employer
+    ? calculateCMU(cmuBaseVal, rates.cmuEmployeeRate, rates.cmuEmployerRate).employer
     : 0;
 
   // FDFP (Fonds de Développement de la Formation Professionnelle)

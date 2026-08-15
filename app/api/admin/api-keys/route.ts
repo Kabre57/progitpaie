@@ -22,7 +22,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       success: true,
       keys,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       { success: false, error: "Échec de récupération des clés API" },
       { status: 500 }
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       success: true,
       key: result,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       { success: false, error: "Échec de création de la clé API" },
       { status: 500 }

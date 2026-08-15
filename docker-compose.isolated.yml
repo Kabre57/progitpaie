@@ -8,7 +8,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: builder
-    command: ["npx", "prisma", "migrate", "deploy"]
+    command: ["pnpm", "exec", "prisma", "migrate", "deploy"]
     environment:
       - DATABASE_URL=postgresql://progitpaie:secret_isolated@postgres_isolated:5432/progitpaie_isolated?schema=public
     depends_on:

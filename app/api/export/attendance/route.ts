@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { requireTenant } from "@/lib/database/tenant-context";
-import * as XLSX from "xlsx";
+import { PrismaAttendanceExportRepository } from "@/lib/infrastructure/repositories/prisma/PrismaAttendanceExportRepository";
+import { Workbook } from "exceljs";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { z } from "zod";
 import { ApiResponse } from "@/types";
+
+const attendanceExportRepository = new PrismaAttendanceExportRepository();
+
+const attendanceExportQuerySchema = z.object({
+  month: z.coerce.number().int().min(1).max(12).optional(),
+  year: z.coerce.number().int().min(2000).max(2100).optional(),
+  dept: z.string().trim().min(1).optional(),
+  format: z.enum(["excel", "pdf"]).optional(),
+});
 
 // GET /api/export/attendance?month=1&year=2025&dept=deptId&format=excel|pdf
 export async function GET(
@@ -16,48 +26,33 @@ export async function GET(
       return authResult;
     }
 
-    const { searchParams } = new URL(request.url);
-    const month = parseInt(searchParams.get("month") || new Date().getMonth() + 1 + "", 10);
-    const year = parseInt(searchParams.get("year") || new Date().getFullYear() + "", 10);
-    const deptId = searchParams.get("dept");
-    const format = searchParams.get("format") || "excel";
+    const searchParams = Object.fromEntries(new URL(request.url).searchParams);
+    const parsedQuery = attendanceExportQuerySchema.safeParse(searchParams);
+    if (!parsedQuery.success) {
+      return NextResponse.json(
+        { success: false, error: "Paramètres d’export invalides", details: parsedQuery.error.issues },
+        { status: 400 }
+      );
+    }
+
+    const now = new Date();
+    const month = parsedQuery.data.month ?? now.getMonth() + 1;
+    const year = parsedQuery.data.year ?? now.getFullYear();
+    const deptId = parsedQuery.data.dept;
+    const format = parsedQuery.data.format ?? "excel";
 
     const startOfMonth = new Date(year, month - 1, 1);
     const endOfMonth = new Date(year, month, 0);
 
-    const userWhere: any = { isActive: true, companyId: authResult.companyId };
-    if (deptId) {
-      userWhere.departmentId = deptId;
-    }
-
-    // Filtre companyId obligatoire : garantit l'isolation tenant
-    const users = await prisma.user.findMany({
-      where: userWhere,
-      select: {
-        id: true,
-        name: true,
-        employeeId: true,
-        department: { select: { name: true } },
-      },
-    });
-
-    const userIds = users.map((u) => u.id);
-
-    const attendanceRecords = await prisma.attendance.findMany({
-      where: {
-        userId: { in: userIds },
-        companyId: authResult.companyId,
-        date: {
-          gte: startOfMonth.toISOString().split("T")[0],
-          lte: endOfMonth.toISOString().split("T")[0],
-        },
-      },
-    });
-
-    const attendanceMap = new Map();
+    const { employees: users, records: attendanceRecords } = await attendanceExportRepository.list(
+      authResult.companyId,
+      deptId,
+      startOfMonth.toISOString().slice(0, 10),
+      endOfMonth.toISOString().slice(0, 10)
+    );
+    const attendanceMap = new Map<string, (typeof attendanceRecords)[number]>();
     attendanceRecords.forEach((record) => {
-      const key = `${record.userId}_${record.date}`;
-      attendanceMap.set(key, record);
+      attendanceMap.set(`${record.userId}_${record.date}`, record);
     });
 
     const rows: Array<{
@@ -79,7 +74,7 @@ export async function GET(
         rows.push({
           "Employee Name": user.name,
           "Employee ID": user.employeeId || "N/A",
-          Department: user.department?.name || "N/A",
+          Department: user.departmentName || "N/A",
           Date: dateStr,
           "Check-in": record?.checkIn
             ? new Date(record.checkIn).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
@@ -97,25 +92,22 @@ export async function GET(
     const dateToday = new Date().toISOString().split("T")[0];
 
     if (format === "excel") {
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(rows);
-
-      ws["!cols"] = [
-        { wch: 20 },
-        { wch: 15 },
-        { wch: 15 },
-        { wch: 12 },
-        { wch: 12 },
-        { wch: 12 },
-        { wch: 12 },
-        { wch: 15 },
+      const workbook = new Workbook();
+      const worksheet = workbook.addWorksheet("Attendance");
+      worksheet.columns = [
+        { header: "Employee Name", key: "Employee Name", width: 20 },
+        { header: "Employee ID", key: "Employee ID", width: 15 },
+        { header: "Department", key: "Department", width: 15 },
+        { header: "Date", key: "Date", width: 12 },
+        { header: "Check-in", key: "Check-in", width: 12 },
+        { header: "Check-out", key: "Check-out", width: 12 },
+        { header: "Status", key: "Status", width: 12 },
+        { header: "Working Hours", key: "Working Hours", width: 15 },
       ];
+      worksheet.addRows(rows);
 
-      XLSX.utils.book_append_sheet(wb, ws, "Attendance");
-
-      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-
-      return new NextResponse(buf, {
+      const buffer = await workbook.xlsx.writeBuffer();
+      return new NextResponse(Buffer.from(buffer), {
         status: 200,
         headers: {
           "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -145,7 +137,7 @@ export async function GET(
         headStyles: { fillColor: [30, 58, 95] },
       });
 
-      const pageCount = (doc as any).internal.pages.length;
+      const pageCount = doc.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         doc.setFontSize(8);
@@ -171,7 +163,7 @@ export async function GET(
         { status: 400 }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Export attendance error:", error);
     return NextResponse.json(
       {

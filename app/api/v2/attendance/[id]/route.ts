@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant } from "@/lib/database/tenant-context";
 import { PrismaAttendanceRepository } from "@/lib/infrastructure/repositories/prisma/PrismaAttendanceRepository";
@@ -28,10 +29,10 @@ export async function GET(
     }
 
     return NextResponse.json({ success: true, data: toAttendanceDTO(attendance) }, { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/v2/attendance/[id] error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur", code: "SERVER_ERROR" },
+      { success: false, error: getErrorMessage(error) || "Erreur serveur", code: "SERVER_ERROR" },
       { status: 500 }
     );
   }
@@ -68,11 +69,11 @@ export async function PUT(
       { success: true, data, message: "Statut de pointage mis à jour" },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("PUT /api/v2/attendance/[id] error:", error);
-    const status = error.message.includes("non trouvé") ? 404 : 400;
+    const status = getErrorMessage(error).includes("non trouvé") ? 404 : 400;
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur de mise à jour", code: "SERVER_ERROR" },
+      { success: false, error: getErrorMessage(error) || "Erreur de mise à jour", code: "SERVER_ERROR" },
       { status }
     );
   }

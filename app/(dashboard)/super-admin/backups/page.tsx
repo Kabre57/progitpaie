@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/error-message";
 import React, { useState, useEffect } from "react";
 import {
   Archive,
@@ -101,8 +102,8 @@ export default function SuperAdminBackupsPage() {
       a.click();
       a.remove();
       showToast("success", "Export multi-entreprises téléchargé ✓");
-    } catch (err: any) {
-      showToast("error", err.message || "Erreur lors de l'export");
+    } catch (err: unknown) {
+      showToast("error", getErrorMessage(err) || "Erreur lors de l'export");
     } finally {
       setExportingMulti(false);
     }

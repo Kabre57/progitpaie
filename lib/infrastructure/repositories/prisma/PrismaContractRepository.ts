@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { WorkContract } from "@/lib/domain/contract/entities/WorkContract";
 import { ContractRepository, ListContractsQuery } from "@/lib/application/contract/ports/ContractRepository";
 import { mapPrismaToDomainContract } from "./mappers/prisma-contract-entity.mapper";
-import { ContractType as PrismaContractType, Prisma } from "@prisma/client";
+import { ContractType as PrismaContractType, EmployeeCategory, Prisma } from "@prisma/client";
 
 export class PrismaContractRepository implements ContractRepository {
   public async list(query: ListContractsQuery): Promise<readonly WorkContract[]> {
@@ -36,7 +36,7 @@ export class PrismaContractRepository implements ContractRepository {
       companyId: contract.companyId,
       userId: contract.userId,
       type: contract.type.value as PrismaContractType,
-      category: contract.category.value as any,
+      category: contract.category.value as EmployeeCategory,
       jobTitle: contract.jobTitle,
       startDate: contract.startDate,
       endDate: contract.endDate || null,

@@ -1,29 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireTenant } from "@/lib/database/tenant-context";
 import { PrismaDeclarationRepository } from "@/lib/infrastructure/repositories/prisma/PrismaDeclarationRepository";
 import { GetCnpsDeclarationUseCase } from "@/lib/application/declaration/use-cases/GetDeclarationUseCases";
 import { ApiResponse } from "@/types";
 
+const periodSchema = z.object({
+  month: z.coerce.number().int().min(1).max(12).optional(),
+  year: z.coerce.number().int().min(2000).max(2100).optional(),
+});
+
 const repository = new PrismaDeclarationRepository();
 const cnpsUseCase = new GetCnpsDeclarationUseCase(repository);
 
-// GET /api/v2/declarations/cnps - Déclaration CNPS (V2 Clean Architecture)
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) return authResult;
 
-    const { searchParams } = new URL(request.url);
-    const month = parseInt(searchParams.get("month") || new Date().getMonth() + 1 + "", 10);
-    const year = parseInt(searchParams.get("year") || new Date().getFullYear() + "", 10);
-
+    const params = periodSchema.parse(Object.fromEntries(new URL(request.url).searchParams));
+    const now = new Date();
+    const month = params.month ?? now.getMonth() + 1;
+    const year = params.year ?? now.getFullYear();
     const data = await cnpsUseCase.execute(authResult.companyId, month, year);
     return NextResponse.json({ success: true, data }, { status: 200 });
-  } catch (error: any) {
-    console.error("GET /api/v2/declarations/cnps error:", error);
+  } catch (error: unknown) {
+    const isValidationError = error instanceof z.ZodError;
+    console.error("GET /api/v2/declarations/cnps error:", error instanceof Error ? error.message : "unknown error");
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur", code: "SERVER_ERROR" },
-      { status: 500 }
+      {
+        success: false,
+        error: isValidationError ? "Période invalide" : "Erreur serveur",
+        code: isValidationError ? "INVALID_PERIOD" : "SERVER_ERROR",
+      },
+      { status: isValidationError ? 400 : 500 },
     );
   }
 }

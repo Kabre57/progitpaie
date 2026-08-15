@@ -1,20 +1,24 @@
-import { prisma } from "@/lib/db";
-import { SubscriptionPlan, SubscriptionStatus } from "@prisma/client";
+import { SubscriptionStatus } from "@prisma/client";
 import {
   UpdateSubscriptionInput,
   CompanyKybDetailsDTO,
 } from "../dto/CompanyKybSubscriptionDTO";
 import { ManageCompanyKybUseCase } from "./ManageCompanyKybUseCase";
-
-const kybUC = new ManageCompanyKybUseCase();
+import { SuperAdminRepository } from "../ports/SuperAdminRepository";
+import { PrismaSuperAdminRepository } from "@/lib/infrastructure/repositories/prisma/PrismaSuperAdminRepository";
 
 export class ManageSubscriptionUseCase {
+  constructor(
+    private readonly superAdminRepo: SuperAdminRepository = new PrismaSuperAdminRepository(),
+    private readonly kybUC: ManageCompanyKybUseCase = new ManageCompanyKybUseCase(superAdminRepo)
+  ) {}
+
   /** Update subscription plan, status, FCFA price, employee limit and expiration date */
   public async updateSubscription(
     input: UpdateSubscriptionInput,
     updatedById: string
   ): Promise<CompanyKybDetailsDTO> {
-    const dataToUpdate: any = {};
+    const dataToUpdate: Record<string, unknown> = {};
 
     if (input.plan) dataToUpdate.plan = input.plan;
     if (input.subscriptionStatus) dataToUpdate.subscriptionStatus = input.subscriptionStatus;
@@ -36,23 +40,18 @@ export class ManageSubscriptionUseCase {
       dataToUpdate.isActive = true;
     }
 
-    await prisma.company.update({
-      where: { id: input.companyId },
-      data: dataToUpdate,
-    });
+    await this.superAdminRepo.updateCompanySubscription(input.companyId, dataToUpdate);
 
     // Audit log
-    await prisma.auditLog.create({
-      data: {
-        companyId: input.companyId,
-        performedById: updatedById,
-        action: "UPDATE_COMPANY_SUBSCRIPTION",
-        targetModel: "Company",
-        targetId: input.companyId,
-        newValues: dataToUpdate,
-      },
+    await this.superAdminRepo.createAuditLog({
+      companyId: input.companyId,
+      performedById: updatedById,
+      action: "UPDATE_COMPANY_SUBSCRIPTION",
+      targetModel: "Company",
+      targetId: input.companyId,
+      newValues: dataToUpdate,
     });
 
-    return kybUC.getKybDetails(input.companyId);
+    return this.kybUC.getKybDetails(input.companyId);
   }
 }

@@ -20,7 +20,7 @@ export function SignInForm({ onSubmit, isLoading, error }: SignInFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} autoComplete="on" className="flex flex-col gap-6">
+    <form method="post" onSubmit={handleSubmit} autoComplete="on" className="flex flex-col gap-6">
       <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="text-2xl font-bold text-[var(--neu-text)]">Connexion à votre compte</h1>
         <p className="text-sm text-[var(--neu-text-secondary)]">Saisissez vos identifiants ci-dessous pour accéder à votre espace</p>

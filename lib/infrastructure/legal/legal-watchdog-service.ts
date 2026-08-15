@@ -9,6 +9,7 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { SettingsRepository } from "@/lib/infrastructure/repositories/settings-repository";
 
@@ -22,7 +23,7 @@ export interface LegalAlertItem {
   effectiveDate: Date;
   severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
   status: "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "APPLIED";
-  proposedRates?: any;
+  proposedRates?: Prisma.JsonValue;
 }
 
 export class LegalWatchdogService {
@@ -61,7 +62,9 @@ export class LegalWatchdogService {
     const currentRates = (await this.settingsRepo.getByKey("tax_rates")) || {};
 
     // 2. Fusion des nouveaux taux applicables
-    const proposedObj = (alert.proposedRates && typeof alert.proposedRates === "object") ? alert.proposedRates as Record<string, any> : {};
+    const proposedObj = alert.proposedRates && typeof alert.proposedRates === "object" && !Array.isArray(alert.proposedRates)
+      ? alert.proposedRates as Record<string, unknown>
+      : {};
     const updatedRates = {
       ...currentRates,
       ...proposedObj,

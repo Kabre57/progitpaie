@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/error-message";
 import * as React from "react";
 import { Clock, LogIn, LogOut, CheckCircle, MapPin, AlertCircle, RefreshCw, Send } from "lucide-react";
 import { ChipLoader } from "@/components/ui/chip-loader";
@@ -113,13 +114,15 @@ export default function CheckInOutPanel() {
         latitude: gps.lat,
         longitude: gps.lng,
         accuracyMeters: gps.accuracy,
-      } as any);
+        outOfOffice: false,
+        isRemote: false,
+      });
       toast.success("Votre présence au bureau a été validée par GPS.");
-    } catch (error: any) {
-      if (error.message?.includes("hors zone") || error.message?.includes("GPS")) {
+    } catch (error: unknown) {
+      if (getErrorMessage(error)?.includes("hors zone") || getErrorMessage(error)?.includes("GPS")) {
         setShowExceptionModal(true);
       } else {
-        toast.error(error.message || "Échec du pointage d'arrivée");
+        toast.error(getErrorMessage(error) || "Échec du pointage d'arrivée");
       }
     }
   };
@@ -131,8 +134,8 @@ export default function CheckInOutPanel() {
     try {
       await checkOutMutation.mutateAsync({});
       toast.success("Votre départ a été enregistré avec succès.");
-    } catch (error: any) {
-      toast.error(error.message || "Échec du pointage de départ");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error) || "Échec du pointage de départ");
     }
   };
 

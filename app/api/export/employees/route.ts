@@ -1,97 +1,66 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { Workbook } from "exceljs";
+import { z } from "zod";
 import { requireTenant } from "@/lib/database/tenant-context";
-import * as XLSX from "xlsx";
 import { ApiResponse } from "@/types";
+import { PrismaEmployeeExportRepository } from "@/lib/infrastructure/repositories/prisma/PrismaEmployeeExportRepository";
+
+const employeeExportRepository = new PrismaEmployeeExportRepository();
+const querySchema = z.object({ format: z.literal("excel").default("excel") });
 
 // GET /api/export/employees?format=excel
-export async function GET(
-  request: NextRequest
-): Promise<NextResponse<ApiResponse<unknown> | Buffer>> {
+export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown> | Buffer>> {
   try {
     const authResult = await requireTenant(request, "admin");
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
+    if (authResult instanceof NextResponse) return authResult;
 
-    const { searchParams } = new URL(request.url);
-    const format = searchParams.get("format") || "excel";
-
-    if (format !== "excel") {
+    const parsed = querySchema.safeParse({ format: request.nextUrl.searchParams.get("format") ?? "excel" });
+    if (!parsed.success) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Only Excel format is supported for employees export",
-          code: "INVALID_FORMAT",
-        },
+        { success: false, error: "Seul le format Excel est pris en charge", code: "INVALID_FORMAT" },
         { status: 400 }
       );
     }
 
-    // Filtre companyId obligatoire : garantit l'isolation tenant
-    const employees = await prisma.user.findMany({
-      where: { isActive: true, companyId: authResult.companyId },
-      select: {
-        employeeId: true,
-        name: true,
-        email: true,
-        department: { select: { name: true } },
-        shift: { select: { name: true } },
-        salary: true,
-        joiningDate: true,
-        isActive: true,
-      },
-      orderBy: { name: "asc" },
-    });
-
-    const rows = employees.map((emp) => ({
-      "Employee ID": emp.employeeId || "N/A",
-      Name: emp.name,
-      Email: emp.email,
-      Department: emp.department?.name || "N/A",
-      Shift: emp.shift?.name || "N/A",
-      Salary: emp.salary || 0,
-      "Joining Date": emp.joiningDate
-        ? new Date(emp.joiningDate).toLocaleDateString("en-US")
-        : "N/A",
-      Status: emp.isActive ? "Active" : "Inactive",
+    const employees = await employeeExportRepository.listActive(authResult.companyId);
+    const rows = employees.map((employee) => ({
+      "Employee ID": employee.employeeId || "N/A",
+      Name: employee.name,
+      Email: employee.email,
+      Department: employee.departmentName || "N/A",
+      Shift: employee.shiftName || "N/A",
+      Salary: employee.salary,
+      "Joining Date": employee.joiningDate ? employee.joiningDate.toLocaleDateString("en-US") : "N/A",
+      Status: employee.isActive ? "Active" : "Inactive",
     }));
 
-    const dateToday = new Date().toISOString().split("T")[0];
-
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(rows);
-
-    ws["!cols"] = [
-      { wch: 15 },
-      { wch: 20 },
-      { wch: 25 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 12 },
-      { wch: 15 },
-      { wch: 12 },
+    const workbook = new Workbook();
+    const worksheet = workbook.addWorksheet("Employees");
+    worksheet.columns = [
+      { header: "Employee ID", key: "Employee ID", width: 15 },
+      { header: "Name", key: "Name", width: 20 },
+      { header: "Email", key: "Email", width: 25 },
+      { header: "Department", key: "Department", width: 15 },
+      { header: "Shift", key: "Shift", width: 15 },
+      { header: "Salary", key: "Salary", width: 12 },
+      { header: "Joining Date", key: "Joining Date", width: 15 },
+      { header: "Status", key: "Status", width: 12 },
     ];
+    worksheet.addRows(rows);
+    const buffer = await workbook.xlsx.writeBuffer();
+    const dateToday = new Date().toISOString().slice(0, 10);
 
-    XLSX.utils.book_append_sheet(wb, ws, "Employees");
-
-    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-
-    return new NextResponse(buf, {
+    return new NextResponse(Buffer.from(buffer), {
       status: 200,
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition": `attachment; filename="employees-export-${dateToday}.xlsx"`,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Export employees error:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to export employees",
-        code: "SERVER_ERROR",
-      },
+      { success: false, error: "Impossible d’exporter les salariés", code: "SERVER_ERROR" },
       { status: 500 }
     );
   }

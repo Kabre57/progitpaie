@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant } from "@/lib/database/tenant-context";
 import { PrismaLeaveRepository } from "@/lib/infrastructure/repositories/prisma/PrismaLeaveRepository";
@@ -38,11 +39,11 @@ export async function PUT(
       { success: true, data, message: "Demande de congé rejetée" },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("PUT /api/v2/leaves/[id]/reject error:", error);
-    const status = error.message.includes("non trouvée") ? 404 : 400;
+    const status = getErrorMessage(error).includes("non trouvée") ? 404 : 400;
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur lors du rejet", code: "SERVER_ERROR" },
+      { success: false, error: getErrorMessage(error) || "Erreur lors du rejet", code: "SERVER_ERROR" },
       { status }
     );
   }

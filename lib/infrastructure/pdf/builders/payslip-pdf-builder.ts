@@ -1,5 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+
+type JsPdfWithAutoTable = jsPDF & { lastAutoTable?: { finalY?: number } };
 import { PayslipAppearanceConfig, PayslipLegalConfig } from "@/lib/payslip-config";
 
 function cleanText(text: string | null | undefined): string {
@@ -219,7 +221,7 @@ export function generatePayslipPdf(options: PayslipPdfOptions): Buffer {
     },
   });
 
-  const finalTableY = (doc as any).lastAutoTable?.finalY || 195;
+  const finalTableY = (doc as JsPdfWithAutoTable).lastAutoTable?.finalY || 195;
 
   // 4. RÉCAPITULATIF TOTAUX
   autoTable(doc, {
@@ -237,7 +239,7 @@ export function generatePayslipPdf(options: PayslipPdfOptions): Buffer {
     bodyStyles: { fillColor: [248, 249, 250], textColor: [20, 20, 20] },
   });
 
-  const cumulsFinalY = (doc as any).lastAutoTable?.finalY || (finalTableY + 30);
+  const cumulsFinalY = (doc as JsPdfWithAutoTable).lastAutoTable?.finalY || (finalTableY + 30);
 
   // 5. CUMULS ANNUELS FISCAUX & CNPS
   autoTable(doc, {
@@ -255,7 +257,7 @@ export function generatePayslipPdf(options: PayslipPdfOptions): Buffer {
   });
 
   // 6. ZONE DE SIGNATURE ET MENTIONS LÉGALES
-  const signatureY = ((doc as any).lastAutoTable?.finalY || cumulsFinalY) + 6;
+  const signatureY = ((doc as JsPdfWithAutoTable).lastAutoTable?.finalY || cumulsFinalY) + 6;
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(50, 50, 50);

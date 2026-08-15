@@ -1,10 +1,18 @@
 import { openDB, DBSchema } from "idb";
 
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
 export interface OfflineAction {
   id?: number;
   url: string;
   method: "POST" | "PUT" | "DELETE";
-  body: any;
+  body: JsonValue;
   timestamp: string;
 }
 

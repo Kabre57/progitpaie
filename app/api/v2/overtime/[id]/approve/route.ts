@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { prisma } from "@/lib/db";
 import { ApiResponse } from "@/types";
+import { ReviewOvertimeUseCase } from "@/lib/application/overtime/use-cases/ListApproveOvertimeUseCase";
+import { PrismaOvertimeRepository } from "@/lib/infrastructure/repositories/prisma/PrismaOvertimeRepository";
 
-// PUT /api/v2/overtime/[id]/approve - Approuver / Valider des heures supp avec justification obligatoire pour les mois passés
+const reviewOvertime = new ReviewOvertimeUseCase(new PrismaOvertimeRepository());
+const idSchema = z.string().trim().min(1);
+const reviewSchema = z.object({
+  action: z.enum(["approve", "reject"]).default("approve"),
+  justification: z.string().trim().max(1_000).optional(),
+});
+
+// PUT /api/v2/overtime/[id]/approve - Approuver / rejeter des heures supplémentaires
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -12,89 +21,54 @@ export async function PUT(
     const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) return authResult;
 
-    const { id } = await params;
-    const body = await request.json().catch(() => ({}));
-
-    const overtime = await prisma.overtime.findFirst({
-      where: { id, companyId: authResult.companyId },
-    });
-
-    if (!overtime) {
+    const parsedId = idSchema.safeParse((await params).id);
+    const payload: unknown = await request.json().catch(() => ({}));
+    const parsedBody = reviewSchema.safeParse(payload);
+    if (!parsedId.success || !parsedBody.success) {
       return NextResponse.json(
-        { success: false, error: "Déclaration d'heures supplémentaires non trouvée" },
-        { status: 404 }
+        { success: false, error: "Décision d’heures supplémentaires invalide", code: "VALIDATION_ERROR" },
+        { status: 400 }
       );
     }
 
-    const action = body.action || "approve";
-    const now = new Date();
-    const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const overtimeMonthStr = new Date(overtime.date).toISOString().slice(0, 7);
-
-    const isPastMonth = overtimeMonthStr < currentMonthStr;
-
-    // Justification obligatoire pour la validation d'un mois passé
-    if (action === "approve" && isPastMonth) {
-      const justification = String(body.justification || "").trim();
-      if (justification.length < 5) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Une justification d'au moins 5 caractères est obligatoire pour valider les heures supp d'un mois passé.",
-            code: "JUSTIFICATION_REQUIRED",
-          },
-          { status: 400 }
-        );
-      }
-    }
-
-    let updatedReason = overtime.reason;
-    if (body.justification && String(body.justification).trim().length >= 5) {
-      updatedReason = `${overtime.reason} [Justification régularisation mois passé: ${String(body.justification).trim()}]`;
-    }
-
-    const updated = await prisma.overtime.update({
-      where: { id },
-      data: {
-        status: action === "reject" ? "rejected" : "approved",
-        approvedById: authResult.userId,
-        reason: updatedReason,
-      },
-      include: {
-        user: { select: { id: true, name: true, email: true, employeeId: true } },
-      },
+    const data = await reviewOvertime.execute({
+      companyId: authResult.companyId,
+      adminId: authResult.userId,
+      overtimeId: parsedId.data,
+      action: parsedBody.data.action,
+      justification: parsedBody.data.justification,
     });
-
-    const data = {
-      id: updated.id,
-      companyId: updated.companyId,
-      userId: updated.userId,
-      user: {
-        id: updated.user.id,
-        name: updated.user.name,
-        email: updated.user.email,
-        employeeId: updated.user.employeeId || undefined,
-      },
-      date: updated.date.toISOString(),
-      minutes: updated.minutes,
-      rate: updated.rate,
-      reason: updated.reason,
-      status: updated.status,
-      approvedById: updated.approvedById,
-    };
 
     return NextResponse.json(
       {
         success: true,
         data,
-        message: action === "reject" ? "Heures supplémentaires rejetées" : "Heures supplémentaires approuvées",
+        message: parsedBody.data.action === "reject"
+          ? "Heures supplémentaires rejetées"
+          : "Heures supplémentaires approuvées",
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "OVERTIME_NOT_FOUND") {
+      return NextResponse.json(
+        { success: false, error: "Déclaration d'heures supplémentaires non trouvée", code: "NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+    if (error instanceof Error && error.message === "OVERTIME_JUSTIFICATION_REQUIRED") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Une justification d'au moins 5 caractères est obligatoire pour valider les heures supplémentaires d'un mois passé.",
+          code: "JUSTIFICATION_REQUIRED",
+        },
+        { status: 400 }
+      );
+    }
     console.error("PUT /api/v2/overtime/[id]/approve error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur lors de l'approbation", code: "SERVER_ERROR" },
+      { success: false, error: "Erreur lors de l'approbation", code: "SERVER_ERROR" },
       { status: 500 }
     );
   }

@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant } from "@/lib/database/tenant-context";
 import { PrismaAttendanceRepository } from "@/lib/infrastructure/repositories/prisma/PrismaAttendanceRepository";
@@ -15,10 +16,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
 
     const data = await summaryUseCase.execute(authResult.companyId);
     return NextResponse.json({ success: true, data }, { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/v2/attendance/today-summary error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur", code: "SERVER_ERROR" },
+      { success: false, error: getErrorMessage(error) || "Erreur serveur", code: "SERVER_ERROR" },
       { status: 500 }
     );
   }

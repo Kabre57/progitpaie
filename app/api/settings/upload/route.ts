@@ -7,6 +7,16 @@ import {
 } from "@/lib/payslip-config";
 import { requireTenant } from "@/lib/database/tenant-context";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { CreateAuditLogUseCase } from "@/lib/application/audit/use-cases/CreateAuditLogUseCase";
+import { PrismaAuditLogRepository } from "@/lib/infrastructure/repositories/prisma/PrismaAuditLogRepository";
+
+const createAuditLog = new CreateAuditLogUseCase(new PrismaAuditLogRepository());
+
+type LogoMimeType = (typeof LOGO_ALLOWED_MIME_TYPES)[number];
+
+function isLogoMimeType(value: string): value is LogoMimeType {
+  return LOGO_ALLOWED_MIME_TYPES.some((allowedType) => allowedType === value);
+}
 
 /**
  * POST /api/settings/upload
@@ -38,7 +48,7 @@ export async function POST(req: NextRequest) {
 
     // 1. Validation du type MIME
     const mimeType = file.type;
-    if (!LOGO_ALLOWED_MIME_TYPES.includes(mimeType as any)) {
+    if (!isLogoMimeType(mimeType)) {
       return NextResponse.json(
         {
           success: false,
@@ -92,27 +102,20 @@ export async function POST(req: NextRequest) {
 
     // 6. Journalisation AuditLog
     try {
-      const { prisma } = await import("@/lib/db");
-      const admin = await prisma.user.findFirst({
-        where: { role: "admin" },
-        select: { id: true },
-      });
-
-      if (admin) {
-        await prisma.auditLog.create({
-          data: {
-            companyId: authResult.companyId,
-            performedById: admin.id,
-            action: "UPLOAD_PAYSLIP_LOGO",
-            targetModel: "Settings",
-            targetId: "payslip_appearance",
-            newValues: {
-              fileName: file.name,
-              fileSize: file.size,
-              mimeType: mimeType,
-            },
-            timestamp: new Date(),
+      if (authResult.userId) {
+        await createAuditLog.execute({
+          companyId: authResult.companyId,
+          performedById: authResult.userId,
+          action: "UPLOAD_PAYSLIP_LOGO",
+          targetModel: "Settings",
+          targetId: "payslip_appearance",
+          oldValues: {},
+          newValues: {
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType,
           },
+          timestamp: new Date(),
         });
       }
     } catch (auditError) {

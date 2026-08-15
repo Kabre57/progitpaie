@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { requireTenant } from "@/lib/database/tenant-context";
+import { PayslipRepository } from "@/lib/infrastructure/repositories/payslip-repository";
+
+const payslipRepo = new PayslipRepository();
 
 // GET /api/payroll/bank-transfers?month=1&year=2026
 export async function GET(request: NextRequest): Promise<Response> {
@@ -14,24 +16,23 @@ export async function GET(request: NextRequest): Promise<Response> {
     const month = parseInt(searchParams.get("month") || new Date().getMonth() + 1 + "", 10);
     const year = parseInt(searchParams.get("year") || new Date().getFullYear() + "", 10);
 
-    const payrolls = await prisma.payroll.findMany({
-      where: { month, year, user: { companyId: authResult.companyId } },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            employeeId: true,
-            paymentMethod: true,
-            bankName: true,
-            bankAccount: true,
-          },
-        },
-      },
-      orderBy: { user: { name: "asc" } },
-    });
+    const allPayrolls = await payslipRepo.findAllByPeriod(month, year);
+    const payrolls = allPayrolls.filter((p) => p.user.companyId === authResult.companyId);
 
-    const bankSummaryMap: Record<string, { bankName: string; count: number; totalAmount: number; employees: any[] }> = {};
+    type BankEmployee = {
+      userId: string;
+      name: string | null;
+      employeeId: string;
+      bankAccount: string;
+      netSalary: number;
+    };
+    type BankSummary = {
+      bankName: string;
+      count: number;
+      totalAmount: number;
+      employees: BankEmployee[];
+    };
+    const bankSummaryMap: Record<string, BankSummary> = {};
 
     payrolls.forEach((p) => {
       const bankName = p.user?.bankName || "SOCIETE GENERALE CI";

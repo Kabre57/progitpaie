@@ -28,7 +28,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       success: true,
       report,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/ai/audit error:", error);
     return NextResponse.json(
       { success: false, error: "Échec de l'exécution de l'audit IA de paie" },

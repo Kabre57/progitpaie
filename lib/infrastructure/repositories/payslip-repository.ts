@@ -10,19 +10,28 @@
  */
 
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 import type { PayslipResult } from "@/lib/domain/payroll/types/payroll-types";
 
+export type PayrollWithUserDepartment = Prisma.PayrollGetPayload<{
+  include: {
+    user: {
+      include: { department: true };
+    };
+  };
+}>;
+
 export interface IPayslipRepository {
-  findByUserAndPeriod(userId: string, month: number, year: number): Promise<any | null>;
-  findAllByPeriod(month: number, year: number): Promise<ReadonlyArray<any>>;
-  savePayslip(userId: string, month: number, year: number, result: PayslipResult): Promise<any>;
+  findByUserAndPeriod(userId: string, month: number, year: number): Promise<PayrollWithUserDepartment | null>;
+  findAllByPeriod(month: number, year: number): Promise<ReadonlyArray<PayrollWithUserDepartment>>;
+  savePayslip(userId: string, month: number, year: number, result: PayslipResult): Promise<Prisma.PayrollGetPayload<{}>>;
 }
 
 export class PayslipRepository implements IPayslipRepository {
   /**
    * Récupère le bulletin d'un utilisateur pour un mois et une année donnés
    */
-  public async findByUserAndPeriod(userId: string, month: number, year: number): Promise<any | null> {
+  public async findByUserAndPeriod(userId: string, month: number, year: number): Promise<PayrollWithUserDepartment | null> {
     return prisma.payroll.findUnique({
       where: {
         userId_month_year: {
@@ -42,7 +51,7 @@ export class PayslipRepository implements IPayslipRepository {
   /**
    * Récupère tous les bulletins pour un mois et une année donnés
    */
-  public async findAllByPeriod(month: number, year: number): Promise<ReadonlyArray<any>> {
+  public async findAllByPeriod(month: number, year: number): Promise<ReadonlyArray<PayrollWithUserDepartment>> {
     return prisma.payroll.findMany({
       where: { month, year },
       include: {
@@ -62,7 +71,7 @@ export class PayslipRepository implements IPayslipRepository {
     month: number,
     year: number,
     result: PayslipResult
-  ): Promise<any> {
+  ): Promise<Prisma.PayrollGetPayload<{}>> {
     const employee = await prisma.user.findUnique({
       where: { id: userId },
       select: { companyId: true },

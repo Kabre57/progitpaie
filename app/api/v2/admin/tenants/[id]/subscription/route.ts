@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/security/requireSuperAdmin";
 import { ManageSubscriptionUseCase } from "@/lib/application/admin/use-cases/ManageSubscriptionUseCase";
@@ -44,10 +45,10 @@ export async function PATCH(
     );
 
     return NextResponse.json({ success: true, data: updated });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("PATCH /api/v2/admin/tenants/[id]/subscription error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur de mise à jour de l'abonnement" },
+      { success: false, error: getErrorMessage(error) || "Erreur de mise à jour de l'abonnement" },
       { status: 500 }
     );
   }

@@ -11,9 +11,9 @@
  */
 
 import { IPDFDocumentBuilder } from "./builders/abstract-pdf-builder";
-import { ITSDeclarationBuilder } from "./builders/its-declaration-builder";
-import { CNPSDeclarationBuilder } from "./builders/cnps-declaration-builder";
-import { FDFPDeclarationBuilder } from "./builders/fdfp-declaration-builder";
+import { ITSDeclarationBuilder, type ITSDeclarationDataInput } from "./builders/its-declaration-builder";
+import { CNPSDeclarationBuilder, type CNPSDeclarationDataInput } from "./builders/cnps-declaration-builder";
+import { FDFPDeclarationBuilder, type FDFPDeclarationDataInput } from "./builders/fdfp-declaration-builder";
 
 export interface PDFDocumentFactoryOptions {
   docType: string;
@@ -25,9 +25,9 @@ export interface PDFDocumentFactoryOptions {
   cnpsNumber: string;
   dgiLogoBase64?: string;
   cnpsLogoBase64?: string;
-  itsData?: any;
-  cnpsData?: any;
-  fdfpData?: any;
+  itsData?: ITSDeclarationDataInput["itsData"];
+  cnpsData?: CNPSDeclarationDataInput["cnpsData"];
+  fdfpData?: FDFPDeclarationDataInput["fdfpData"];
 }
 
 export class PDFDocumentFactory {

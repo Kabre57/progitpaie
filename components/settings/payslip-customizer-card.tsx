@@ -73,7 +73,7 @@ export function PayslipCustomizerCard({
     setUploadError(null);
 
     // Validation côté client (avant d'envoyer au serveur)
-    if (!LOGO_ALLOWED_MIME_TYPES.includes(file.type as any)) {
+    if (!LOGO_ALLOWED_MIME_TYPES.includes(file.type as (typeof LOGO_ALLOWED_MIME_TYPES)[number])) {
       setUploadError(`Type de fichier non autorisé : ${file.type}. Utilisez PNG, JPEG ou WebP.`);
       return;
     }

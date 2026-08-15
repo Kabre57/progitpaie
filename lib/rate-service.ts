@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { SettingsRepository } from "@/lib/infrastructure/repositories/settings-repository";
 import { PayrollRatesConfig, DEFAULT_PAYROLL_RATES } from "./rates-config";
 
 /**
@@ -6,11 +6,14 @@ import { PayrollRatesConfig, DEFAULT_PAYROLL_RATES } from "./rates-config";
  */
 export class RateService {
   private static instance: RateService;
+  private settingsRepo: SettingsRepository;
   private cachedRates: PayrollRatesConfig | null = null;
   private lastFetchTime: number = 0;
   private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL
 
-  private constructor() {}
+  private constructor() {
+    this.settingsRepo = new SettingsRepository();
+  }
 
   public static getInstance(): RateService {
     if (!RateService.instance) {
@@ -29,12 +32,9 @@ export class RateService {
     }
 
     try {
-      const settingDoc = await prisma.settings.findUnique({
-        where: { key: "payroll_rates" },
-      });
+      const val = await this.settingsRepo.getByKey<Partial<PayrollRatesConfig>>("payroll_rates");
 
-      if (settingDoc && settingDoc.value) {
-        const val = settingDoc.value as unknown as Partial<PayrollRatesConfig>;
+      if (val) {
         this.cachedRates = {
           ...DEFAULT_PAYROLL_RATES,
           ...val,
@@ -69,11 +69,7 @@ export class RateService {
       ...newRates,
     };
 
-    await prisma.settings.upsert({
-      where: { key: "payroll_rates" },
-      update: { value: updatedRates as any },
-      create: { key: "payroll_rates", value: updatedRates as any },
-    });
+    await this.settingsRepo.saveByKey("payroll_rates", updatedRates);
 
     this.invalidateCache();
     return updatedRates;

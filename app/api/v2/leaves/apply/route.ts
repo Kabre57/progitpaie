@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant } from "@/lib/database/tenant-context";
 import { PrismaLeaveRepository } from "@/lib/infrastructure/repositories/prisma/PrismaLeaveRepository";
@@ -33,10 +34,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       { success: true, data, message: "Demande de congé enregistrée avec succès" },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/v2/leaves/apply error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur de soumission de congé", code: "SERVER_ERROR" },
+      { success: false, error: getErrorMessage(error) || "Erreur de soumission de congé", code: "SERVER_ERROR" },
       { status: 400 }
     );
   }

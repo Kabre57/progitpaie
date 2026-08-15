@@ -16,7 +16,13 @@ model Contract {
   baseSalary            Float // Salaire de base contractuel
   sursalaire            Float            @default(0) // Sursalaire
   transportAllowance    Float            @default(0) // Indemnité de transport
-  housingAllowance      Float            @default(0) // Indemnité de logement
+  housingAllowance      Float            @default(0) // Indemnité de logement (cash)
+  housingBenefit        Float            @default(0) // Avantage en nature Logement (15% imposable, non cash)
+  vehicleBenefit        Float            @default(0) // Avantage en nature Véhicule (10% imposable, non cash)
+  maritalStatus         String?          @default("Célibataire") // Situation matrimoniale
+  childrenCount         Int              @default(0) // Nombre d'enfants à charge
+  partsIGR              Float            @default(1.0) // Nombre de parts IGR
+  ricfAmount            Float            @default(0) // Montant de la réduction RICF
   documentUrl           String? // Lien vers le contrat PDF signé
   status                String           @default("active") // Statut (active, expired, terminated)
 

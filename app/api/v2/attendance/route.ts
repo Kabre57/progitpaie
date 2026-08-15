@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { prisma } from "@/lib/db";
+import { PrismaAttendanceRepository } from "@/lib/infrastructure/repositories/prisma/PrismaAttendanceRepository";
 import { listAttendanceQuerySchema } from "@/shared/validation/attendance-v2.schema";
 import { ApiResponse } from "@/types";
+
+const attendanceRepo = new PrismaAttendanceRepository();
 
 // GET /api/v2/attendance - Liste des pointages avec filtre mois et calcul automatique des heures
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
@@ -31,64 +33,49 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       }
     }
 
-    const records = await prisma.attendance.findMany({
-      where: {
-        companyId: authResult.companyId,
-        ...(parseResult.data.userId || authResult.role === "employee"
-          ? { userId: parseResult.data.userId || authResult.userId }
-          : {}),
-        ...(parseResult.data.status ? { status: parseResult.data.status as any } : {}),
-        ...(startDate || endDate
-          ? {
-              date: {
-                ...(startDate ? { gte: startDate } : {}),
-                ...(endDate ? { lte: endDate } : {}),
-              },
-            }
-          : {}),
-        ...(parseResult.data.departmentId
-          ? { user: { departmentId: parseResult.data.departmentId } }
-          : {}),
-      },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, employeeId: true },
-        },
-      },
-      orderBy: [{ date: "desc" }, { checkIn: "desc" }],
+    const records = await attendanceRepo.list({
+      companyId: authResult.companyId,
+      userId: parseResult.data.userId || (authResult.role === "employee" ? authResult.userId : undefined),
+      status: parseResult.data.status,
+      startDate,
+      endDate,
+      departmentId: parseResult.data.departmentId,
     });
 
     const formatted = records.map((r) => {
-      let hoursWorked = r.hoursWorked;
+      let hoursWorked = r.workDuration.hoursWorked;
       if (hoursWorked === 0) {
         if (r.checkIn && r.checkOut) {
           const diffMs = r.checkOut.getTime() - r.checkIn.getTime();
           const elapsed = Math.floor(diffMs / (1000 * 60));
           hoursWorked = elapsed >= 540 ? 8.0 : elapsed > 0 ? Math.round((Math.min(elapsed, 480) / 60) * 10) / 10 : 8.0;
-        } else if (r.status === "present" || r.status === "late") {
+        } else if (r.status.value === "present" || r.status.value === "late") {
           hoursWorked = 8.0;
-        } else if (r.status === "half_day") {
+        } else if (r.status.value === "half_day") {
           hoursWorked = 4.0;
         }
       }
+
+      const statusVal = r.status.value;
+      const formattedStatus = statusVal === "half_day" ? "half-day" : statusVal === "on_leave" ? "on-leave" : statusVal;
 
       return {
         _id: r.id,
         id: r.id,
         userId: {
-          _id: r.user.id,
-          id: r.user.id,
-          name: r.user.name,
-          email: r.user.email,
-          employeeId: r.user.employeeId || undefined,
+          _id: r.userId,
+          id: r.userId,
+          name: "Salarié",
+          email: "",
+          employeeId: undefined,
         },
         date: r.date,
         checkIn: r.checkIn.toISOString(),
         checkOut: r.checkOut ? r.checkOut.toISOString() : null,
-        status: r.status === "half_day" ? "half-day" : r.status === "on_leave" ? "on-leave" : r.status,
+        status: formattedStatus,
         hoursWorked,
         notes: r.notes || "",
-        overtimeMinutes: r.overtimeMinutes,
+        overtimeMinutes: r.workDuration.overtimeMinutes,
       };
     });
 
@@ -102,10 +89,11 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/v2/attendance error:", error);
+    const message = error instanceof Error ? error.message : "Erreur interne";
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur interne", code: "SERVER_ERROR" },
+      { success: false, error: message, code: "SERVER_ERROR" },
       { status: 500 }
     );
   }

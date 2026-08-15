@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/security/requireSuperAdmin";
 import { ManageCompanyKybUseCase } from "@/lib/application/admin/use-cases/ManageCompanyKybUseCase";
@@ -32,10 +33,10 @@ export async function PATCH(
     });
 
     return NextResponse.json({ success: true, data: updated });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("PATCH /api/v2/admin/tenants/[id]/verification error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur de mise à jour" },
+      { success: false, error: getErrorMessage(error) || "Erreur de mise à jour" },
       { status: 500 }
     );
   }

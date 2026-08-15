@@ -2,13 +2,21 @@
 
 import { fmtNum } from "../utils/formatters";
 
+interface ItsDeclarationTotals {
+  totalITS?: number;
+}
+
+interface CnpsDeclarationTotals {
+  totalCNPSToPay?: number;
+}
+
 interface DeclarationPreviewProps {
   docType: string;
   month: number;
   year: number;
-  itsData?: any;
-  cnpsData?: any;
-  rnsData?: any;
+  itsData?: ItsDeclarationTotals;
+  cnpsData?: CnpsDeclarationTotals;
+  rnsData?: unknown;
   empId?: string;
   name?: string;
   joiningStr?: string;

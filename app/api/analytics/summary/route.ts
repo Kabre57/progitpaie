@@ -39,7 +39,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     });
     Object.entries(DEPRECATION_HEADERS).forEach(([k, v]) => res.headers.set(k, v));
     return res;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/analytics/summary error:", error);
     const res = NextResponse.json(
       { success: false, error: "Échec du calcul des métriques Analytics" },

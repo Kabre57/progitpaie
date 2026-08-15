@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as XLSX from "xlsx";
+import { Workbook } from "exceljs";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { prisma } from "@/lib/db";
+import { EmployeeRepository } from "@/lib/infrastructure/repositories/employee-repository";
+
+const employeeRepo = new EmployeeRepository();
+
+interface LeaveTemplateRow {
+  Matricule: string;
+  "Nom & Prénoms": string;
+  "Type de Congé": string;
+  "Date de Début": string;
+  "Date de Fin": string;
+  Motif: string;
+  Statut: string;
+}
 
 // GET /api/leaves/template - Modèle d'importation Excel des demandes de congés
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -9,68 +21,51 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) return authResult;
 
-    const employees = await prisma.user.findMany({
-      where: {
-        companyId: authResult.companyId,
-        role: "employee",
-      },
-      select: {
-        employeeId: true,
-        name: true,
-        email: true,
-      },
-      orderBy: { name: "asc" },
-    });
-
+    const employees = await employeeRepo.findAllActive(authResult.companyId);
     const todayStr = new Date().toISOString().split("T")[0];
 
-    const rows = employees.length > 0
-      ? employees.map((emp) => ({
-          Matricule: emp.employeeId || emp.email,
-          "Nom & Prénoms": emp.name,
+    const rows: LeaveTemplateRow[] = employees.length > 0
+      ? employees.map((employee) => ({
+          Matricule: employee.employeeId || employee.id,
+          "Nom & Prénoms": employee.name,
           "Type de Congé": "Congé Payé",
           "Date de Début": todayStr,
           "Date de Fin": todayStr,
           Motif: "Congé annuel légal",
           Statut: "En attente",
         }))
-      : [
-          {
-            Matricule: "EMP-001",
-            "Nom & Prénoms": "Kouassi Jean",
-            "Type de Congé": "Congé Payé",
-            "Date de Début": todayStr,
-            "Date de Fin": todayStr,
-            Motif: "Exemple de demande",
-            Statut: "En attente",
-          },
-        ];
+      : [{
+          Matricule: "EMP-001",
+          "Nom & Prénoms": "Kouassi Jean",
+          "Type de Congé": "Congé Payé",
+          "Date de Début": todayStr,
+          "Date de Fin": todayStr,
+          Motif: "Exemple de demande",
+          Statut: "En attente",
+        }];
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-
-    worksheet["!cols"] = [
-      { wch: 15 }, // Matricule
-      { wch: 25 }, // Nom & Prénoms
-      { wch: 22 }, // Type de Congé
-      { wch: 15 }, // Date de Début
-      { wch: 15 }, // Date de Fin
-      { wch: 35 }, // Motif
-      { wch: 15 }, // Statut
+    const workbook = new Workbook();
+    const worksheet = workbook.addWorksheet("Demandes de Congés");
+    worksheet.columns = [
+      { header: "Matricule", key: "Matricule", width: 15 },
+      { header: "Nom & Prénoms", key: "Nom & Prénoms", width: 25 },
+      { header: "Type de Congé", key: "Type de Congé", width: 22 },
+      { header: "Date de Début", key: "Date de Début", width: 15 },
+      { header: "Date de Fin", key: "Date de Fin", width: 15 },
+      { header: "Motif", key: "Motif", width: 35 },
+      { header: "Statut", key: "Statut", width: 15 },
     ];
+    worksheet.addRows(rows);
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Demandes de Congés");
-
-    const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
-
-    return new NextResponse(buffer, {
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new NextResponse(Buffer.from(buffer), {
       status: 200,
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition": `attachment; filename="modele_importation_conges_${todayStr}.xlsx"`,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/leaves/template error:", error);
     return NextResponse.json(
       { success: false, error: "Erreur lors de la génération du modèle Excel" },

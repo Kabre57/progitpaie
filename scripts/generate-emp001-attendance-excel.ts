@@ -1,12 +1,21 @@
-import * as fs from "fs";
-import * as path from "path";
-import * as XLSX from "xlsx";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import ExcelJS from "exceljs";
+
+const { Workbook } = ExcelJS;
+
+interface AttendanceExportRow {
+  Matricule: string;
+  "Nom & Prénoms": string;
+  Date: string;
+  "Heure Entree": string;
+  "Heure Sortie": string;
+  Statut: string;
+  "Heures Supp (minutes)": number;
+  Notes: string;
+}
 
 const outputDir = path.join(process.cwd(), "pointages_EMP-001_2025_2026");
-
-if (!fs.existsSync(outputDir)) {
-  fs.mkdirSync(outputDir, { recursive: true });
-}
 
 const months = [
   { year: 2025, month: 1, name: "01_janvier_2025" },
@@ -29,29 +38,25 @@ const months = [
   { year: 2026, month: 6, name: "06_juin_2026" },
   { year: 2026, month: 7, name: "07_juillet_2026" },
   { year: 2026, month: 8, name: "08_aout_2026" },
-];
+] as const;
 
-let totalFiles = 0;
+async function generateAttendanceFiles(): Promise<void> {
+  fs.mkdirSync(outputDir, { recursive: true });
+  let totalFiles = 0;
 
-for (const m of months) {
-  const daysInMonth = new Date(m.year, m.month, 0).getDate();
-  const rows: any[] = [];
+  for (const month of months) {
+    const rows: AttendanceExportRow[] = [];
+    const daysInMonth = new Date(month.year, month.month, 0).getDate();
 
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dateObj = new Date(m.year, m.month - 1, day);
-    const dayOfWeek = dateObj.getDay(); // 0 = Dimanche, 6 = Samedi
-
-    // Ne générer que les jours ouvrés (du Lundi au Vendredi)
-    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-      const yyyy = m.year;
-      const mm = String(m.month).padStart(2, "0");
-      const dd = String(day).padStart(2, "0");
-      const dateStr = `${yyyy}-${mm}-${dd}`;
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const date = new Date(month.year, month.month - 1, day);
+      const dayOfWeek = date.getDay();
+      if (dayOfWeek === 0 || dayOfWeek === 6) continue;
 
       rows.push({
         Matricule: "EMP-001",
         "Nom & Prénoms": "Kouassi Jean",
-        Date: dateStr,
+        Date: `${month.year}-${String(month.month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
         "Heure Entree": "08:00",
         "Heure Sortie": "17:00",
         Statut: "Présent",
@@ -59,26 +64,30 @@ for (const m of months) {
         Notes: "Présence effectuée (8h)",
       });
     }
+
+    const workbook = new Workbook();
+    const worksheet = workbook.addWorksheet("Pointages", { views: [{ state: "frozen", ySplit: 1 }] });
+    worksheet.columns = [
+      { header: "Matricule", key: "Matricule", width: 15 },
+      { header: "Nom & Prénoms", key: "Nom & Prénoms", width: 22 },
+      { header: "Date", key: "Date", width: 14 },
+      { header: "Heure Entree", key: "Heure Entree", width: 14 },
+      { header: "Heure Sortie", key: "Heure Sortie", width: 14 },
+      { header: "Statut", key: "Statut", width: 14 },
+      { header: "Heures Supp (minutes)", key: "Heures Supp (minutes)", width: 22 },
+      { header: "Notes", key: "Notes", width: 25 },
+    ];
+    rows.forEach((row) => worksheet.addRow(row));
+
+    const filePath = path.join(outputDir, `pointages_EMP-001_${month.name}.xlsx`);
+    await workbook.xlsx.writeFile(filePath);
+    totalFiles += 1;
   }
 
-  const worksheet = XLSX.utils.json_to_sheet(rows);
-  worksheet["!cols"] = [
-    { wch: 15 },
-    { wch: 22 },
-    { wch: 14 },
-    { wch: 14 },
-    { wch: 14 },
-    { wch: 14 },
-    { wch: 22 },
-    { wch: 25 },
-  ];
-
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Pointages");
-
-  const filePath = path.join(outputDir, `pointages_EMP-001_${m.name}.xlsx`);
-  XLSX.writeFile(workbook, filePath);
-  totalFiles++;
+  console.log(`✅ ${totalFiles} fichiers Excel de pointage générés dans le dossier : ${outputDir}`);
 }
 
-console.log(`✅ ${totalFiles} fichiers Excel de pointage générés dans le dossier : ${outputDir}`);
+generateAttendanceFiles().catch((error: unknown) => {
+  console.error("Échec de génération des pointages EMP-001 :", error);
+  process.exitCode = 1;
+});

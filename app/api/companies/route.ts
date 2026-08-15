@@ -23,7 +23,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       success: true,
       companies,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/companies error:", error);
     return NextResponse.json(
       { success: false, error: "Échec de récupération des entreprises" },
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       success: true,
       company: newCompany,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/companies error:", error);
     return NextResponse.json(
       { success: false, error: "Échec de création de l'entreprise" },

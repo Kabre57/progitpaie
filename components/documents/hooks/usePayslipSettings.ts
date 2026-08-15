@@ -1,12 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { DocType } from "../core/types";
+import type {
+  DocType,
+  PayslipAppearanceConfig,
+  PayslipLegalConfig,
+  PayslipRatesConfig,
+} from "../core/types";
 
 export function usePayslipSettings(docType: DocType, isOpen: boolean) {
-  const [payslipAppearance, setPayslipAppearance] = useState<any>(null);
-  const [payslipLegal, setPayslipLegal] = useState<any>(null);
-  const [ratesConfig, setRatesConfig] = useState<any>(null);
+  const [payslipAppearance, setPayslipAppearance] = useState<PayslipAppearanceConfig | null>(null);
+  const [payslipLegal, setPayslipLegal] = useState<PayslipLegalConfig | null>(null);
+  const [ratesConfig, setRatesConfig] = useState<PayslipRatesConfig | null>(null);
 
   useEffect(() => {
     if (docType === "payslip" && isOpen) {

@@ -1,6 +1,11 @@
 "use client";
 
 import { fmtNum } from "../utils/formatters";
+import type {
+  PayslipAppearanceConfig,
+  PayslipLegalConfig,
+  PayslipRatesConfig,
+} from "../core/types";
 
 interface PayslipPreviewProps {
   name: string;
@@ -8,9 +13,9 @@ interface PayslipPreviewProps {
   salary: number;
   sursalaire: number;
   transport: number;
-  appearance?: any;
-  legal?: any;
-  rates?: any;
+  appearance?: PayslipAppearanceConfig | null;
+  legal?: PayslipLegalConfig | null;
+  rates?: PayslipRatesConfig | null;
 }
 
 export function PayslipPreview({
@@ -23,17 +28,17 @@ export function PayslipPreview({
   legal,
   rates,
 }: PayslipPreviewProps) {
-  const appearanceConfig = appearance || {
+  const appearanceConfig: PayslipAppearanceConfig = appearance || {
     primaryColor: "#BBD795",
     headerTitle: "BULLETIN DE PAIE",
     headerSubtitle: "",
   };
-  const legalConfig = legal || {
+  const legalConfig: PayslipLegalConfig = legal || {
     legalNotice: "Bulletin de paie régi par les articles L.31 et L.32 du Code du travail Ivoirien.",
     showEmployerStamp: true,
     showEmployeeSignature: true,
   };
-  const ratesConfig = rates || {
+  const ratesConfig: PayslipRatesConfig = rates || {
     cnpsEmployeeRetraite: 6.3,
     cnpsEmployerRetraite: 7.7,
     cnpsEmployerAT: 3.0,

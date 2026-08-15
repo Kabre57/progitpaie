@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { z } from "zod";
 import { requireAdmin } from "@/lib/middleware-helpers";
-import { Prisma } from "@prisma/client";
+import { SettingsRepository } from "@/lib/infrastructure/repositories/settings-repository";
+import {
+  GetGlobalSettingUseCase,
+  SaveGlobalSettingUseCase,
+} from "@/lib/application/settings/use-cases/GlobalSettingUseCase";
+
+const repository = new SettingsRepository();
+const getGlobalSetting = new GetGlobalSettingUseCase(repository);
+const saveGlobalSetting = new SaveGlobalSettingUseCase(repository);
+const keySchema = z.string().trim().min(1).max(100);
+const valueSchema = z.json();
 
 // GET /api/settings/[key] - Obtenir un groupe de paramètres
 export async function GET(
@@ -12,20 +22,17 @@ export async function GET(
     const authResult = await requireAdmin(request);
     if (authResult instanceof NextResponse) return authResult;
 
-    const { key } = await params;
-    const dbSettings = await prisma.settings.findUnique({
-      where: { key },
-    });
-
-    if (dbSettings) {
-      return NextResponse.json({ success: true, data: dbSettings.value });
+    const parsedKey = keySchema.safeParse((await params).key);
+    if (!parsedKey.success) {
+      return NextResponse.json({ success: false, error: "Clé de paramètre invalide" }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, data: null });
-  } catch (error) {
+    const value = await getGlobalSetting.execute(parsedKey.data);
+    return NextResponse.json({ success: true, data: value });
+  } catch (error: unknown) {
     console.error("Get settings error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to fetch settings" },
+      { success: false, error: "Erreur lors de la récupération du paramètre" },
       { status: 500 }
     );
   }
@@ -38,28 +45,24 @@ export async function POST(
 ): Promise<Response> {
   try {
     const authResult = await requireAdmin(request);
-    if (authResult instanceof NextResponse) {
-      return authResult;
+    if (authResult instanceof NextResponse) return authResult;
+
+    const parsedKey = keySchema.safeParse((await params).key);
+    const parsedValue = valueSchema.safeParse(await request.json());
+    if (!parsedKey.success || !parsedValue.success) {
+      return NextResponse.json({ success: false, error: "Paramètre invalide" }, { status: 400 });
     }
 
-    const { key } = await params;
-    const body = await request.json();
-
-    const updated = await prisma.settings.upsert({
-      where: { key },
-      update: { value: body as Prisma.InputJsonValue },
-      create: { key, value: body as Prisma.InputJsonValue },
-    });
-
+    const value = await saveGlobalSetting.execute(parsedKey.data, parsedValue.data);
     return NextResponse.json({
       success: true,
-      data: updated.value,
-      message: "Parametres enregistres avec succes",
+      data: value,
+      message: "Paramètres enregistrés avec succès",
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Save settings error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to save settings" },
+      { success: false, error: "Erreur lors de l'enregistrement du paramètre" },
       { status: 500 }
     );
   }

@@ -7,7 +7,7 @@ export interface PayrollRatesConfig {
   cnpsEmployerRetraite: number; // 7.70%
   cnpsEmployerAT: number;       // 3.00%
   cnpsEmployerPF: number;       // 5.75%
-  cnpsCeilingRetraite: number;  // 1 647 315 FCFA ou 3 375 000 FCFA
+  cnpsCeilingRetraite: number;  // 3 375 000 FCFA (décret n° 2022-986, effectif le 01/01/2023)
   cnpsCeilingPF_AT: number;     // 70 000 FCFA ou 75 000 FCFA
 
   // FDFP (Formation Professionnelle)
@@ -39,7 +39,7 @@ export const DEFAULT_PAYROLL_RATES: PayrollRatesConfig = {
   cnpsEmployerRetraite: 7.7,
   cnpsEmployerAT: 3.0,
   cnpsEmployerPF: 5.75,
-  cnpsCeilingRetraite: 1647315,
+  cnpsCeilingRetraite: 3375000,
   cnpsCeilingPF_AT: 70000,
 
   fdfpTA: 0.4,

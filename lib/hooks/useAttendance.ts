@@ -44,7 +44,7 @@ export function useTodayAttendance() {
         : Array.isArray(json.data)
         ? json.data
         : [];
-      const todayRec = records.find((r: any) => r.date === todayStr);
+      const todayRec = records.find((r: IAttendance) => r.date === todayStr);
       return todayRec || null;
     },
   });

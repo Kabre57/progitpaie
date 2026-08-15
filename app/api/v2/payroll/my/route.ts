@@ -31,10 +31,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     });
 
     return NextResponse.json({ success: true, data }, { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/v2/payroll/my error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur interne", code: "SERVER_ERROR" },
+      { success: false, error: error instanceof Error ? error.message : "Erreur interne", code: "SERVER_ERROR" },
       { status: 500 }
     );
   }

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { prisma } from "@/lib/db";
+import { PrismaLeaveRepository } from "@/lib/infrastructure/repositories/prisma/PrismaLeaveRepository";
 import { listLeavesQuerySchema } from "@/shared/validation/leave-v2.schema";
 import { ApiResponse } from "@/types";
+
+const leaveRepo = new PrismaLeaveRepository();
 
 // GET /api/v2/leaves - Liste des demandes de congés avec données utilisateur
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
@@ -19,19 +21,11 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       );
     }
 
-    const records = await prisma.leave.findMany({
-      where: {
-        companyId: authResult.companyId,
-        ...(parseResult.data.userId ? { userId: parseResult.data.userId } : {}),
-        ...(parseResult.data.status ? { status: parseResult.data.status as any } : {}),
-        ...(parseResult.data.leaveType ? { leaveType: parseResult.data.leaveType as any } : {}),
-      },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, employeeId: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
+    const records = await leaveRepo.list({
+      companyId: authResult.companyId,
+      userId: parseResult.data.userId,
+      status: parseResult.data.status,
+      leaveType: parseResult.data.leaveType,
     });
 
     const data = records.map((r) => ({
@@ -39,29 +33,30 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       id: r.id,
       companyId: r.companyId,
       userId: {
-        _id: r.user.id,
-        id: r.user.id,
-        name: r.user.name,
-        email: r.user.email,
-        employeeId: r.user.employeeId || undefined,
+        _id: r.userId,
+        id: r.userId,
+        name: "Salarié",
+        email: "",
+        employeeId: undefined,
       },
-      leaveType: r.leaveType,
-      startDate: r.startDate.toISOString(),
-      endDate: r.endDate.toISOString(),
-      totalDays: r.totalDays,
+      leaveType: r.leaveType.value,
+      startDate: r.period.startDate.toISOString(),
+      endDate: r.period.endDate.toISOString(),
+      totalDays: r.period.totalDays,
       reason: r.reason,
       status: r.status,
       approvedById: r.approvedById,
       adminComment: r.adminComment,
       appliedAt: r.appliedAt.toISOString(),
-      createdAt: r.createdAt.toISOString(),
+      createdAt: r.appliedAt.toISOString(),
     }));
 
     return NextResponse.json({ success: true, data }, { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/v2/leaves error:", error);
+    const message = error instanceof Error ? error.message : "Erreur serveur";
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur", code: "SERVER_ERROR" },
+      { success: false, error: message, code: "SERVER_ERROR" },
       { status: 500 }
     );
   }

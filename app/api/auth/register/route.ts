@@ -1,106 +1,71 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { z } from "zod";
 import { hashPassword } from "@/lib/auth";
-import { UserRole } from "@prisma/client";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import { getDefaultCompanyId } from "@/lib/database/tenant-context";
+import { CreateDemoAccountUseCase } from "@/lib/application/auth/use-cases/CreateDemoAccountUseCase";
+import { PrismaDemoSignupRepository } from "@/lib/infrastructure/repositories/prisma/PrismaDemoSignupRepository";
 
-export async function POST(request: NextRequest) {
+const createDemoAccount = new CreateDemoAccountUseCase(new PrismaDemoSignupRepository());
+const registerSchema = z.object({
+  name: z.string().trim().min(1).max(160),
+  email: z.string().trim().email().max(320),
+  password: z.string().min(8).max(128),
+  department: z.string().trim().min(1).max(120).optional(),
+  companyName: z.string().trim().min(1).max(180),
+});
+
+export async function POST(request: NextRequest): Promise<Response> {
   try {
     const rateLimitResponse = await enforceRateLimit(request, "register", 5, 60);
     if (rateLimitResponse) return rateLimitResponse;
 
-    const body = await request.json();
-    const { name, email, password, department } = body;
-
-    // Validate required fields
-    if (!name || !email || !password) {
+    const parsed = registerSchema.safeParse(await request.json());
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: "Name, email, and password are required", code: "VALIDATION_ERROR" },
+        { success: false, error: "Le nom de l’entreprise, le nom, l’adresse email et un mot de passe d’au moins 8 caractères sont obligatoires", code: "VALIDATION_ERROR", details: parsed.error.issues },
         { status: 400 }
       );
     }
 
-    // Validate password length
-    if (password.length < 6) {
-      return NextResponse.json(
-        { success: false, error: "Password must be at least 6 characters long", code: "VALIDATION_ERROR" },
-        { status: 400 }
-      );
-    }
-
-    // Check if any user exists
-    const userCount = await prisma.user.count();
-    if (userCount > 0) {
-      return NextResponse.json(
-        { success: false, error: "Registration is closed. Contact administrator to create an account.", code: "REGISTRATION_CLOSED" },
-        { status: 403 }
-      );
-    }
-
-    // Hash password
-    const hashedPassword = await hashPassword(password);
-    const companyId = await getDefaultCompanyId();
-
-    // Process department if provided
-    let finalDepartmentId: string | null = null;
-    if (department) {
-      const trimmedDept = department.trim();
-      const existingDept = await prisma.department.findFirst({
-        where: { companyId, OR: [{ id: trimmedDept }, { name: trimmedDept }] },
-      });
-
-      if (existingDept) {
-        finalDepartmentId = existingDept.id;
-      } else {
-        const newDept = await prisma.department.create({
-          data: { name: trimmedDept, companyId },
-        });
-        finalDepartmentId = newDept.id;
-      }
-    }
-
-    // Create first user as admin
-    const newUser = await prisma.user.create({
-      data: {
-        companyId,
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        password: hashedPassword,
-        role: UserRole.admin,
-        employeeId: null,
-        departmentId: finalDepartmentId,
-        leaveBalanceAnnual: 20,
-        leaveBalanceSick: 10,
-        leaveBalanceCasual: 5,
-      },
+    const demoExpiresAt = new Date();
+    demoExpiresAt.setDate(demoExpiresAt.getDate() + 14);
+    const account = await createDemoAccount.execute({
+      companyName: parsed.data.companyName,
+      name: parsed.data.name,
+      email: parsed.data.email.toLowerCase(),
+      passwordHash: await hashPassword(parsed.data.password),
+      departmentName: parsed.data.department,
+      expiresAt: demoExpiresAt,
     });
 
-    // Return success response
     return NextResponse.json(
       {
         success: true,
-        message: "Admin user registered successfully",
+        message: "Compte Démo créé avec succès",
         data: {
           user: {
-            id: newUser.id,
-            _id: newUser.id,
-            name: newUser.name,
-            role: newUser.role,
+            id: account.user.id,
+            _id: account.user.id,
+            name: account.user.name,
+            role: account.user.role,
+            companyId: account.user.companyId,
+            isDemo: true,
+            demoExpiresAt: account.demoExpiresAt,
           },
         },
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "AUTH_EMAIL_ALREADY_REGISTERED") {
+      return NextResponse.json(
+        { success: false, error: "Cette adresse email est déjà associée à un compte.", code: "EMAIL_ALREADY_REGISTERED" },
+        { status: 409 }
+      );
+    }
     console.error("Registration error:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error: error.message || "An unexpected error occurred during registration",
-        code: "SERVER_ERROR",
-        details: error.name || "UnknownError",
-      },
+      { success: false, error: "Erreur inattendue lors de l’inscription", code: "SERVER_ERROR" },
       { status: 500 }
     );
   }

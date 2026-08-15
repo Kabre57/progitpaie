@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireTenant } from "@/lib/database/tenant-context";
-import { prisma } from "@/lib/db";
-import { ApiResponse } from "@/types";
 import { z } from "zod";
+import { requireTenant } from "@/lib/database/tenant-context";
+import { ApiResponse } from "@/types";
+import { AssignManagerUseCase } from "@/lib/application/org-chart/use-cases/AssignManagerUseCase";
+import { PrismaManagerAssignmentRepository } from "@/lib/infrastructure/repositories/prisma/PrismaManagerAssignmentRepository";
+import { CreateAuditLogUseCase } from "@/lib/application/audit/use-cases/CreateAuditLogUseCase";
+import { PrismaAuditLogRepository } from "@/lib/infrastructure/repositories/prisma/PrismaAuditLogRepository";
 
+const assignManager = new AssignManagerUseCase(new PrismaManagerAssignmentRepository());
+const createAuditLog = new CreateAuditLogUseCase(new PrismaAuditLogRepository());
 const assignManagerSchema = z.object({
-  employeeId: z.string().min(1, "L'ID de l'employé est requis"),
-  managerId: z.string().nullable(),
+  employeeId: z.string().trim().min(1, "L'ID de l'employé est requis"),
+  managerId: z.string().trim().min(1).nullable(),
 });
 
 // PATCH /api/v2/org-chart/assign-manager - Assigner ou modifier le Supérieur Hiérarchique Direct N1
@@ -15,66 +20,59 @@ export async function PATCH(request: NextRequest): Promise<NextResponse<ApiRespo
     const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) return authResult;
 
-    const body = await request.json().catch(() => ({}));
-    const parseResult = assignManagerSchema.safeParse(body);
-
-    if (!parseResult.success) {
+    const payload: unknown = await request.json().catch(() => ({}));
+    const parsed = assignManagerSchema.safeParse(payload);
+    if (!parsed.success) {
       return NextResponse.json(
         { success: false, error: "Données de modification invalides", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
 
-    const { employeeId, managerId } = parseResult.data;
+    const updated = await assignManager.execute(
+      authResult.companyId,
+      parsed.data.employeeId,
+      parsed.data.managerId
+    );
 
-    // Prévenir les boucles circulaires (un salarié ne peut pas être son propre manager)
-    if (managerId && employeeId === managerId) {
+    try {
+      await createAuditLog.execute({
+        companyId: authResult.companyId,
+        performedById: authResult.userId,
+        action: "ASSIGN_EMPLOYEE_MANAGER",
+        targetModel: "User",
+        targetId: updated.employeeId,
+        oldValues: {},
+        newValues: { managerId: updated.managerId, managerName: updated.managerName },
+        timestamp: new Date(),
+      });
+    } catch (auditError: unknown) {
+      console.error("Audit manager assignment error:", auditError);
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: updated,
+      message: updated.managerId
+        ? `Nouveau supérieur N1 (${updated.managerName ?? "non renseigné"}) assigné avec succès.`
+        : "Supérieur N1 retiré avec succès.",
+    });
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "CIRCULAR_MANAGER_ASSIGNMENT") {
       return NextResponse.json(
         { success: false, error: "Un collaborateur ne peut pas être son propre supérieur hiérarchique.", code: "CIRCULAR_MANAGER" },
         { status: 400 }
       );
     }
-
-    // Mettre à jour en base de données
-    const updatedUser = await prisma.user.update({
-      where: {
-        id: employeeId,
-        companyId: authResult.companyId,
-      },
-      data: {
-        managerId: managerId || null,
-      },
-      select: {
-        id: true,
-        name: true,
-        managerId: true,
-        manager: { select: { name: true } },
-      },
-    });
-
-    // Journal d'audit
-    await prisma.auditLog.create({
-      data: {
-        companyId: authResult.companyId,
-        performedById: authResult.userId,
-        action: "ASSIGN_EMPLOYEE_MANAGER",
-        targetModel: "User",
-        targetId: employeeId,
-        newValues: { managerId, managerName: updatedUser.manager?.name || null },
-      },
-    }).catch(() => null);
-
-    return NextResponse.json({
-      success: true,
-      data: updatedUser,
-      message: managerId
-        ? `Nouveau supérieur N1 (${updatedUser.manager?.name}) assigné avec succès.`
-        : "Supérieur N1 retiré avec succès.",
-    });
-  } catch (error: any) {
+    if (error instanceof Error && (error.message === "EMPLOYEE_NOT_FOUND_IN_TENANT" || error.message === "MANAGER_NOT_FOUND_IN_TENANT")) {
+      return NextResponse.json(
+        { success: false, error: "Collaborateur ou supérieur hiérarchique introuvable dans votre entreprise.", code: "NOT_FOUND" },
+        { status: 404 }
+      );
+    }
     console.error("PATCH /api/v2/org-chart/assign-manager error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur", code: "SERVER_ERROR" },
+      { success: false, error: "Erreur serveur", code: "SERVER_ERROR" },
       { status: 500 }
     );
   }

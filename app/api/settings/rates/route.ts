@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { RateService } from "@/lib/rate-service";
 import { DEFAULT_PAYROLL_RATES } from "@/lib/rates-config";
-import { prisma } from "@/lib/db";
 import { requireTenant } from "@/lib/database/tenant-context";
+import { CreateAuditLogUseCase } from "@/lib/application/audit/use-cases/CreateAuditLogUseCase";
+import { PrismaAuditLogRepository } from "@/lib/infrastructure/repositories/prisma/PrismaAuditLogRepository";
+
+const createAuditLog = new CreateAuditLogUseCase(new PrismaAuditLogRepository());
 
 /**
  * GET /api/settings/rates
@@ -80,23 +83,16 @@ export async function POST(req: Request) {
 
     // Journalisation AuditLog (Double Validation — traçabilité des modifications de taux légaux)
     try {
-      const admin = await prisma.user.findFirst({
-        where: { role: "admin" },
-        select: { id: true },
-      });
-
-      if (admin) {
-        await prisma.auditLog.create({
-          data: {
-            companyId: authResult.companyId,
-            performedById: admin.id,
-            action: "UPDATE_PAYROLL_RATES",
-            targetModel: "Settings",
-            targetId: "payroll_rates",
-            oldValues: oldRates as any,
-            newValues: updatedRates as any,
-            timestamp: new Date(),
-          },
+      if (authResult.userId) {
+        await createAuditLog.execute({
+          companyId: authResult.companyId,
+          performedById: authResult.userId,
+          action: "UPDATE_PAYROLL_RATES",
+          targetModel: "Settings",
+          targetId: "payroll_rates",
+          oldValues: oldRates,
+          newValues: updatedRates,
+          timestamp: new Date(),
         });
       }
     } catch (auditError) {

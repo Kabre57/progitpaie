@@ -15,7 +15,7 @@ interface LegalAlert {
   effectiveDate: string;
   severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
   status: "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "APPLIED";
-  proposedRates?: any;
+  proposedRates?: Record<string, unknown>;
 }
 
 export default function LegalWatchdogAdminPage() {

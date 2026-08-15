@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/security/requireSuperAdmin";
 import { PrismaTenantRepository } from "@/lib/infrastructure/repositories/prisma/PrismaTenantRepository";
@@ -25,10 +26,10 @@ export async function GET(
       success: true,
       data: result,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`GET /api/v2/admin/tenants/[id] error:`, error);
     return NextResponse.json(
-      { success: false, error: error.message || "Entreprise non trouvée" },
+      { success: false, error: getErrorMessage(error) || "Entreprise non trouvée" },
       { status: 404 }
     );
   }
@@ -79,10 +80,10 @@ export async function PUT(
       success: true,
       data: TenantMapper.toDTO(tenant),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`PUT /api/v2/admin/tenants/[id] error:`, error);
     return NextResponse.json(
-      { success: false, error: error.message || "Échec de mise à jour" },
+      { success: false, error: getErrorMessage(error) || "Échec de mise à jour" },
       { status: 400 }
     );
   }
@@ -112,10 +113,10 @@ export async function DELETE(
       success: true,
       data: result,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`DELETE /api/v2/admin/tenants/[id] error:`, error);
     return NextResponse.json(
-      { success: false, error: error.message || "Échec de la suppression" },
+      { success: false, error: getErrorMessage(error) || "Échec de la suppression" },
       { status: 400 }
     );
   }

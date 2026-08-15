@@ -10,6 +10,8 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
+import type { jsPDF } from "jspdf";
+
 export interface PDFHeaderOptions {
   type: "DGI" | "CNPS" | "COMPANY";
   companyName?: string;
@@ -24,13 +26,13 @@ export interface PDFHeaderOptions {
   subtitle?: string;
 }
 
-export function drawPDFHeader(doc: any, options: PDFHeaderOptions): number {
+export function drawPDFHeader(doc: jsPDF, options: PDFHeaderOptions): number {
   if (options.type === "DGI") {
     // Logo DGI si disponible
     if (options.dgiLogoBase64) {
       try {
         doc.addImage(options.dgiLogoBase64, "PNG", 14, 11, 20, 20);
-      } catch (e) {
+      } catch {
         /* fallback silencieux */
       }
     }
@@ -58,7 +60,7 @@ export function drawPDFHeader(doc: any, options: PDFHeaderOptions): number {
     if (options.cnpsLogoBase64) {
       try {
         doc.addImage(options.cnpsLogoBase64, "JPEG", 16, 12, 16, 16);
-      } catch (e) {
+      } catch {
         /* fallback */
       }
     }
@@ -86,7 +88,7 @@ export function drawPDFHeader(doc: any, options: PDFHeaderOptions): number {
     try {
       doc.addImage(options.logoBase64, "PNG", 14, 6, 25, 9);
       yOffset = 5;
-    } catch (e) {
+    } catch {
       /* fallback */
     }
   }

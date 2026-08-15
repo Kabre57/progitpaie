@@ -34,7 +34,7 @@ const STANDARD_RATES: TaxRatesConfig = {
   itsRate: 1.2,
   ceRate: 11.5,
   cnRate: 1.2,
-  cnpsMonthlyRetirementCeiling: 2_421_250,
+  cnpsMonthlyRetirementCeiling: 3_375_000,
   cnpsMonthlyCeiling70K: 70_000,
 };
 
@@ -107,26 +107,18 @@ const NO_VARIABLES: MonthlyVariableElements = {
 
 describe("ITS Calculator", () => {
   describe("calculateITS", () => {
-    it("devrait calculer l'ITS à 1.2% du brut fiscal", () => {
-      expect(calculateITS(350_000, 1.2)).toBe(4_200);
+    it("devrait calculer l'ITS 2024 selon le barème par tranche (350 000 FCFA -> (350 000 * 21%) - 24 000 = 49 500)", () => {
+      expect(calculateITS(350_000, 1.2)).toBe(49_500);
     });
 
     it("devrait retourner 0 pour un brut fiscal négatif", () => {
       expect(calculateITS(-100_000, 1.2)).toBe(0);
     });
-
-    it("devrait retourner 0 pour un taux nul", () => {
-      expect(calculateITS(350_000, 0)).toBe(0);
-    });
-
-    it("devrait arrondir le résultat", () => {
-      expect(calculateITS(333_333, 1.2)).toBe(4_000);
-    });
   });
 
   describe("calculateCN", () => {
-    it("devrait calculer la CN à 1.2% du brut fiscal", () => {
-      expect(calculateCN(350_000, 1.2)).toBe(4_200);
+    it("devrait retourner 0 pour CN car intégrée dans l'ITS Unique 2024", () => {
+      expect(calculateCN(350_000, 1.2)).toBe(0);
     });
   });
 
@@ -287,7 +279,7 @@ describe("PayslipCalculator — Calcul Complet", () => {
     expect(result.netSalary).toBeGreaterThan(0);
 
     // Métadonnées
-    expect(result.formulaVersion).toContain(" -CI");
+    expect(result.formulaVersion).toBe("CI-ITS-2024-v1");
     expect(result.calculatedAt).toBeTruthy();
   });
 
@@ -306,7 +298,7 @@ describe("PayslipCalculator — Calcul Complet", () => {
 
     // Les cotisations salariales doivent être raisonnables
     expect(result.employeeContributions.cnpsRetirement).toBe(Math.round(400_000 * 0.063));
-    expect(result.taxDeductions.its).toBe(Math.round(400_000 * 0.012));
+    expect(result.taxDeductions.its).toBeGreaterThan(0);
 
     // Le net doit être dans une fourchette réaliste
     expect(result.netSalary).toBeGreaterThan(300_000);

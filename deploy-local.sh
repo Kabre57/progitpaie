@@ -15,29 +15,57 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
+# Charger les variables .env dans l'environnement du script
+# (set -a exporte automatiquement toutes les variables définies)
+set -a
+# shellcheck source=.env
+. ./.env
+set +a
+
 # 2. Vérifier si on est en production ou local
-if [ -f /etc/debian_version ] && [ "$(hostname)" != "votre-host-local" ]; then
-    # En production (VPS)
+# Utiliser DEPLOY_MODE=production uniquement sur un serveur relié à un dépôt Git.
+DEPLOY_MODE="${DEPLOY_MODE:-local}"
+if [ "$DEPLOY_MODE" = "production" ]; then
     echo "📦 Mode Production - Récupération du code source..."
-    progitpaie_env_backup="$(mktemp /tmp/progitpaie-env.XXXXXX)"
-    cp .env "$progitpaie_env_backup"
-    git pull origin main || echo "ℹ️ Attention: git pull a échoué."
-    cp "$progitpaie_env_backup" .env
-    rm -f "$progitpaie_env_backup"
+    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        progitpaie_env_backup="$(mktemp /tmp/progitpaie-env.XXXXXX)"
+        cp .env "$progitpaie_env_backup"
+        git pull --ff-only origin main || echo "ℹ️ Attention : git pull a échoué ; le code local est conservé."
+        cp "$progitpaie_env_backup" .env
+        rm -f "$progitpaie_env_backup"
+    else
+        echo "ℹ️ Aucun dépôt Git détecté : étape git pull ignorée pour cette archive ZIP."
+    fi
 else
-    # En local
     echo "💻 Mode Local - Pas de pull automatique"
-    echo "📂 Dossier actuel: $(pwd)"
+    echo "📂 Dossier actuel : $(pwd)"
 fi
 
-# 3. Build des conteneurs Docker
-echo "🏗️ Construction des conteneurs Docker..."
-docker compose build --no-cache
+# 3. Préparation et Build Local de l'application Next.js Standalone
+echo "🔨 Préparation des artefacts (Prisma, Next.js Standalone, Rotation TS)..."
+pnpm prisma:generate
+pnpm build
+pnpm exec tsc --project tsconfig.rotation.json
 
-# 4. Redémarrage des conteneurs
+# 4. Build des conteneurs Docker
+echo "🏗️ Construction des conteneurs Docker..."
+docker compose build
+
+# 5. Redémarrage des conteneurs
 echo "🔄 Démarrage des conteneurs PROGITPAIE..."
 docker compose down
 docker compose up -d
+
+# 6. Application des migrations Prisma depuis l'hôte (port mappé 127.0.0.1:5433)
+# Le conteneur runner (Next.js standalone) ne contient pas le CLI Prisma.
+# On utilise le Prisma CLI local avec le port mappé Docker sur l'hôte.
+echo "🗄️ Application des migrations Prisma..."
+echo "⏳ Attente que PostgreSQL soit prêt (30s max)..."
+timeout 30 sh -c 'until pg_isready -h 127.0.0.1 -p 5433 -U "${POSTGRES_USER:-progitpaie}" 2>/dev/null; do sleep 2; done' \
+  || { echo "❌ PostgreSQL n'a pas répondu dans les 30 secondes."; exit 1; }
+DATABASE_URL="postgresql://${POSTGRES_USER:-progitpaie}:${DB_PASSWORD}@127.0.0.1:5433/${POSTGRES_DB:-progitpaie}?schema=public" \
+  pnpm exec prisma migrate deploy --schema=prisma/schema \
+  || { echo "⚠️  migrate deploy a échoué. Vérifiez prisma/migrations/."; exit 1; }
 
 echo "================================================================="
 echo "✅ Déploiement de PROGITPAIE terminé avec succès !"

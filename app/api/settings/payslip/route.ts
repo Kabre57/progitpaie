@@ -5,6 +5,10 @@ import {
   DEFAULT_PAYSLIP_APPEARANCE,
   DEFAULT_PAYSLIP_LEGAL,
 } from "@/lib/payslip-config";
+import { CreateAuditLogUseCase } from "@/lib/application/audit/use-cases/CreateAuditLogUseCase";
+import { PrismaAuditLogRepository } from "@/lib/infrastructure/repositories/prisma/PrismaAuditLogRepository";
+
+const createAuditLog = new CreateAuditLogUseCase(new PrismaAuditLogRepository());
 
 /**
  * GET /api/settings/payslip
@@ -103,25 +107,17 @@ export async function POST(req: NextRequest) {
 
     // Journalisation AuditLog (si un admin est identifié dans la requête)
     try {
-      const { prisma } = await import("@/lib/db");
       // L'auteur est l'administrateur authentifié, jamais une valeur client.
-      const admin = await prisma.user.findFirst({
-        where: { role: "admin" },
-        select: { id: true },
-      });
-
-      if (admin) {
-        await prisma.auditLog.create({
-          data: {
-            companyId: authResult.companyId,
-            performedById: admin.id,
-            action: "UPDATE_PAYSLIP_CONFIG",
-            targetModel: "Settings",
-            targetId: "payslip_config",
-
-            newValues: body,
-            timestamp: new Date(),
-          },
+      if (authResult.userId) {
+        await createAuditLog.execute({
+          companyId: authResult.companyId,
+          performedById: authResult.userId,
+          action: "UPDATE_PAYSLIP_CONFIG",
+          targetModel: "Settings",
+          targetId: "payslip_config",
+          oldValues: {},
+          newValues: body,
+          timestamp: new Date(),
         });
       }
     } catch (auditError) {

@@ -11,7 +11,7 @@ import { AbstractPDFDocumentBuilder } from "./abstract-pdf-builder";
 import { drawPDFHeader } from "../components/pdf-header";
 import { drawPDFCompanyInfo } from "../components/pdf-company-info";
 import { drawPDFSignBlock } from "../components/pdf-sign-block";
-import autoTable from "jspdf-autotable";
+import autoTable, { CellHookData } from "jspdf-autotable";
 
 export interface FDFPDeclarationDataInput {
   month: number;
@@ -94,7 +94,7 @@ export class FDFPDeclarationBuilder extends AbstractPDFDocumentBuilder {
         2: { halign: "center", cellWidth: 25 },
         3: { halign: "right", cellWidth: 37 },
       },
-      didParseCell: (data: any) => {
+      didParseCell: (data: CellHookData) => {
         if (data.row.index === tableRows.length - 1) {
           data.cell.styles.fontStyle = "bold";
           data.cell.styles.fillColor = [254, 215, 170];
@@ -102,7 +102,7 @@ export class FDFPDeclarationBuilder extends AbstractPDFDocumentBuilder {
       },
     });
 
-    this.currentY = (this.doc as any).lastAutoTable?.finalY || (this.currentY + 50);
+    this.currentY = this.getLastAutoTableY(this.currentY + 50);
     return this;
   }
 

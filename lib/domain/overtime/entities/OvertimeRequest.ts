@@ -25,7 +25,7 @@ export class OvertimeRequest {
   public readonly date: Date;
   public readonly minutes: number;
   public readonly rate: OvertimeRate;
-  public readonly reason: string;
+  private _reason: string;
   private _status: OvertimeStatus;
   private _approvedById?: string | null;
   public readonly createdAt?: Date;
@@ -43,7 +43,7 @@ export class OvertimeRequest {
     this.date = props.date;
     this.minutes = props.minutes;
     this.rate = props.rate;
-    this.reason = props.reason.trim();
+    this._reason = props.reason.trim();
     this._status = props.status;
     this._approvedById = props.approvedById;
     this.createdAt = props.createdAt;
@@ -54,6 +54,10 @@ export class OvertimeRequest {
     return this._status;
   }
 
+  public get reason(): string {
+    return this._reason;
+  }
+
   public get approvedById(): string | null | undefined {
     return this._approvedById;
   }
@@ -62,12 +66,30 @@ export class OvertimeRequest {
     return parseFloat((this.minutes / 60).toFixed(2));
   }
 
-  public approve(adminId: string): void {
-    if (!this._status.isPending()) {
-      throw new Error("Seule une déclaration d'heures supp. en attente peut être approuvée");
-    }
+  public approve(adminId: string, regularizationJustification?: string): void {
+    this.assertPending();
     this._status = OvertimeStatus.approved();
     this._approvedById = adminId;
+    this.appendJustification(regularizationJustification);
+  }
+
+  public reject(adminId: string, comment?: string): void {
+    this.assertPending();
+    this._status = OvertimeStatus.rejected();
+    this._approvedById = adminId;
+    this.appendJustification(comment, "Motif de rejet");
+  }
+
+  private assertPending(): void {
+    if (!this._status.isPending()) {
+      throw new Error("Seule une déclaration d'heures supp. en attente peut être traitée");
+    }
+  }
+
+  private appendJustification(value?: string, label = "Justification régularisation mois passé"): void {
+    const normalized = value?.trim();
+    if (!normalized) return;
+    this._reason = `${this._reason} [${label}: ${normalized}]`;
   }
 
   public calculateExtraPay(hourlyRate: Money): Money {

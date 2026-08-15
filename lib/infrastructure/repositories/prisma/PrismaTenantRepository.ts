@@ -8,10 +8,10 @@ import {
   TenantListResult,
   TenantAdminInfo,
 } from "@/lib/application/tenant/ports/TenantRepository";
-import { UserRole } from "@prisma/client";
+import { UserRole, type Prisma } from "@prisma/client";
 
 export class PrismaTenantRepository implements TenantRepository {
-  private mapToDomain(c: any): Tenant {
+  private mapToDomain(c: Prisma.CompanyGetPayload<{}>): Tenant {
     const statusVal = c.isActive ? "ACTIVE" : "INACTIVE";
     return new Tenant({
       id: new TenantId(c.id),
@@ -25,6 +25,8 @@ export class PrismaTenantRepository implements TenantRepository {
       phone: c.phone ?? undefined,
       email: c.email ?? undefined,
       isMain: c.isMain,
+      isDemo: c.isDemo,
+      demoExpiresAt: c.demoExpiresAt ?? undefined,
       status: new TenantStatus(statusVal),
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
@@ -36,7 +38,7 @@ export class PrismaTenantRepository implements TenantRepository {
     const limit = filter?.limit || 20;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: Prisma.CompanyWhereInput = {};
 
     if (filter?.search) {
       where.OR = [
@@ -51,6 +53,8 @@ export class PrismaTenantRepository implements TenantRepository {
       where.isActive = true;
     } else if (filter?.status === "INACTIVE" || filter?.status === "SUSPENDED") {
       where.isActive = false;
+    } else if (filter?.status === "DEMO") {
+      where.isDemo = true;
     }
 
     if (filter?.city) {
@@ -124,6 +128,7 @@ export class PrismaTenantRepository implements TenantRepository {
           email: tenantData.email,
           isActive: true,
           isMain: false,
+          isDemo: false,
         },
       });
 

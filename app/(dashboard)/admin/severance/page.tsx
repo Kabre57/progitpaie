@@ -11,9 +11,35 @@ import { DocumentPreviewModal } from "@/components/documents/document-preview-mo
 
 import { NeuPagination } from "@/components/ui/neu-pagination";
 
+interface SeveranceEmployee {
+  id?: string;
+  _id?: string;
+  name?: string;
+  employeeId?: string | null;
+  jobTitle?: string | null;
+  department?: { name?: string | null } | null;
+  category?: string | null;
+  joiningDate?: string | null;
+  salary?: number | null;
+  sursalaire?: number | null;
+}
+
+interface SeveranceRecord {
+  id: string;
+  userId: string;
+  user?: SeveranceEmployee | null;
+  terminationType?: string | null;
+  exitDate: string;
+  seniorityYears: number;
+  noticeIndemnity?: number | null;
+  severanceIndemnity?: number | null;
+  leaveCompensation?: number | null;
+  totalNetExit?: number | null;
+}
+
 export default function SeverancePage() {
-  const [severances, setSeverances] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
+  const [severances, setSeverances] = useState<SeveranceRecord[]>([]);
+  const [employees, setEmployees] = useState<SeveranceEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -188,10 +214,10 @@ export default function SeverancePage() {
                           setActiveCertifDoc({
                             userId: s.user?.id || s.userId,
                             name: s.user?.name || "Employé",
-                            jobTitle: s.user?.jobTitle,
-                            department: s.user?.department?.name,
-                            category: s.user?.category,
-                            joiningDate: s.user?.joiningDate,
+                            jobTitle: s.user?.jobTitle ?? undefined,
+                            department: s.user?.department?.name ?? undefined,
+                            category: s.user?.category ?? undefined,
+                            joiningDate: s.user?.joiningDate ?? undefined,
                             exitDate: s.exitDate,
                           })
                         }
@@ -231,7 +257,7 @@ export default function SeverancePage() {
                   options={[
                     { value: "", label: "-- Sélectionner un salarié --" },
                     ...employees.map((e) => ({
-                      value: e.id || e._id,
+                      value: e.id || e._id || "",
                       label: `${e.employeeId || "EMP"} - ${e.name}`,
                     })),
                   ]}

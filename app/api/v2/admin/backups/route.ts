@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/security/requireSuperAdmin";
 import { BackupExportUseCase } from "@/lib/application/admin/use-cases/BackupExportUseCase";
@@ -12,10 +13,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const backups = await uc.listBackups();
     return NextResponse.json({ success: true, data: backups });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/v2/admin/backups error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur" },
+      { success: false, error: getErrorMessage(error) || "Erreur serveur" },
       { status: 500 }
     );
   }
@@ -29,10 +30,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const newBackup = await uc.createBackup();
     return NextResponse.json({ success: true, data: newBackup }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/v2/admin/backups error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Échec de la sauvegarde" },
+      { success: false, error: getErrorMessage(error) || "Échec de la sauvegarde" },
       { status: 500 }
     );
   }

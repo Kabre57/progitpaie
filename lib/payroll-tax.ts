@@ -1,5 +1,12 @@
 /**
- * Moteur de Calcul Fiscalité & Cotisations Sociales (Côte d'Ivoire /  )
+ * @deprecated Ce moteur conserve le régime historique IS + CN + IGR. Il ne doit pas
+ * être utilisé pour les périodes de paie ivoiriennes à compter du 01/01/2024,
+ * date d’entrée en vigueur de l’ITS unique (ordonnance n° 2023-719).
+ *
+ * Pour toute nouvelle génération de bulletin, utiliser `calculatePayslip()` depuis
+ * `@/lib/domain/payroll/calculator/payslip-calculator`, avec la règle versionnée
+ * `CI_ITS_2024_RULE`. Ce module est maintenu temporairement pour la compatibilité
+ * des appelants hérités et des périodes antérieures à 2024.
  */
 
 export interface TaxCalculationParams {

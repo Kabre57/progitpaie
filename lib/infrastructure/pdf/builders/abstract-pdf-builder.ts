@@ -9,6 +9,8 @@
 
 import { jsPDF } from "jspdf";
 
+type JsPdfWithAutoTable = jsPDF & { lastAutoTable?: { finalY?: number } };
+
 export interface IPDFDocumentBuilder {
   buildHeader(): IPDFDocumentBuilder;
   buildCompanyInfo(): IPDFDocumentBuilder;
@@ -18,7 +20,7 @@ export interface IPDFDocumentBuilder {
 }
 
 export abstract class AbstractPDFDocumentBuilder implements IPDFDocumentBuilder {
-  protected doc: any;
+  protected doc: jsPDF;
 
   constructor() {
     this.doc = new jsPDF();
@@ -28,6 +30,10 @@ export abstract class AbstractPDFDocumentBuilder implements IPDFDocumentBuilder 
   public abstract buildCompanyInfo(): this;
   public abstract buildBody(): this;
   public abstract buildFooter(): this;
+
+  protected getLastAutoTableY(fallback: number): number {
+    return (this.doc as JsPdfWithAutoTable).lastAutoTable?.finalY ?? fallback;
+  }
 
   public getBuffer(): Buffer {
     return Buffer.from(this.doc.output("arraybuffer"));

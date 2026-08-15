@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as XLSX from "xlsx";
-import { AttendanceStatus } from "@prisma/client";
+import { excelSerialDateToIso, readFirstWorksheetRecords } from "@/lib/infrastructure/excel/exceljs-reader";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { prisma } from "@/lib/db";
+import type { AttendanceImportStatus } from "@/lib/application/attendance/ports/AttendanceImportRepository";
+import { PrismaAttendanceImportRepository } from "@/lib/infrastructure/repositories/prisma/PrismaAttendanceImportRepository";
 import { ApiResponse } from "@/types";
 
 interface ImportResultData {
@@ -12,26 +12,22 @@ interface ImportResultData {
   importedMonth?: string;
 }
 
-function mapStatusToEnum(rawStatus?: string): AttendanceStatus {
-  if (!rawStatus) return AttendanceStatus.present;
+const attendanceImportRepository = new PrismaAttendanceImportRepository();
+
+function mapStatusToEnum(rawStatus?: unknown): AttendanceImportStatus {
+  if (!rawStatus) return "present";
   const normalized = String(rawStatus).trim().toLowerCase();
-  if (normalized.includes("absent")) return AttendanceStatus.absent;
-  if (normalized.includes("retard") || normalized === "late") return AttendanceStatus.late;
-  if (normalized.includes("demi") || normalized.includes("half")) return AttendanceStatus.half_day;
-  if (normalized.includes("cong") || normalized.includes("leave")) return AttendanceStatus.on_leave;
-  return AttendanceStatus.present;
+  if (normalized.includes("absent")) return "absent";
+  if (normalized.includes("retard") || normalized === "late") return "late";
+  if (normalized.includes("demi") || normalized.includes("half")) return "half_day";
+  if (normalized.includes("cong") || normalized.includes("leave")) return "on_leave";
+  return "present";
 }
 
-function parseExcelDate(val: any): string | null {
+function parseExcelDate(val: unknown): string | null {
   if (!val) return null;
   if (typeof val === "number") {
-    const dateObj = XLSX.SSF.parse_date_code(val);
-    if (dateObj) {
-      const y = dateObj.y;
-      const m = String(dateObj.m).padStart(2, "0");
-      const d = String(dateObj.d).padStart(2, "0");
-      return `${y}-${m}-${d}`;
-    }
+    return excelSerialDateToIso(val);
   }
   if (val instanceof Date) {
     return val.toISOString().split("T")[0];
@@ -62,20 +58,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       );
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
-
-    const firstSheetName = workbook.SheetNames[0];
-    if (!firstSheetName) {
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
       return NextResponse.json(
-        { success: false, error: "Le fichier Excel est vide ou corrompu" },
+        { success: false, error: "Format non pris en charge : utilisez un fichier .xlsx" },
         { status: 400 }
       );
     }
 
-    const sheet = workbook.Sheets[firstSheetName];
-    const rawRows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+    const arrayBuffer = await file.arrayBuffer();
+    const rawRows = await readFirstWorksheetRecords(Buffer.from(arrayBuffer));
 
     if (rawRows.length === 0) {
       return NextResponse.json(
@@ -85,10 +76,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     }
 
     // Indexation des salariés de l'entreprise par matricule et par email
-    const companyEmployees = await prisma.user.findMany({
-      where: { companyId: authResult.companyId },
-      select: { id: true, employeeId: true, email: true },
-    });
+    const companyEmployees = await attendanceImportRepository.listEmployees(authResult.companyId);
 
     const empMap = new Map<string, string>();
     companyEmployees.forEach((emp) => {
@@ -124,16 +112,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       if (!userId) {
         // Auto-création du salarié s'il n'existe pas encore
         const rawName = String(row["Nom & Prénoms"] || row["Nom"] || row["name"] || `Salarié ${rawMatricule}`).trim();
-        const newEmp = await prisma.user.create({
-          data: {
-            companyId: authResult.companyId,
-            employeeId: rawMatricule,
-            name: rawName,
-            email: `${rawMatricule.toLowerCase().replace(/[^a-z0-9]/g, "")}@progitpaie.local`,
-            role: "employee",
-            password: "$2a$10$UnmanagedPasswordPlaceholderHashToSatisfySchemaConstraint",
-          },
-        });
+        const newEmp = await attendanceImportRepository.createEmployee(
+          authResult.companyId,
+          rawMatricule,
+          rawName
+        );
         userId = newEmp.id;
         empMap.set(rawMatricule.toLowerCase(), userId);
       }
@@ -167,43 +150,25 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
           workingMinutes = Math.min(elapsedMinutes, 480);
           hoursWorked = Math.round((workingMinutes / 60) * 10) / 10;
         }
-      } else if (status === AttendanceStatus.present || status === AttendanceStatus.late) {
+      } else if (status === "present" || status === "late") {
         workingMinutes = 480;
         hoursWorked = 8.0;
-      } else if (status === AttendanceStatus.half_day) {
+      } else if (status === "half_day") {
         workingMinutes = 240;
         hoursWorked = 4.0;
       }
 
-      // Upsert du pointage dans Prisma
-      await prisma.attendance.upsert({
-        where: {
-          userId_date: {
-            userId,
-            date: dateStr,
-          },
-        },
-        update: {
-          status,
-          checkIn: checkInDate,
-          checkOut: checkOutDate,
-          hoursWorked,
-          workingMinutes,
-          overtimeMinutes: isNaN(rawOvertime) ? 0 : rawOvertime,
-          notes: rawNotes || undefined,
-        },
-        create: {
-          companyId: authResult.companyId,
-          userId,
-          date: dateStr,
-          status,
-          checkIn: checkInDate,
-          checkOut: checkOutDate,
-          hoursWorked,
-          workingMinutes,
-          overtimeMinutes: isNaN(rawOvertime) ? 0 : rawOvertime,
-          notes: rawNotes || undefined,
-        },
+      await attendanceImportRepository.upsertAttendance({
+        companyId: authResult.companyId,
+        userId,
+        date: dateStr,
+        status,
+        checkIn: checkInDate,
+        checkOut: checkOutDate,
+        hoursWorked,
+        workingMinutes,
+        overtimeMinutes: Number.isNaN(rawOvertime) ? 0 : rawOvertime,
+        notes: rawNotes || undefined,
       });
 
       // Traitement des Heures Supplémentaires (+15%, +50%, +75%, +100%)
@@ -217,36 +182,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         const reason = String(row["Motif Heures Supp"] || row["Motif"] || rawNotes || "Heures supplémentaires importées").trim();
         const overtimeDate = new Date(`${dateStr}T00:00:00.000Z`);
 
-        const existingOvertime = await prisma.overtime.findFirst({
-          where: {
-            companyId: authResult.companyId,
-            userId,
-            date: overtimeDate,
-          },
+        await attendanceImportRepository.upsertOvertime({
+          companyId: authResult.companyId,
+          userId,
+          date: overtimeDate,
+          minutes: rawOvertime,
+          rate,
+          reason,
         });
-
-        if (existingOvertime) {
-          await prisma.overtime.update({
-            where: { id: existingOvertime.id },
-            data: {
-              minutes: rawOvertime,
-              rate,
-              reason,
-            },
-          });
-        } else {
-          await prisma.overtime.create({
-            data: {
-              companyId: authResult.companyId,
-              userId,
-              date: overtimeDate,
-              minutes: rawOvertime,
-              rate,
-              reason,
-              status: "pending",
-            },
-          });
-        }
       }
 
       imported++;
@@ -257,10 +200,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       data: { imported, skipped, errors, importedMonth },
       message: `${imported} pointage(s) & heure(s) supp importé(s) avec succès`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/attendance/import error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur lors de l'importation Excel" },
+      { success: false, error: "Erreur serveur lors de l'importation Excel" },
       { status: 500 }
     );
   }

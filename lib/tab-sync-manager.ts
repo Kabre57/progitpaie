@@ -11,12 +11,31 @@ export type TabSyncEventType =
   | "ATTENDANCE_UPDATED"
   | "SETTINGS_CHANGED";
 
-export interface TabSyncMessage<T = any> {
+export interface TabSyncMessage<T = unknown> {
   id: string;
   type: TabSyncEventType;
   payload: T;
   timestamp: number;
   senderTabId: string;
+}
+
+function isTabSyncMessage(value: unknown): value is TabSyncMessage {
+  if (!value || typeof value !== "object") return false;
+
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.id === "string" &&
+    typeof candidate.type === "string" &&
+    Object.values<TabSyncEventType>({
+      AUTH_LOGOUT: "AUTH_LOGOUT",
+      AUTH_LOGIN: "AUTH_LOGIN",
+      PROFILE_UPDATED: "PROFILE_UPDATED",
+      ATTENDANCE_UPDATED: "ATTENDANCE_UPDATED",
+      SETTINGS_CHANGED: "SETTINGS_CHANGED",
+    }).includes(candidate.type as TabSyncEventType) &&
+    typeof candidate.timestamp === "number" &&
+    typeof candidate.senderTabId === "string"
+  );
 }
 
 const CHANNEL_NAME = "progitpaie_tab_sync_channel";
@@ -29,24 +48,29 @@ class TabSyncManager {
 
   constructor() {
     if (typeof window !== "undefined") {
-      if ("BroadcastChannel" in window) {
+      if (typeof BroadcastChannel !== "undefined") {
         this.channel = new BroadcastChannel(CHANNEL_NAME);
         this.channel.onmessage = (event) => this.handleIncomingMessage(event.data);
       } else {
         // Fallback StorageEvent pour les anciens navigateurs
-        (window as any).addEventListener("storage", (event: StorageEvent) => {
+        window.addEventListener("storage", (event: StorageEvent) => {
           if (event.key === CHANNEL_NAME && event.newValue) {
             try {
-              const msg = JSON.parse(event.newValue);
+              const msg: unknown = JSON.parse(event.newValue);
               this.handleIncomingMessage(msg);
-            } catch (e) {}
+            } catch {
+              // Ignorer les données de stockage non valides.
+            }
           }
         });
       }
     }
   }
 
-  private handleIncomingMessage(msg: TabSyncMessage) {
+  private handleIncomingMessage(message: unknown) {
+    if (!isTabSyncMessage(message)) return;
+    const msg = message;
+
     // 🛡️ Filtre Anti-Boucle Infinie & Ignorer ses propres messages
     if (msg.senderTabId === TAB_ID) return;
 

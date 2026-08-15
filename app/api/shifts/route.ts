@@ -1,143 +1,83 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { z } from "zod";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { ApiResponse, CreateShiftBody } from "@/types";
+import { ApiResponse } from "@/types";
+import {
+  CreateShiftUseCase,
+  ListShiftsUseCase,
+} from "@/lib/application/attendance/use-cases/ShiftUseCases";
+import type { ShiftRecord } from "@/lib/application/attendance/ports/ShiftRepository";
+import { PrismaShiftRepository } from "@/lib/infrastructure/repositories/prisma/PrismaShiftRepository";
+
+const repository = new PrismaShiftRepository();
+const listShifts = new ListShiftsUseCase(repository);
+const createShift = new CreateShiftUseCase(repository);
+const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Format horaire HH:mm requis");
+const createShiftSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  startTime: timeSchema,
+  endTime: timeSchema,
+  workingHours: z.coerce.number().finite().positive().max(24),
+  lateThresholdMinutes: z.coerce.number().int().nonnegative().max(24 * 60).optional(),
+});
+
+function serializeShift(shift: ShiftRecord): Record<string, unknown> {
+  return { ...shift, _id: shift.id };
+}
 
 // GET /api/shifts - Get all active shifts
-export async function GET(
-  request: NextRequest
-): Promise<NextResponse<ApiResponse<unknown>>> {
+export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request);
     if (authResult instanceof NextResponse) return authResult;
 
-    const { searchParams } = new URL(request.url);
-    const includeInactive = searchParams.get("includeInactive") === "true";
-
-    const shifts = await prisma.shift.findMany({
-      where: { companyId: authResult.companyId, ...(includeInactive ? {} : { isActive: true }) },
-      orderBy: { name: "asc" },
-    });
-
-    const formattedShifts = shifts.map((s) => ({
-      ...s,
-      _id: s.id,
-    }));
-
+    const includeInactive = new URL(request.url).searchParams.get("includeInactive") === "true";
+    const shifts = await listShifts.execute(authResult.companyId, includeInactive);
     return NextResponse.json(
-      {
-        success: true,
-        data: formattedShifts,
-        message: "Shifts fetched successfully",
-      },
+      { success: true, data: shifts.map(serializeShift), message: "Horaires récupérés avec succès" },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Get shifts error:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to fetch shifts",
-        code: "SERVER_ERROR",
-      },
+      { success: false, error: "Impossible de récupérer les horaires", code: "SERVER_ERROR" },
       { status: 500 }
     );
   }
 }
 
 // POST /api/shifts - Create new shift (admin only)
-export async function POST(
-  request: NextRequest
-): Promise<NextResponse<ApiResponse<unknown>>> {
+export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request, "admin");
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
+    if (authResult instanceof NextResponse) return authResult;
 
-    const body: CreateShiftBody = await request.json();
-
-    if (!body.name || body.name.trim() === "") {
+    const parsed = createShiftSchema.safeParse(await request.json());
+    if (!parsed.success) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Shift name is required",
-          code: "VALIDATION_ERROR",
-        },
+        { success: false, error: "Données d’horaire invalides", details: parsed.error.issues, code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
-
-    if (!body.startTime || !body.endTime) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Start time and end time are required",
-          code: "VALIDATION_ERROR",
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!body.workingHours || body.workingHours <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Working hours must be greater than 0",
-          code: "VALIDATION_ERROR",
-        },
-        { status: 400 }
-      );
-    }
-
-    const existingShift = await prisma.shift.findFirst({
-      where: { companyId: authResult.companyId, name: { equals: body.name.trim(), mode: "insensitive" } },
+    const shift = await createShift.execute({
+      companyId: authResult.companyId,
+      ...parsed.data,
+      lateThresholdMinutes: parsed.data.lateThresholdMinutes ?? 15,
     });
-
-    if (existingShift) {
+    return NextResponse.json(
+      { success: true, data: serializeShift(shift), message: "Horaire créé avec succès" },
+      { status: 201 }
+    );
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "SHIFT_NAME_ALREADY_EXISTS") {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Shift with this name already exists",
-          code: "DUPLICATE_ERROR",
-        },
+        { success: false, error: "Un horaire avec ce nom existe déjà", code: "DUPLICATE_ERROR" },
         { status: 409 }
       );
     }
-
-    const shift = await prisma.shift.create({
-      data: {
-        companyId: authResult.companyId,
-        name: body.name.trim(),
-        startTime: body.startTime,
-        endTime: body.endTime,
-        workingHours: body.workingHours,
-        lateThresholdMinutes: body.lateThresholdMinutes || 15,
-        isActive: true,
-      },
-    });
-
-    const responseData = {
-      ...shift,
-      _id: shift.id,
-    };
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: responseData,
-        message: "Shift created successfully",
-      },
-      { status: 201 }
-    );
-  } catch (error) {
     console.error("Create shift error:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to create shift",
-        code: "SERVER_ERROR",
-      },
+      { success: false, error: "Impossible de créer l’horaire", code: "SERVER_ERROR" },
       { status: 500 }
     );
   }

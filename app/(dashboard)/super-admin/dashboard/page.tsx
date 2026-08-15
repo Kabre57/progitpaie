@@ -106,7 +106,17 @@ function AlertItem({ alert }: { alert: DashboardAlert }) {
   );
 }
 
-function CustomTooltip({ active, payload, label }: any) {
+interface ChartTooltipPayloadEntry {
+  value?: number | string;
+}
+
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: ChartTooltipPayloadEntry[];
+  label?: string | number;
+}
+
+function CustomTooltip({ active, payload, label }: ChartTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-[var(--neu-surface)] border border-[var(--neu-border)] rounded-xl p-3 shadow-xl text-xs space-y-1">
@@ -123,7 +133,7 @@ function CustomTooltip({ active, payload, label }: any) {
   );
 }
 
-function CustomBarTooltip({ active, payload, label }: any) {
+function CustomBarTooltip({ active, payload, label }: ChartTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-[var(--neu-surface)] border border-[var(--neu-border)] rounded-xl p-3 shadow-xl text-xs">

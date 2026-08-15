@@ -4,6 +4,8 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
+import type { jsPDF } from "jspdf";
+
 export interface PDFCompanyInfoOptions {
   name: string;
   address: string;
@@ -15,7 +17,7 @@ export interface PDFCompanyInfoOptions {
   startY: number;
 }
 
-export function drawPDFCompanyInfo(doc: any, options: PDFCompanyInfoOptions): number {
+export function drawPDFCompanyInfo(doc: jsPDF, options: PDFCompanyInfoOptions): number {
   const { name, address, taxNumber, cnpsNumber, periodText, startY } = options;
 
   doc.setDrawColor(60, 60, 60);

@@ -1,23 +1,20 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { CheckDatabaseHealthUseCase } from "@/lib/application/health/use-cases/CheckDatabaseHealthUseCase";
+import { PrismaDatabaseHealthCheck } from "@/lib/infrastructure/health/PrismaDatabaseHealthCheck";
 
-export async function GET() {
-  const startTime = Date.now();
+const checkDatabaseHealth = new CheckDatabaseHealthUseCase(new PrismaDatabaseHealthCheck());
 
+export async function GET(): Promise<Response> {
   try {
-    // Check de la base de données PostgreSQL
-    await prisma.$queryRaw`SELECT 1`;
-    const dbLatency = Date.now() - startTime;
-
-    // Métriques mémoire système
+    const { latencyMs } = await checkDatabaseHealth.execute();
     const memoryUsage = process.memoryUsage();
 
     return NextResponse.json({
       status: "healthy",
       timestamp: new Date().toISOString(),
-      latencyMs: dbLatency,
+      latencyMs,
       checks: {
-        database: { status: "up", latencyMs: dbLatency },
+        database: { status: "up", latencyMs },
         memory: {
           heapUsedMb: Math.round(memoryUsage.heapUsed / 1024 / 1024),
           heapTotalMb: Math.round(memoryUsage.heapTotal / 1024 / 1024),
@@ -26,13 +23,10 @@ export async function GET() {
         uptimeSeconds: Math.floor(process.uptime()),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Erreur de connexion à la base de données";
     return NextResponse.json(
-      {
-        status: "unhealthy",
-        timestamp: new Date().toISOString(),
-        error: error.message || "Erreur de connexion à la base de données",
-      },
+      { status: "unhealthy", timestamp: new Date().toISOString(), error: message },
       { status: 503 }
     );
   }

@@ -204,7 +204,7 @@ interface AuthFormContainerProps {
   isSignIn: boolean;
   onToggle: () => void;
   onSignInSubmit: (data: { email: string; password: string }) => void;
-  onSignUpSubmit: (data: { name: string; email: string; password: string; department?: string }) => void;
+  onSignUpSubmit: (data: { name: string; email: string; password: string; department?: string; companyName?: string }) => void;
   isLoading?: boolean;
   error?: string | null;
   onGoogleClick: () => void;
@@ -285,9 +285,10 @@ interface AuthUIProps {
   signInContent?: AuthContentProps;
   signUpContent?: AuthContentProps;
   onSignInSubmit?: (data: { email: string; password: string }) => void;
-  onSignUpSubmit?: (data: { name: string; email: string; password: string; department?: string }) => void;
+  onSignUpSubmit?: (data: { name: string; email: string; password: string; department?: string; companyName?: string }) => void;
   isLoading?: boolean;
   error?: string | null;
+  initialMode?: "signin" | "signup";
 }
 
 const defaultSignInContent = {
@@ -319,8 +320,9 @@ export function AuthUI({
   onSignUpSubmit,
   isLoading,
   error,
+  initialMode = "signin",
 }: AuthUIProps) {
-  const [isSignIn, setIsSignIn] = useState(true);
+  const [isSignIn, setIsSignIn] = useState(initialMode === "signin");
   const [showComingSoon, setShowComingSoon] = useState(false);
 
   const toggleForm = () => setIsSignIn((prev) => !prev);
@@ -340,7 +342,7 @@ export function AuthUI({
     onSignInSubmit?.(data);
   };
 
-  const handleSignUp = (data: { name: string; email: string; password: string; department?: string }) => {
+  const handleSignUp = (data: { name: string; email: string; password: string; department?: string; companyName?: string }) => {
     onSignUpSubmit?.(data);
   };
 

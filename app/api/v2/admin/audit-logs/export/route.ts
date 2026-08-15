@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/security/requireSuperAdmin";
 import { GetAuditLogsUseCase } from "@/lib/application/admin/use-cases/GetAuditLogsUseCase";
@@ -73,10 +74,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         "Cache-Control": "no-cache",
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/v2/admin/audit-logs/export error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur export CSV" },
+      { success: false, error: getErrorMessage(error) || "Erreur export CSV" },
       { status: 500 }
     );
   }

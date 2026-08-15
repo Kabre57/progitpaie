@@ -47,6 +47,7 @@ export function TenantFilterBar({
             <option value="ACTIVE">Actives uniquement</option>
             <option value="SUSPENDED">Suspendues</option>
             <option value="INACTIVE">Inactives</option>
+            <option value="DEMO">Espaces Démo</option>
           </select>
         </div>
       </div>

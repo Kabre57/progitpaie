@@ -11,7 +11,7 @@
 import { EmployeeRepository, SettingsRepository } from "@/lib/infrastructure";
 import { legacyRatesToTaxRatesConfig } from "@/lib/domain/payroll/adapters/legacy-rates-adapter";
 import { calculatePayslip } from "@/lib/domain/payroll";
-import { DEFAULT_PAYROLL_RATES } from "@/lib/rates-config";
+import { DEFAULT_PAYROLL_RATES, type PayrollRatesConfig } from "@/lib/rates-config";
 
 export interface SimulationScenarioParams {
   type: "SALARY_INCREASE" | "RECRUITMENT" | "RATE_CHANGE";
@@ -56,7 +56,7 @@ export class SimulationService {
   public async runSimulation(params: SimulationScenarioParams): Promise<SimulationResultData> {
     // 1. Récupération des employés actifs réels
     const employees = await this.employeeRepo.findAllActive();
-    const dbRates = (await this.settingsRepo.getByKey("tax_rates")) || DEFAULT_PAYROLL_RATES;
+    const dbRates = (await this.settingsRepo.getByKey<PayrollRatesConfig>("tax_rates")) || DEFAULT_PAYROLL_RATES;
 
     const baseTaxConfig = legacyRatesToTaxRatesConfig(dbRates);
 
@@ -86,7 +86,7 @@ export class SimulationService {
     let simulatedNet = 0;
     let simulatedEmployeesCount = employees.length;
 
-    const simRates = params.customRates ? { ...dbRates, ...params.customRates } : dbRates;
+    const simRates: PayrollRatesConfig = params.customRates ? { ...dbRates, ...params.customRates } : dbRates;
     const simTaxConfig = legacyRatesToTaxRatesConfig(simRates);
 
     // Simulation Augmentation Salariale (%)

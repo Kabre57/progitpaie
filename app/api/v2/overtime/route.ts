@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { prisma } from "@/lib/db";
+import { PrismaOvertimeRepository } from "@/lib/infrastructure/repositories/prisma/PrismaOvertimeRepository";
+import { OvertimeRequest } from "@/lib/domain/overtime/entities/OvertimeRequest";
+import { OvertimeRate } from "@/lib/domain/overtime/value-objects/OvertimeRate";
+import { OvertimeStatus } from "@/lib/domain/overtime/value-objects/OvertimeStatus";
 import { createOvertimeSchema, listOvertimeQuerySchema } from "@/shared/validation/overtime-v2.schema";
 import { ApiResponse } from "@/types";
+
+const overtimeRepo = new PrismaOvertimeRepository();
 
 // GET /api/v2/overtime - Liste des déclarations d'heures supp. avec informations salarié (V2 Clean Architecture)
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
@@ -19,28 +24,12 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       );
     }
 
-    const records = await prisma.overtime.findMany({
-      where: {
-        companyId: authResult.companyId,
-        ...(parseResult.data.userId || (authResult.role === "employee" ? authResult.userId : undefined)
-          ? { userId: parseResult.data.userId || authResult.userId }
-          : {}),
-        ...(parseResult.data.status ? { status: parseResult.data.status as any } : {}),
-        ...(parseResult.data.startDate || parseResult.data.endDate
-          ? {
-              date: {
-                ...(parseResult.data.startDate ? { gte: new Date(parseResult.data.startDate) } : {}),
-                ...(parseResult.data.endDate ? { lte: new Date(parseResult.data.endDate) } : {}),
-              },
-            }
-          : {}),
-      },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, employeeId: true },
-        },
-      },
-      orderBy: { date: "desc" },
+    const records = await overtimeRepo.list({
+      companyId: authResult.companyId,
+      userId: parseResult.data.userId || (authResult.role === "employee" ? authResult.userId : undefined),
+      status: parseResult.data.status,
+      startDate: parseResult.data.startDate,
+      endDate: parseResult.data.endDate,
     });
 
     const data = records.map((r) => ({
@@ -48,27 +37,28 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       companyId: r.companyId,
       userId: r.userId,
       user: {
-        id: r.user.id,
-        name: r.user.name,
-        email: r.user.email,
-        employeeId: r.user.employeeId || undefined,
+        id: r.userId,
+        name: "Salarié",
+        email: "",
+        employeeId: undefined,
       },
       attendanceId: r.attendanceId,
       date: r.date.toISOString(),
       minutes: r.minutes,
-      rate: r.rate,
+      rate: r.rate.value,
       reason: r.reason,
-      status: r.status,
+      status: r.status.value,
       approvedById: r.approvedById,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
+      createdAt: r.createdAt ? r.createdAt.toISOString() : new Date().toISOString(),
+      updatedAt: r.updatedAt ? r.updatedAt.toISOString() : new Date().toISOString(),
     }));
 
     return NextResponse.json({ success: true, data }, { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/v2/overtime error:", error);
+    const message = error instanceof Error ? error.message : "Erreur serveur";
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur", code: "SERVER_ERROR" },
+      { success: false, error: message, code: "SERVER_ERROR" },
       { status: 500 }
     );
   }
@@ -89,48 +79,44 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       );
     }
 
-    const created = await prisma.overtime.create({
-      data: {
-        companyId: authResult.companyId,
-        userId: parseResult.data.userId,
-        date: new Date(parseResult.data.date),
-        minutes: parseResult.data.minutes,
-        rate: parseResult.data.rate,
-        reason: parseResult.data.reason,
-        status: "pending",
-      },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, employeeId: true },
-        },
-      },
+    const domainOvertime = new OvertimeRequest({
+      companyId: authResult.companyId,
+      userId: parseResult.data.userId,
+      date: new Date(parseResult.data.date),
+      minutes: parseResult.data.minutes,
+      rate: OvertimeRate.create(parseResult.data.rate ?? 1.15),
+      reason: parseResult.data.reason,
+      status: OvertimeStatus.pending(),
     });
+
+    const created = await overtimeRepo.save(domainOvertime);
 
     const data = {
       id: created.id,
       companyId: created.companyId,
       userId: created.userId,
       user: {
-        id: created.user.id,
-        name: created.user.name,
-        email: created.user.email,
-        employeeId: created.user.employeeId || undefined,
+        id: created.userId,
+        name: "Salarié",
+        email: "",
+        employeeId: undefined,
       },
       date: created.date.toISOString(),
       minutes: created.minutes,
-      rate: created.rate,
+      rate: created.rate.value,
       reason: created.reason,
-      status: created.status,
+      status: created.status.value,
     };
 
     return NextResponse.json(
       { success: true, data, message: "Heures supplémentaires déclarées" },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/v2/overtime error:", error);
+    const message = error instanceof Error ? error.message : "Erreur de déclaration";
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur de déclaration", code: "SERVER_ERROR" },
+      { success: false, error: message, code: "SERVER_ERROR" },
       { status: 400 }
     );
   }

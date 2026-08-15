@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/security/requireSuperAdmin";
 import { PrismaTenantRepository } from "@/lib/infrastructure/repositories/prisma/PrismaTenantRepository";
@@ -27,10 +28,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       success: true,
       data: result,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/v2/admin/tenants error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur" },
+      { success: false, error: getErrorMessage(error) || "Erreur serveur" },
       { status: 500 }
     );
   }
@@ -56,10 +57,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { success: true, data: created },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/v2/admin/tenants error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Échec de création de l'entreprise" },
+      { success: false, error: getErrorMessage(error) || "Échec de création de l'entreprise" },
       { status: 400 }
     );
   }

@@ -1,28 +1,24 @@
-import { prisma } from "@/lib/db";
 import { VerificationStatus } from "@prisma/client";
 import {
   CompanyKybDetailsDTO,
   CompanyDocumentDTO,
   VerifyCompanyInput,
 } from "../dto/CompanyKybSubscriptionDTO";
+import { SuperAdminRepository } from "../ports/SuperAdminRepository";
+import { PrismaSuperAdminRepository } from "@/lib/infrastructure/repositories/prisma/PrismaSuperAdminRepository";
 
 export class ManageCompanyKybUseCase {
+  constructor(private readonly superAdminRepo: SuperAdminRepository = new PrismaSuperAdminRepository()) {}
+
   /** Get company KYB details and all uploaded verification documents */
   public async getKybDetails(companyId: string): Promise<CompanyKybDetailsDTO> {
-    const company = await prisma.company.findUnique({
-      where: { id: companyId },
-      include: {
-        documents: {
-          orderBy: { uploadedAt: "desc" },
-        },
-      },
-    });
+    const company = await this.superAdminRepo.getCompanyKybDetails(companyId);
 
     if (!company) {
       throw new Error(`Entreprise non trouvée (${companyId})`);
     }
 
-    const documents: CompanyDocumentDTO[] = company.documents.map((d: any) => ({
+    const documents: CompanyDocumentDTO[] = company.documents.map((d) => ({
       id: d.id,
       companyId: d.companyId,
       documentType: d.documentType,
@@ -43,8 +39,8 @@ export class ManageCompanyKybUseCase {
       plan: company.plan,
       subscriptionStatus: company.subscriptionStatus,
       subscriptionExpiresAt: company.subscriptionExpiresAt?.toISOString() ?? null,
-      monthlyPriceFCFA: company.monthlyPriceFCFA,
-      maxEmployeesAllowed: company.maxEmployeesAllowed,
+      monthlyPriceFCFA: company.monthlyPriceFCFA ?? 0,
+      maxEmployeesAllowed: company.maxEmployeesAllowed ?? 0,
       documents,
     };
   }
@@ -56,15 +52,7 @@ export class ManageCompanyKybUseCase {
     fileUrl: string;
     fileName: string;
   }): Promise<CompanyDocumentDTO> {
-    const doc = await prisma.companyDocument.create({
-      data: {
-        companyId: input.companyId,
-        documentType: input.documentType,
-        fileUrl: input.fileUrl,
-        fileName: input.fileName,
-        status: VerificationStatus.PENDING,
-      },
-    });
+    const doc = await this.superAdminRepo.addCompanyDocument(input);
 
     return {
       id: doc.id,
@@ -82,34 +70,21 @@ export class ManageCompanyKybUseCase {
 
   /** Update overall KYB verification status for a company */
   public async verifyCompany(input: VerifyCompanyInput): Promise<CompanyKybDetailsDTO> {
-    await prisma.company.update({
-      where: { id: input.companyId },
-      data: {
-        verificationStatus: input.status,
-        verificationNotes: input.notes ?? null,
-      },
-    });
-
-    // Update status of all pending documents to match
-    await prisma.companyDocument.updateMany({
-      where: { companyId: input.companyId },
-      data: {
-        status: input.status,
-        verifiedAt: new Date(),
-        verifiedById: input.verifiedById,
-      },
-    });
+    await this.superAdminRepo.verifyCompany(
+      input.companyId,
+      input.status as VerificationStatus,
+      input.notes ?? null,
+      input.verifiedById
+    );
 
     // Audit log
-    await prisma.auditLog.create({
-      data: {
-        companyId: input.companyId,
-        performedById: input.verifiedById,
-        action: `VERIFY_COMPANY_${input.status}`,
-        targetModel: "Company",
-        targetId: input.companyId,
-        newValues: { status: input.status, notes: input.notes } as any,
-      },
+    await this.superAdminRepo.createAuditLog({
+      companyId: input.companyId,
+      performedById: input.verifiedById,
+      action: `VERIFY_COMPANY_${input.status}`,
+      targetModel: "Company",
+      targetId: input.companyId,
+      newValues: { status: input.status, notes: input.notes },
     });
 
     return this.getKybDetails(input.companyId);

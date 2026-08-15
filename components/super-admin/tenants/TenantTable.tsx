@@ -18,6 +18,8 @@ export interface Tenant {
   phone?: string;
   email?: string;
   isMain: boolean;
+  isDemo?: boolean;
+  demoExpiresAt?: string;
   status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
   createdAt: string;
   employeeCount?: number;
@@ -72,13 +74,23 @@ export function TenantTable({
                       {t.name}
                       {t.isMain && (
                         <span className="text-[9px] bg-[#666cff]/15 text-[#666cff] px-1.5 py-0.5 rounded font-bold">
-                          SIÈGE
+                          SIÈGE HISTORIQUE
+                        </span>
+                      )}
+                      {t.isDemo && (
+                        <span className="text-[9px] bg-amber-500/15 text-amber-600 px-1.5 py-0.5 rounded font-bold">
+                          DÉMO
                         </span>
                       )}
                     </div>
                     <div className="text-[10px] text-[var(--neu-text-secondary)]">
                       Créé le {new Date(t.createdAt).toLocaleDateString("fr-FR")}
                     </div>
+                    {t.isDemo && t.demoExpiresAt && (
+                      <div className="text-[10px] text-amber-600">
+                        Démo jusqu’au {new Date(t.demoExpiresAt).toLocaleDateString("fr-FR")}
+                      </div>
+                    )}
                   </td>
                   <td className="p-3 font-mono text-[10px] space-y-0.5">
                     <div>N° CC : {t.taxNumber || "Non défini"}</div>

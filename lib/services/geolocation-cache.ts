@@ -8,7 +8,8 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-import { prisma } from "@/lib/db";
+import { PrismaCompanySettingsRepository } from "@/lib/infrastructure/repositories/prisma/PrismaCompanySettingsRepository";
+import { SettingsRepository } from "@/lib/infrastructure/repositories/settings-repository";
 
 export interface CachedCompanyGPS {
   companyId: string;
@@ -18,10 +19,31 @@ export interface CachedCompanyGPS {
   timestamp: number;
 }
 
+function toRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function toCoordinate(value: unknown, fallback: number): number {
+  const parsed =
+    typeof value === "number" || typeof value === "string"
+      ? Number.parseFloat(String(value))
+      : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 export class GeolocationCache {
   private static instance: GeolocationCache;
   private cache = new Map<string, CachedCompanyGPS>();
   private readonly TTL_MS = 60 * 60 * 1000; // 1 heure
+  private companySettingsRepo: PrismaCompanySettingsRepository;
+  private globalSettingsRepo: SettingsRepository;
+
+  private constructor() {
+    this.companySettingsRepo = new PrismaCompanySettingsRepository();
+    this.globalSettingsRepo = new SettingsRepository();
+  }
 
   public static getInstance(): GeolocationCache {
     if (!GeolocationCache.instance) {
@@ -50,15 +72,13 @@ export class GeolocationCache {
     // 1. Recherche entreprise (récupération sécurisée)
     if (companyId) {
       try {
-        const company: any = await prisma.company.findUnique({
-          where: { id: companyId },
-        });
+        const company = await this.companySettingsRepo.getCompanyGPS(companyId);
 
         if (company && company.latitude !== undefined && company.latitude !== null) {
           const coords = {
-            latitude: parseFloat(company.latitude),
-            longitude: parseFloat(company.longitude),
-            radiusMeters: parseFloat(company.radiusMeters || 100.0),
+            latitude: toCoordinate(company.latitude, defaultCoords.latitude),
+            longitude: toCoordinate(company.longitude, defaultCoords.longitude),
+            radiusMeters: toCoordinate(company.radiusMeters, defaultCoords.radiusMeters),
           };
           this.cache.set(cacheKey, { companyId: cacheKey, ...coords, timestamp: Date.now() });
           return coords;
@@ -70,16 +90,14 @@ export class GeolocationCache {
 
     // 2. Recherche configuration globale Settings
     try {
-      const globalSettings = await prisma.settings.findUnique({
-        where: { key: "location" },
-      });
+      const globalSettings = await this.globalSettingsRepo.getByKey<Record<string, unknown>>("location");
 
-      if (globalSettings && globalSettings.value) {
-        const val = globalSettings.value as any;
+      if (globalSettings) {
+        const val = toRecord(globalSettings);
         const coords = {
-          latitude: parseFloat(val.latitude || val.officeLat || defaultCoords.latitude),
-          longitude: parseFloat(val.longitude || val.officeLng || defaultCoords.longitude),
-          radiusMeters: parseFloat(val.radiusMeters || defaultCoords.radiusMeters),
+          latitude: toCoordinate(val.latitude ?? val.officeLat, defaultCoords.latitude),
+          longitude: toCoordinate(val.longitude ?? val.officeLng, defaultCoords.longitude),
+          radiusMeters: toCoordinate(val.radiusMeters, defaultCoords.radiusMeters),
         };
         this.cache.set(cacheKey, { companyId: cacheKey, ...coords, timestamp: Date.now() });
         return coords;

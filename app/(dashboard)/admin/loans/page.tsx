@@ -10,9 +10,30 @@ import { CreditCard, Plus, RefreshCw, CheckCircle2 } from "lucide-react";
 
 import { NeuPagination } from "@/components/ui/neu-pagination";
 
+interface LoanEmployee {
+  id: string;
+  name: string;
+  email?: string | null;
+  employeeId?: string | null;
+  salary?: number | null;
+  jobTitle?: string | null;
+  sursalaire?: number | null;
+}
+
+interface LoanRecord {
+  id: string;
+  user?: LoanEmployee | null;
+  type: "PRET" | "AVANCE";
+  amount: number;
+  monthlyDeduction?: number | null;
+  remainingAmount?: number | null;
+  totalRepaid?: number | null;
+  status: "active" | "completed";
+}
+
 export default function LoansPage() {
-  const [loans, setLoans] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
+  const [loans, setLoans] = useState<LoanRecord[]>([]);
+  const [employees, setEmployees] = useState<LoanEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);

@@ -14,6 +14,46 @@ import { useAttendanceStats, useAttendance } from "@/lib/hooks/useAttendance";
 
 const ITEMS_PER_PAGE = 10;
 
+type AttendanceUser = { _id: string; name: string; email: string; department?: string };
+type AttendanceRecord = {
+  _id: string;
+  userId: AttendanceUser | string;
+  date: string;
+  checkIn: string;
+  checkOut: string | null;
+  hoursWorked: number;
+  status: "present" | "absent" | "late";
+  notes?: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isAttendanceUser(value: unknown): value is AttendanceUser {
+  return isRecord(value)
+    && typeof value._id === "string"
+    && typeof value.name === "string"
+    && typeof value.email === "string";
+}
+
+function isAttendanceRecord(value: unknown): value is AttendanceRecord {
+  if (!isRecord(value)) return false;
+  return typeof value._id === "string"
+    && (typeof value.userId === "string" || isAttendanceUser(value.userId))
+    && typeof value.date === "string"
+    && typeof value.checkIn === "string"
+    && (typeof value.checkOut === "string" || value.checkOut === null)
+    && typeof value.hoursWorked === "number"
+    && (value.status === "present" || value.status === "absent" || value.status === "late");
+}
+
+function extractAttendanceRecords(value: unknown): AttendanceRecord[] {
+  if (Array.isArray(value)) return value.filter(isAttendanceRecord);
+  if (isRecord(value) && Array.isArray(value.records)) return value.records.filter(isAttendanceRecord);
+  return [];
+}
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
@@ -50,12 +90,7 @@ export default function AdminDashboardPage() {
   const { data: stats, isLoading: isLoadingStats, isError: isErrorStats, error: errorStats } = useAttendanceStats(filters.month);
   const { data: recordsData, isLoading: isLoadingRecords, isError: isErrorRecords, error: errorRecords } = useAttendance(undefined, filters.month);
 
-  const rawRecords = useMemo(() => {
-    if (!recordsData) return [];
-    if (Array.isArray(recordsData)) return recordsData;
-    if (Array.isArray((recordsData as any).records)) return (recordsData as any).records;
-    return [];
-  }, [recordsData]);
+  const rawRecords = useMemo<AttendanceRecord[]>(() => extractAttendanceRecords(recordsData), [recordsData]);
 
   // Filtrage côté mémoire ultra-rapide
   const filteredRecords = useMemo(() => {
@@ -63,21 +98,19 @@ export default function AdminDashboardPage() {
 
     if (filters.employeeId) {
       result = result.filter(
-        (record: any) =>
-          typeof record.userId === "object" && record.userId?._id === filters.employeeId
+        (record) => isAttendanceUser(record.userId) && record.userId._id === filters.employeeId
       );
     }
 
     if (filters.status) {
-      result = result.filter((record: any) => record.status === filters.status);
+      result = result.filter((record) => record.status === filters.status);
     }
 
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       result = result.filter(
-        (record: any) =>
-          typeof record.userId === "object" &&
-          record.userId?.name?.toLowerCase().includes(searchLower)
+        (record) => isAttendanceUser(record.userId)
+          && record.userId.name.toLowerCase().includes(searchLower)
       );
     }
 
@@ -158,7 +191,7 @@ export default function AdminDashboardPage() {
             <ChevronRight className="w-5 h-5" />
           </NeuButton>
         </div>
-        <AttendanceExport records={filteredRecords as any} month={filters.month} />
+        <AttendanceExport records={filteredRecords} month={filters.month} />
       </div>
 
       {/* Cartes de Statistiques */}
@@ -173,7 +206,7 @@ export default function AdminDashboardPage() {
           <NeuCardTitle>Registres de Présence</NeuCardTitle>
         </NeuCardHeader>
         <NeuCardContent>
-          <AttendanceTable records={paginatedRecords as any} />
+          <AttendanceTable records={paginatedRecords} />
 
           {/* Pagination */}
           {!isLoadingRecords && totalPages > 1 && (

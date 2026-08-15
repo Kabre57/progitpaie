@@ -1,72 +1,72 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import jwt from "jsonwebtoken";
-import { getDefaultCompanyId } from "@/lib/database/tenant-context";
+import { z } from "zod";
+import { generateToken } from "@/lib/auth";
+import { AuthenticateGoogleUserUseCase } from "@/lib/application/auth/use-cases/AuthenticateGoogleUserUseCase";
+import { PrismaDemoSignupRepository } from "@/lib/infrastructure/repositories/prisma/PrismaDemoSignupRepository";
+import { GoogleTokenInfoVerifier } from "@/lib/infrastructure/auth/GoogleTokenInfoVerifier";
 
-const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_progitpaie";
+const authenticateGoogleUser = new AuthenticateGoogleUserUseCase(
+  new GoogleTokenInfoVerifier(),
+  new PrismaDemoSignupRepository()
+);
+const googleLoginSchema = z.object({ idToken: z.string().trim().min(100).max(20_000) });
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest): Promise<Response> {
   try {
-    const { email, name, googleId, image } = await req.json();
-
-    if (!email) {
+    const parsed = googleLoginSchema.safeParse(await request.json());
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: "Adresse email Google requise." },
+        { success: false, error: "Jeton d’identité Google requis." },
         { status: 400 }
       );
     }
 
-    // 1. Recherche ou création automatique de l'utilisateur dans PostgreSQL
-    let user = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!user) {
-      const companyId = await getDefaultCompanyId();
-      const userCount = await prisma.user.count();
-      // Création automatique de l'utilisateur avec Google Auth
-      user = await prisma.user.create({
-        data: {
-          companyId,
-          email,
-          name: name || email.split("@")[0],
-          password: "", // Pas de mot de passe car authentification OAuth Google
-          role: email.includes("admin") || userCount === 0 ? "admin" : "employee",
-        },
-      });
-    }
-
-    // 2. Génération du jeton JWT de session PROGITPAIE (unifié avec generateToken)
-    const { generateToken } = await import("@/lib/auth");
-    const token = generateToken(user.id, user.email, user.role);
-
-    // 3. Réponse avec Cookie HttpOnly rbeas_token
+    const result = await authenticateGoogleUser.execute(parsed.data.idToken);
+    const token = generateToken(result.user.id, result.user.email, result.user.role);
     const response = NextResponse.json({
       success: true,
       data: {
         token,
         user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
+          id: result.user.id,
+          name: result.user.name,
+          email: result.user.email,
+          role: result.user.role,
+          isDemo: result.isDemo,
+          demoExpiresAt: result.demoExpiresAt,
         },
       },
     });
-
     response.cookies.set("rbeas_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60, // 7 jours
+      maxAge: 7 * 24 * 60 * 60,
       path: "/",
     });
-
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "AUTH_ACCOUNT_INACTIVE") {
+      return NextResponse.json(
+        { success: false, error: "Le compte est inactif.", code: "ACCOUNT_INACTIVE" },
+        { status: 403 }
+      );
+    }
+    if (error instanceof Error && error.message === "GOOGLE_CLIENT_ID_NOT_CONFIGURED") {
+      return NextResponse.json(
+        { success: false, error: "La connexion Google n’est pas configurée.", code: "OAUTH_NOT_CONFIGURED" },
+        { status: 503 }
+      );
+    }
+    if (error instanceof Error && error.message === "GOOGLE_ID_TOKEN_INVALID") {
+      return NextResponse.json(
+        { success: false, error: "Le jeton Google est invalide ou expiré.", code: "OAUTH_INVALID_TOKEN" },
+        { status: 401 }
+      );
+    }
     console.error("Google Auth Error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur d'authentification Google." },
+      { success: false, error: "Erreur d'authentification Google." },
       { status: 500 }
     );
   }

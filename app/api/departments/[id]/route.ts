@@ -1,7 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { z } from "zod";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { ApiResponse, CreateDepartmentBody } from "@/types";
+import { ApiResponse } from "@/types";
+import {
+  DeactivateDepartmentUseCase,
+  UpdateDepartmentUseCase,
+} from "@/lib/application/hr/use-cases/DepartmentUseCases";
+import type { DepartmentRecord } from "@/lib/application/hr/ports/DepartmentRepository";
+import { PrismaDepartmentRepository } from "@/lib/infrastructure/repositories/prisma/PrismaDepartmentRepository";
+
+const repository = new PrismaDepartmentRepository();
+const updateDepartment = new UpdateDepartmentUseCase(repository);
+const deactivateDepartment = new DeactivateDepartmentUseCase(repository);
+const idSchema = z.string().trim().min(1);
+const updateDepartmentSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  description: z.string().trim().max(1_000).optional(),
+  managerId: z.string().trim().optional(),
+}).refine((input) => Object.values(input).some((value) => value !== undefined), {
+  message: "Au moins un champ doit être fourni",
+});
+
+function serializeDepartment(department: DepartmentRecord): Record<string, unknown> {
+  return {
+    ...department,
+    _id: department.id,
+    managerId: department.manager
+      ? { ...department.manager, _id: department.manager.id }
+      : department.managerId,
+  };
+}
+
+function errorResponse(error: unknown): NextResponse<ApiResponse<unknown>> | null {
+  if (error instanceof Error && error.message === "DEPARTMENT_NOT_FOUND") {
+    return NextResponse.json(
+      { success: false, error: "Département introuvable", code: "NOT_FOUND" },
+      { status: 404 }
+    );
+  }
+  if (error instanceof Error && error.message === "DEPARTMENT_NAME_ALREADY_EXISTS") {
+    return NextResponse.json(
+      { success: false, error: "Un département avec ce nom existe déjà", code: "DUPLICATE_ERROR" },
+      { status: 409 }
+    );
+  }
+  return null;
+}
 
 // PUT /api/departments/[id] - Update department (admin only)
 export async function PUT(
@@ -10,78 +54,37 @@ export async function PUT(
 ): Promise<NextResponse<ApiResponse<unknown>>> {
   try {
     const authResult = await requireTenant(request, "admin");
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
+    if (authResult instanceof NextResponse) return authResult;
 
-    const { id } = await params;
-    const body: Partial<CreateDepartmentBody> = await request.json();
-
-    // Filtre companyId obligatoire : garantit l'isolation tenant
-    const department = await prisma.department.findFirst({ where: { id, companyId: authResult.companyId } });
-    if (!department) {
+    const parsedId = idSchema.safeParse((await params).id);
+    const parsedInput = updateDepartmentSchema.safeParse(await request.json());
+    if (!parsedId.success || !parsedInput.success) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Department not found",
-          code: "NOT_FOUND",
-        },
-        { status: 404 }
+        { success: false, error: "Données de département invalides", code: "VALIDATION_ERROR" },
+        { status: 400 }
       );
     }
 
-    if (body.name && body.name.trim() !== department.name) {
-      // Filtre companyId pour ne rechercher les doublons QUE dans l'entreprise courante
-      const existingDepartment = await prisma.department.findFirst({
-        where: {
-          companyId: authResult.companyId,
-          name: { equals: body.name.trim(), mode: "insensitive" },
-          NOT: { id },
-        },
-      });
-
-      if (existingDepartment) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Department with this name already exists",
-            code: "DUPLICATE_ERROR",
-          },
-          { status: 409 }
-        );
-      }
-    }
-
-    const updated = await prisma.department.update({
-      where: { id, companyId: authResult.companyId },
-      data: {
-        name: body.name !== undefined ? body.name.trim() : undefined,
-        description: body.description !== undefined ? body.description.trim() : undefined,
-        managerId: body.managerId !== undefined ? body.managerId || null : undefined,
-      },
+    const updated = await updateDepartment.execute({
+      companyId: authResult.companyId,
+      id: parsedId.data,
+      name: parsedInput.data.name,
+      description: parsedInput.data.description,
+      managerId: parsedInput.data.managerId === undefined
+        ? undefined
+        : parsedInput.data.managerId || null,
     });
 
-    const responseData = {
-      ...updated,
-      _id: updated.id,
-    };
-
     return NextResponse.json(
-      {
-        success: true,
-        data: responseData,
-        message: "Department updated successfully",
-      },
+      { success: true, data: serializeDepartment(updated), message: "Département mis à jour avec succès" },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
+    const expected = errorResponse(error);
+    if (expected) return expected;
     console.error("Update department error:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to update department",
-        code: "SERVER_ERROR",
-      },
+      { success: false, error: "Impossible de mettre à jour le département", code: "SERVER_ERROR" },
       { status: 500 }
     );
   }
@@ -94,46 +97,30 @@ export async function DELETE(
 ): Promise<NextResponse<ApiResponse<null>>> {
   try {
     const authResult = await requireTenant(request, "admin");
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
+    if (authResult instanceof NextResponse) return authResult;
 
-    const { id } = await params;
-
-    // Filtre companyId obligatoire : garantit l'isolation tenant
-    const department = await prisma.department.findFirst({ where: { id, companyId: authResult.companyId } });
-    if (!department) {
+    const parsedId = idSchema.safeParse((await params).id);
+    if (!parsedId.success) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Department not found",
-          code: "NOT_FOUND",
-        },
+        { success: false, error: "Identifiant de département invalide", code: "VALIDATION_ERROR", data: null },
+        { status: 400 }
+      );
+    }
+    await deactivateDepartment.execute(authResult.companyId, parsedId.data);
+    return NextResponse.json(
+      { success: true, message: "Département supprimé avec succès", data: null },
+      { status: 200 }
+    );
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "DEPARTMENT_NOT_FOUND") {
+      return NextResponse.json(
+        { success: false, error: "Département introuvable", code: "NOT_FOUND", data: null },
         { status: 404 }
       );
     }
-
-    await prisma.department.update({
-      where: { id, companyId: authResult.companyId },
-      data: { isActive: false },
-    });
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: "Department deleted successfully",
-        data: null,
-      },
-      { status: 200 }
-    );
-  } catch (error) {
     console.error("Delete department error:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to delete department",
-        code: "SERVER_ERROR",
-      },
+      { success: false, error: "Impossible de supprimer le département", code: "SERVER_ERROR", data: null },
       { status: 500 }
     );
   }

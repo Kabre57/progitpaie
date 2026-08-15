@@ -1,38 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireSuperAdmin } from "@/lib/security/requireSuperAdmin";
 import { BackupExportUseCase } from "@/lib/application/admin/use-cases/BackupExportUseCase";
 
+const exportSchema = z.object({
+  companyIds: z.array(z.string().trim().min(1).max(100)).min(1).max(500),
+  year: z.coerce.number().int().min(2000).max(2100).optional(),
+});
+
 const uc = new BackupExportUseCase();
 
-/** POST /api/v2/admin/export/multi-company — Export multi-company aggregated CSV */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const authResult = await requireSuperAdmin(request);
     if (authResult instanceof NextResponse) return authResult;
 
-    const body = await request.json().catch(() => ({}));
-    const { summary, csvContent } = await uc.generateMultiCompanyExport({
+    const body = exportSchema.parse(await request.json());
+    const { csvContent } = await uc.generateMultiCompanyExport({
       companyIds: body.companyIds,
-      year: body.year ? parseInt(body.year, 10) : undefined,
+      year: body.year,
     });
 
     const now = new Date();
     const filename = `export_multi_entreprises_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}.csv`;
-
     return new NextResponse(csvContent, {
       status: 200,
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": `attachment; filename="${filename}"`,
-        "X-Export-Summary": JSON.stringify(summary),
-        "Cache-Control": "no-cache",
+        "Cache-Control": "no-store",
       },
     });
-  } catch (error: any) {
-    console.error("POST /api/v2/admin/export/multi-company error:", error);
+  } catch (error: unknown) {
+    const isValidationError = error instanceof z.ZodError;
+    console.error("POST /api/v2/admin/export/multi-company error:", error instanceof Error ? error.message : "unknown error");
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur export multi-entreprises" },
-      { status: 500 }
+      {
+        success: false,
+        error: isValidationError ? "Paramètres d’export invalides" : "Erreur export multi-entreprises",
+        code: isValidationError ? "INVALID_EXPORT" : "EXPORT_ERROR",
+      },
+      { status: isValidationError ? 400 : 500 },
     );
   }
 }

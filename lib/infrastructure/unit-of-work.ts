@@ -12,10 +12,11 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 export interface IUnitOfWork {
-  executeTransaction<T>(work: (tx: any) => Promise<T>): Promise<T>;
+  executeTransaction<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T>;
 }
 
 export class UnitOfWork implements IUnitOfWork {
@@ -26,7 +27,7 @@ export class UnitOfWork implements IUnitOfWork {
    * @param work - Fonction asynchrone recevant l'instance de transaction `tx`
    * @returns Le résultat du bloc de travail
    */
-  public async executeTransaction<T>(work: (tx: any) => Promise<T>): Promise<T> {
+  public async executeTransaction<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
     return prisma.$transaction(async (tx) => {
       return await work(tx);
     }, {

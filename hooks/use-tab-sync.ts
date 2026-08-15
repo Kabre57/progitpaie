@@ -34,11 +34,11 @@ export function useTabSync() {
     tabSyncManager.publish("AUTH_LOGOUT", { reason: "User triggered logout" });
   };
 
-  const notifyAttendanceUpdate = (data: any) => {
+  const notifyAttendanceUpdate = (data: unknown) => {
     tabSyncManager.publish("ATTENDANCE_UPDATED", data);
   };
 
-  const notifyProfileUpdate = (data: any) => {
+  const notifyProfileUpdate = (data: unknown) => {
     tabSyncManager.publish("PROFILE_UPDATED", data);
   };
 

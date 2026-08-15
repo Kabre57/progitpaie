@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { prisma } from "@/lib/db";
+import { EmployeeRepository } from "@/lib/infrastructure/repositories/employee-repository";
 import { ApiResponse } from "@/types";
+
+const employeeRepo = new EmployeeRepository();
 
 export interface OrgNodeDTO {
   id: string;
@@ -23,25 +25,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) return authResult;
 
-    const employees = await prisma.user.findMany({
-      where: {
-        companyId: authResult.companyId,
-        role: "employee",
-        isActive: true,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        employeeId: true,
-        jobTitle: true,
-        departmentId: true,
-        managerId: true,
-        department: { select: { name: true } },
-        manager: { select: { name: true } },
-      },
-      orderBy: { name: "asc" },
-    });
+    const employees = await employeeRepo.findAllActive(authResult.companyId);
 
     const empMap = new Map<string, OrgNodeDTO>();
 
@@ -50,13 +34,13 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       empMap.set(emp.id, {
         id: emp.id,
         name: emp.name,
-        email: emp.email,
+        email: "",
         employeeId: emp.employeeId,
         jobTitle: emp.jobTitle || "Collaborateur",
-        departmentId: emp.departmentId,
-        departmentName: emp.department?.name || "Non assigné",
-        managerId: emp.managerId,
-        managerName: emp.manager?.name || null,
+        departmentId: null,
+        departmentName: emp.departmentName || "Non assigné",
+        managerId: null,
+        managerName: null,
         subordinates: [],
         subordinatesCount: 0,
       });
@@ -83,10 +67,11 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
         totalEmployees: employees.length,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/v2/org-chart error:", error);
+    const message = error instanceof Error ? error.message : "Erreur serveur";
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur", code: "SERVER_ERROR" },
+      { success: false, error: message, code: "SERVER_ERROR" },
       { status: 500 }
     );
   }

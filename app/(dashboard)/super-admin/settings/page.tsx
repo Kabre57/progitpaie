@@ -108,10 +108,18 @@ export default function SuperAdminSettingsPage() {
 
   const updateDraft = (section: SectionKey, field: string, value: number | boolean) => {
     if (!draft) return;
-    setDraft({
-      ...draft,
-      [section]: { ...(draft as any)[section], [field]: value },
-    });
+
+    if (section === "cnpsRates" && typeof value === "number") {
+      setDraft({ ...draft, cnpsRates: { ...draft.cnpsRates, [field]: value } });
+      return;
+    }
+    if (section === "leavePolicy" && typeof value === "number") {
+      setDraft({ ...draft, leavePolicy: { ...draft.leavePolicy, [field]: value } });
+      return;
+    }
+    if (section === "securityPolicy") {
+      setDraft({ ...draft, securityPolicy: { ...draft.securityPolicy, [field]: value } });
+    }
   };
 
   const hasChanges = JSON.stringify(settings) !== JSON.stringify(draft);

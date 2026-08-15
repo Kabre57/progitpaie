@@ -1,9 +1,11 @@
 "use client";
-import { motion } from "framer-motion";
+import { motion, type HTMLMotionProps } from "framer-motion";
 import { twMerge } from "tailwind-merge";
 import React from "react";
 
-export const Circle = ({ className, children, idx, ...rest }: any) => {
+type CircleProps = HTMLMotionProps<"div"> & { idx: number };
+
+export const Circle = ({ className, idx, ...rest }: CircleProps) => {
   return (
     <motion.div
       {...rest}

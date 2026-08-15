@@ -9,6 +9,7 @@
  */
 
 import crypto from "crypto";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 export interface ApiKeyCreateResult {
@@ -35,13 +36,14 @@ export class ApiKeyService {
     const keyPrefix = rawKey.substring(0, 12);
     const keyHash = this.hashKey(rawKey);
 
+    const permissionPayload: Prisma.InputJsonValue = permissions;
     const apiKeyRecord = await prisma.apiKey.create({
       data: {
         companyId,
         name,
         keyHash,
         keyPrefix,
-        permissions: permissions as any,
+        permissions: permissionPayload,
         isActive: true,
       },
     });
@@ -56,23 +58,25 @@ export class ApiKeyService {
 
   /**
    * Valide l'authenticité d'une clé API transmise dans les en-têtes HTTP (x-api-key ou Bearer)
+   * Retourne l'enregistrement de la clé si valide, null sinon.
    */
-  public async validateApiKey(rawKey: string): Promise<boolean> {
+  public async validateApiKey(rawKey: string): Promise<{ id: string; companyId: string } | null> {
     if (!rawKey || !rawKey.startsWith("pk_live_")) {
-      return false;
+      return null;
     }
 
     const keyHash = this.hashKey(rawKey);
     const record = await prisma.apiKey.findUnique({
       where: { keyHash },
+      select: { id: true, isActive: true, expiresAt: true, companyId: true },
     });
 
     if (!record || !record.isActive) {
-      return false;
+      return null;
     }
 
     if (record.expiresAt && record.expiresAt < new Date()) {
-      return false;
+      return null;
     }
 
     // Mise à jour asynchrone du dernier horodatage d'utilisation
@@ -81,7 +85,7 @@ export class ApiKeyService {
       data: { lastUsedAt: new Date() },
     });
 
-    return true;
+    return { id: record.id, companyId: record.companyId };
   }
 
   /**

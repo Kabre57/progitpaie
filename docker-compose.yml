@@ -3,20 +3,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 services:
-  migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: builder
-    command: ["npx", "prisma", "db", "push", "--schema=prisma/schema", "--accept-data-loss"]
-    environment:
-      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - progitpaie-net
-
   # 1. Application PROGITPAIE (Next.js)
   app:
     build:
@@ -39,8 +25,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-      migrate:
-        condition: service_completed_successfully
     volumes:
       - ./uploads:/app/public/uploads
     networks:

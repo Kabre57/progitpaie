@@ -11,7 +11,7 @@ import { AbstractPDFDocumentBuilder } from "./abstract-pdf-builder";
 import { drawPDFHeader } from "../components/pdf-header";
 import { drawPDFCompanyInfo } from "../components/pdf-company-info";
 import { drawPDFSignBlock } from "../components/pdf-sign-block";
-import autoTable from "jspdf-autotable";
+import autoTable, { CellHookData } from "jspdf-autotable";
 
 export interface CNPSDeclarationDataInput {
   month: number;
@@ -117,7 +117,7 @@ export class CNPSDeclarationBuilder extends AbstractPDFDocumentBuilder {
         6: { halign: "right", cellWidth: 20 },
         7: { halign: "right", cellWidth: 20 },
       },
-      didParseCell: (data: any) => {
+      didParseCell: (data: CellHookData) => {
         if (data.row.index === tableRows.length - 1) {
           data.cell.styles.fontStyle = "bold";
           data.cell.styles.fillColor = [224, 242, 254];
@@ -125,7 +125,7 @@ export class CNPSDeclarationBuilder extends AbstractPDFDocumentBuilder {
       },
     });
 
-    this.currentY = (this.doc as any).lastAutoTable?.finalY || (this.currentY + 60);
+    this.currentY = this.getLastAutoTableY(this.currentY + 60);
     return this;
   }
 

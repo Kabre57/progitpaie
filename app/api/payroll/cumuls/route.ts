@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { requireTenant } from "@/lib/database/tenant-context";
+import { PayslipRepository } from "@/lib/infrastructure/repositories/payslip-repository";
+
+const payslipRepo = new PayslipRepository();
 
 // GET /api/payroll/cumuls?year=2026
 export async function GET(request: NextRequest): Promise<Response> {
@@ -13,20 +15,11 @@ export async function GET(request: NextRequest): Promise<Response> {
     const { searchParams } = new URL(request.url);
     const year = parseInt(searchParams.get("year") || new Date().getFullYear() + "", 10);
 
-    // Fetch all payrolls for the given year
-    const payrolls = await prisma.payroll.findMany({
-      where: { year, user: { companyId: authResult.companyId } },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            employeeId: true,
-            department: { select: { name: true } },
-          },
-        },
-      },
-    });
+    // Fetch all payrolls for the given year for tenant
+    const allMonths = await Promise.all(
+      Array.from({ length: 12 }, (_, i) => payslipRepo.findAllByPeriod(i + 1, year))
+    );
+    const payrolls = allMonths.flat().filter((p) => p.user.companyId === authResult.companyId);
 
     const monthNames = [
       "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -74,7 +67,27 @@ export async function GET(request: NextRequest): Promise<Response> {
     });
 
     // 2. Cumul individuel par employé pour l'année
-    const employeeMap = new Map<string, any>();
+    type EmployeeCumul = {
+      userId: string;
+      name: string;
+      employeeId: string;
+      department: string;
+      monthsPaid: number;
+      cumulBasicSalary: number;
+      cumulSursalaire: number;
+      cumulGrossSalary: number;
+      cumulBonuses: number;
+      cumulOvertimePay: number;
+      cumulTransport: number;
+      cumulItsTax: number;
+      cumulIgrTax: number;
+      cumulCnpsEmployee: number;
+      cumulCnpsEmployer: number;
+      cumulFdfpTax: number;
+      cumulDeductions: number;
+      cumulNetSalary: number;
+    };
+    const employeeMap = new Map<string, EmployeeCumul>();
 
     for (const p of payrolls) {
       const uId = p.userId;
@@ -102,6 +115,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       }
 
       const emp = employeeMap.get(uId);
+      if (!emp) continue;
       emp.monthsPaid += 1;
       emp.cumulBasicSalary += p.basicSalary || 0;
       emp.cumulSursalaire += p.sursalaire || 0;

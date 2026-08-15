@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { requireTenant } from "@/lib/database/tenant-context";
+import { PrismaPayrollRepository } from "@/lib/infrastructure/repositories/prisma/PrismaPayrollRepository";
+
+const payrollRepo = new PrismaPayrollRepository();
 
 // GET /api/payroll/rns?userId=xxx
 export async function GET(request: NextRequest): Promise<Response> {
@@ -11,46 +13,47 @@ export async function GET(request: NextRequest): Promise<Response> {
     }
 
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
+    const userId = searchParams.get("userId") || undefined;
 
-    // Fetch payroll history grouped by year
-    const payrolls = await prisma.payroll.findMany({
-      where: { ...(userId ? { userId } : {}), user: { companyId: authResult.companyId } },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            employeeId: true,
-            cnpsNumber: true,
-            joiningDate: true,
-            exitDate: true,
-            jobTitle: true,
-          },
-        },
-      },
-      orderBy: [{ year: "desc" }, { month: "asc" }],
+    const domainPayrolls = await payrollRepo.list({
+      companyId: authResult.companyId,
+      ...(userId ? { userId } : {}),
     });
 
     // Group by employee and year
-    const employeeRnsMap: Record<string, any> = {};
+    type RnsYear = {
+      year: number;
+      monthsWorked: number;
+      grossCnpsSalary: number;
+    };
+    type RnsEmployee = {
+      userId: string;
+      name: string;
+      employeeId: string;
+      cnpsNumber: string;
+      joiningDate: Date | null;
+      exitDate: Date | null;
+      jobTitle: string;
+      years: Record<number, RnsYear>;
+    };
+    const employeeRnsMap: Record<string, RnsEmployee> = {};
 
-    for (const p of payrolls) {
+    for (const p of domainPayrolls) {
       const uId = p.userId;
       if (!employeeRnsMap[uId]) {
         employeeRnsMap[uId] = {
-          userId: p.user.id,
-          name: p.user.name,
-          employeeId: p.user.employeeId || "-",
-          cnpsNumber: p.user.cnpsNumber || "N/A",
-          joiningDate: p.user.joiningDate,
-          exitDate: p.user.exitDate,
-          jobTitle: p.user.jobTitle || "Collaborateur",
+          userId: p.userId,
+          name: "Collaborateur",
+          employeeId: "-",
+          cnpsNumber: "N/A",
+          joiningDate: null,
+          exitDate: null,
+          jobTitle: "Collaborateur",
           years: {},
         };
       }
 
-      const y = p.year;
+      const y = p.period.year;
       if (!employeeRnsMap[uId].years[y]) {
         employeeRnsMap[uId].years[y] = {
           year: y,
@@ -60,7 +63,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       }
 
       employeeRnsMap[uId].years[y].monthsWorked += 1;
-      employeeRnsMap[uId].years[y].grossCnpsSalary += Math.round(p.grossSalary);
+      employeeRnsMap[uId].years[y].grossCnpsSalary += Math.round(p.grossSalary.toNumber());
     }
 
     const data = Object.values(employeeRnsMap);

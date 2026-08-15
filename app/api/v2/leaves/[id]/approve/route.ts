@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireTenant } from "@/lib/database/tenant-context";
-import { PrismaLeaveRepository } from "@/lib/infrastructure/repositories/prisma/PrismaLeaveRepository";
-import { ApproveLeaveUseCase } from "@/lib/application/leave/use-cases/ApproveRejectLeaveUseCase";
 import { leaveDecisionSchema } from "@/shared/validation/leave-v2.schema";
 import { ApiResponse } from "@/types";
+import { ApproveLeaveWorkflowUseCase } from "@/lib/application/leave/use-cases/ApproveLeaveWorkflowUseCase";
+import { PrismaLeaveApprovalWorkflowRepository } from "@/lib/infrastructure/repositories/prisma/PrismaLeaveApprovalWorkflowRepository";
 
-const repository = new PrismaLeaveRepository();
-const approveUseCase = new ApproveLeaveUseCase(repository);
+const approveLeave = new ApproveLeaveWorkflowUseCase(new PrismaLeaveApprovalWorkflowRepository());
+const idSchema = z.string().trim().min(1);
 
 // PUT /api/v2/leaves/[id]/approve - Approuver un congé avec workflow N1/N2
 export async function PUT(
@@ -17,72 +18,51 @@ export async function PUT(
     const authResult = await requireTenant(request, "admin");
     if (authResult instanceof NextResponse) return authResult;
 
-    const { id } = await params;
-    const body = await request.json().catch(() => ({}));
-    const parseResult = leaveDecisionSchema.safeParse(body);
-    if (!parseResult.success) {
+    const parsedId = idSchema.safeParse((await params).id);
+    const payload: unknown = await request.json().catch(() => ({}));
+    const parsedBody = leaveDecisionSchema.safeParse(payload);
+    if (!parsedId.success || !parsedBody.success) {
       return NextResponse.json(
         { success: false, error: "Données de décision invalides", code: "VALIDATION_ERROR" },
         { status: 400 }
       );
     }
 
-    const { prisma } = await import("@/lib/db");
-    const leave = await prisma.leave.findFirst({
-      where: { id, companyId: authResult.companyId },
+    const result = await approveLeave.execute({
+      companyId: authResult.companyId,
+      adminId: authResult.userId,
+      leaveId: parsedId.data,
+      comment: parsedBody.data.comment,
     });
+    const isN1 = result.status === "pending_n2";
 
-    if (!leave) {
+    return NextResponse.json(
+      {
+        success: true,
+        data: result,
+        message: isN1
+          ? "Validation N1 effectuée avec succès. Transmise à la Direction RH (N2)."
+          : "Demande de congé approuvée définitivement (N2).",
+      },
+      { status: 200 }
+    );
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "LEAVE_NOT_FOUND") {
       return NextResponse.json(
         { success: false, error: "Demande de congé non trouvée", code: "NOT_FOUND" },
         { status: 404 }
       );
     }
-
-    // Si statut = pending_n1 ➔ Validation N1 ➔ passage à pending_n2
-    if (leave.status === "pending_n1") {
-      const updated = await prisma.leave.update({
-        where: { id },
-        data: {
-          status: "pending_n2",
-          approvedByN1Id: authResult.userId,
-          approvedByN1At: new Date(),
-          adminComment: parseResult.data.comment || leave.adminComment,
-        },
-      });
-
+    if (error instanceof Error && error.message === "LEAVE_CANNOT_APPROVE") {
       return NextResponse.json(
-        { success: true, data: updated, message: "Validation N1 effectuée avec succès. Transmise à la Direction RH (N2)." },
-        { status: 200 }
+        { success: false, error: "Cette demande de congé ne peut plus être approuvée", code: "INVALID_STATE" },
+        { status: 400 }
       );
     }
-
-    // Sinon (pending_n2 ou pending) ➔ Validation finale N2 & décompte du solde
-    const data = await approveUseCase.execute({
-      companyId: authResult.companyId,
-      adminId: authResult.userId,
-      leaveId: id,
-      comment: parseResult.data.comment,
-    });
-
-    await prisma.leave.update({
-      where: { id },
-      data: {
-        approvedByN2Id: authResult.userId,
-        approvedByN2At: new Date(),
-      },
-    }).catch(() => null);
-
-    return NextResponse.json(
-      { success: true, data, message: "Demande de congé approuvée définitivement (N2)." },
-      { status: 200 }
-    );
-  } catch (error: any) {
     console.error("PUT /api/v2/leaves/[id]/approve error:", error);
-    const status = error.message.includes("non trouvée") ? 404 : 400;
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur lors de l'approbation", code: "SERVER_ERROR" },
-      { status }
+      { success: false, error: "Erreur lors de l'approbation", code: "SERVER_ERROR" },
+      { status: 500 }
     );
   }
 }

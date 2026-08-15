@@ -1,142 +1,110 @@
-/**
- * ═══════════════════════════════════════════════════════════════════════════════
- * PROGITPAIE — Route API Enregistrement Géolocalisation Bureau (/api/settings/location) 📍
- * ═══════════════════════════════════════════════════════════════════════════════
- */
-
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAdmin } from "@/lib/middleware-helpers";
-import { prisma } from "@/lib/db";
 import { GeolocationCache } from "@/lib/services/geolocation-cache";
+import {
+  GetCompanySettingsUseCase,
+  UpdateCompanySettingUseCase,
+} from "@/lib/application/settings/use-cases/CompanySettingsUseCases";
+import { PrismaCompanySettingsRepository } from "@/lib/infrastructure/repositories/prisma/PrismaCompanySettingsRepository";
 
 const geoCache = GeolocationCache.getInstance();
+const repository = new PrismaCompanySettingsRepository();
+const getCompanySettings = new GetCompanySettingsUseCase(repository);
+const updateCompanySetting = new UpdateCompanySettingUseCase(repository);
+
+const locationSchema = z.object({
+  latitude: z.coerce.number().finite().optional(),
+  longitude: z.coerce.number().finite().optional(),
+  officeLat: z.coerce.number().finite().optional(),
+  officeLng: z.coerce.number().finite().optional(),
+  radiusMeters: z.coerce.number().finite().positive().optional(),
+});
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function numberOrFallback(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
 
 export async function GET(request: NextRequest): Promise<Response> {
   try {
     const authResult = await requireAdmin(request);
     if (authResult instanceof NextResponse) return authResult;
+    if (!authResult.companyId) {
+      return NextResponse.json({ success: false, error: "ID d'entreprise requis" }, { status: 400 });
+    }
 
-    const globalSettings = await prisma.settings.findUnique({
-      where: { key: "location" },
-    });
-
-    const company = await prisma.company.findFirst({
-      orderBy: { isMain: "desc" },
-    });
-
-    const lat = company?.latitude ?? (globalSettings?.value as any)?.latitude ?? 5.3484;
-    const lng = company?.longitude ?? (globalSettings?.value as any)?.longitude ?? -4.0305;
-    const radius = company?.radiusMeters ?? (globalSettings?.value as any)?.radiusMeters ?? 100;
+    const result = await getCompanySettings.execute(authResult.companyId, authResult.userId);
+    const location = isRecord(result.settings.location) ? result.settings.location : {};
+    const latitude = numberOrFallback(location.officeLat ?? location.latitude, 5.3484);
+    const longitude = numberOrFallback(location.officeLng ?? location.longitude, -4.0305);
+    const radiusMeters = numberOrFallback(location.radiusMeters, 100);
 
     return NextResponse.json({
       success: true,
-      data: {
-        latitude: lat,
-        longitude: lng,
-        officeLat: lat,
-        officeLng: lng,
-        radiusMeters: radius,
-      },
+      data: { latitude, longitude, officeLat: latitude, officeLng: longitude, radiusMeters },
     });
-  } catch (error: any) {
-    return NextResponse.json({
-      success: true,
-      data: { latitude: 5.3484, longitude: -4.0305, officeLat: 5.3484, officeLng: -4.0305, radiusMeters: 100 },
-    });
+  } catch (error: unknown) {
+    console.error("GET /api/settings/location error:", error);
+    return NextResponse.json(
+      { success: false, error: "Impossible de récupérer les coordonnées GPS" },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
   try {
     const authResult = await requireAdmin(request);
-    if (authResult instanceof NextResponse) {
-      return authResult;
+    if (authResult instanceof NextResponse) return authResult;
+    if (!authResult.companyId) {
+      return NextResponse.json({ success: false, error: "ID d'entreprise requis" }, { status: 400 });
     }
 
-    const body = await request.json();
-    const { companyId, latitude, longitude, radiusMeters, officeLat, officeLng } = body;
+    const parsed = locationSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: "Coordonnées GPS invalides", details: parsed.error.issues },
+        { status: 400 }
+      );
+    }
 
-    const finalLat = latitude !== undefined ? latitude : officeLat;
-    const finalLng = longitude !== undefined ? longitude : officeLng;
-
-    if (finalLat === undefined || finalLng === undefined) {
+    const latitude = parsed.data.latitude ?? parsed.data.officeLat;
+    const longitude = parsed.data.longitude ?? parsed.data.officeLng;
+    if (latitude === undefined || longitude === undefined) {
       return NextResponse.json(
         { success: false, error: "Latitude et longitude requises." },
         { status: 400 }
       );
     }
+    const radiusMeters = parsed.data.radiusMeters ?? 100;
+    const value = {
+      latitude,
+      longitude,
+      officeLat: latitude,
+      officeLng: longitude,
+      radiusMeters,
+    };
 
-    const latNum = parseFloat(finalLat);
-    const lngNum = parseFloat(finalLng);
-    const radNum = parseFloat(radiusMeters || 100);
-
-    // 1. Sauvegarde dans la table globale Settings (Anti-crash)
-    try {
-      await prisma.settings.upsert({
-        where: { key: "location" },
-        create: {
-          key: "location",
-          value: {
-            latitude: latNum,
-            longitude: lngNum,
-            officeLat: latNum,
-            officeLng: lngNum,
-            radiusMeters: radNum,
-          },
-        },
-        update: {
-          value: {
-            latitude: latNum,
-            longitude: lngNum,
-            officeLat: latNum,
-            officeLng: lngNum,
-            radiusMeters: radNum,
-          },
-        },
-      });
-    } catch (err) {
-      console.error("Settings upsert error:", err);
-    }
-
-    // 2. Sauvegarde sur la société
-    try {
-      let targetCompanyId = companyId;
-      if (!targetCompanyId) {
-        const company = await prisma.company.findFirst({
-          orderBy: { isMain: "desc" },
-        });
-        if (company) {
-          targetCompanyId = company.id;
-        }
-      }
-
-      if (targetCompanyId) {
-        await prisma.company.update({
-          where: { id: targetCompanyId },
-          data: {
-            latitude: latNum,
-            longitude: lngNum,
-            radiusMeters: radNum,
-          },
-        });
-        geoCache.invalidateCache(targetCompanyId);
-      }
-    } catch (err) {
-      console.error("Company update error:", err);
-    }
-
-    geoCache.invalidateCache();
+    await updateCompanySetting.execute({
+      companyId: authResult.companyId,
+      key: "location",
+      value,
+      companyLocation: { latitude, longitude, radiusMeters },
+    });
+    geoCache.invalidateCache(authResult.companyId);
 
     return NextResponse.json({
       success: true,
       message: "Coordonnées GPS et rayon de pointage enregistrés avec succès.",
-      data: { latitude: latNum, longitude: lngNum, radiusMeters: radNum },
+      data: { latitude, longitude, radiusMeters },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/settings/location error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message || "Échec de sauvegarde des coordonnées GPS." },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : "Échec de sauvegarde des coordonnées GPS.";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

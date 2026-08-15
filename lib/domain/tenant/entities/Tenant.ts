@@ -13,6 +13,8 @@ export interface TenantProps {
   phone?: string;
   email?: string;
   isMain: boolean;
+  isDemo?: boolean;
+  demoExpiresAt?: Date;
   status: TenantStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -70,6 +72,14 @@ export class Tenant {
 
   public get isMain(): boolean {
     return this.props.isMain;
+  }
+
+  public get isDemo(): boolean {
+    return this.props.isDemo ?? false;
+  }
+
+  public get demoExpiresAt(): Date | undefined {
+    return this.props.demoExpiresAt;
   }
 
   public get status(): TenantStatus {

@@ -22,6 +22,8 @@ export interface EmployeePayrollData {
   readonly baseSalary: number;
   readonly sursalaire: number;
   readonly transportAllowance: number;
+  /** Indemnité de logement ; intégrée au brut selon le paramétrage de l'entreprise. */
+  readonly housingAllowance?: number;
   readonly category: string;
   readonly partsIGR: number;
   readonly cnpsNumber: string;
@@ -36,12 +38,18 @@ export interface EmployeePayrollData {
 export interface MonthlyVariableElements {
   readonly overtimeHours: number;
   readonly overtimeRate: number;
+  /** Montant déjà calculé lorsque plusieurs majorations d'heures supplémentaires coexistent. */
+  readonly overtimeAmount?: number;
   readonly bonuses: ReadonlyArray<{
     readonly label: string;
     readonly amount: number;
     readonly isTaxable: boolean;
   }>;
   readonly absenceDays: number;
+  /** Retenues de présence déjà déterminées par le service de génération. */
+  readonly absenceDeduction?: number;
+  readonly lateDeduction?: number;
+  readonly unpaidLeaveDeduction?: number;
   readonly loanDeduction: number;
 }
 
@@ -67,28 +75,37 @@ export interface TaxRatesConfig {
   readonly cmuEmployerRate: number;                // ex: 2%
   readonly fdfpTARate: number;                     // ex: 0.4%
   readonly fdfpTFCRate: number;                    // ex: 1.2%
-  // Impôts
-  readonly itsRate: number;                        // ex: 1.2%
-  readonly ceRate: number;                         // ex: 11.5%
-  readonly cnRate: number;                         // ex: 1.2%
+  // Impôts et exonérations
+  /** Champ historique conservé pour compatibilité ; l'ITS 2024 est calculé par barème. */
+  readonly itsRate: number;
+  readonly ceRate: number;
+  /** Champ historique : la CN salariale est intégrée dans l'ITS unique depuis 2024. */
+  readonly cnRate: number;
+  readonly transportExemptAmount?: number;
+  /** Identifiant versionné de la règle appliquée au calcul et au snapshot. */
+  readonly ruleVersion?: string;
   // Plafonds CNPS
-  readonly cnpsMonthlyRetirementCeiling: number;   // ex: 2 421 250 FCFA
-  readonly cnpsMonthlyCeiling70K: number;          // ex: 70 000 FCFA (PF/AT)
+  readonly cnpsMonthlyRetirementCeiling: number;   // 3 375 000 FCFA depuis le 01/01/2023
+  readonly cnpsMonthlyCeiling70K: number;          // 70 000 FCFA (PF/AT)
+  /** Montant forfaitaire de la base CMU (ex: 1 000 FCFA) */
+  readonly cmuBase?: number;
 }
 
-/** Tranche du barème progressif de l'IGR */
+/** Tranche du barème progressif de l'ITS / IGR */
 export interface IGRBracket {
   readonly min: number;
   readonly max: number;
-  readonly rate: number;      // Taux marginal (ex: 0, 0.10, 0.15, etc.)
+  readonly rate: number;            // Taux marginal (ex: 0, 0.16, 0.21, etc.)
+  readonly quickDeduction?: number; // Déduction fixe d'abattement rapide (ex: 12 000, 24 000, etc.)
 }
 
-/** Barème complet de l'IGR (versioning immuable) */
+/** Barème complet de l'ITS / IGR (versioning immuable & configurable) */
 export interface IGRSchedule {
-  readonly validFrom: string;   // ex: "2024-01-01"
-  readonly validTo: string;     // ex: "2099-12-31"
+  readonly validFrom: string;       // ex: "2024-01-01"
+  readonly validTo: string;         // ex: "2099-12-31"
   readonly brackets: ReadonlyArray<IGRBracket>;
-  readonly creditPerPart: number;  // Crédit d'impôt par part
+  readonly creditPerPart: number;   // Crédit d'impôt par part
+  readonly ricfTable?: Record<number, number>; // Table de réduction pour charges de famille
 }
 
 // ─── Résultats de calcul ─────────────────────────────────────────────────────
@@ -113,11 +130,13 @@ export interface EmployerContributions {
 
 /** Détail des impôts retenus sur salaire */
 export interface TaxDeductions {
-  readonly its: number;           // Impôt sur Traitements et Salaires
-  readonly cn: number;            // Contribution Nationale
-  readonly igr: number;           // Impôt Général sur le Revenu
+  readonly its: number;           // ITS unique à retenir au salarié
+  /** Compatibilité historique : toujours 0 pour les règles CI-ITS-2024+. */
+  readonly cn: number;
+  /** Compatibilité historique : toujours 0 pour les règles CI-ITS-2024+. */
+  readonly igr: number;
   readonly ce: number;            // Contribution Employeur (à la charge de l'employeur)
-  readonly totalTaxEmployee: number;  // IS + CN + IGR (retenu au salarié)
+  readonly totalTaxEmployee: number;  // ITS unique retenu au salarié
 }
 
 /** Résultat complet du calcul d'un bulletin de paie */
@@ -131,9 +150,14 @@ export interface PayslipResult {
   readonly baseSalary: number;
   readonly sursalaire: number;
   readonly transportAllowance: number;
+  readonly housingAllowance: number;
   readonly overtimePay: number;
   readonly totalBonuses: number;
+  /** Brut avant les retenues d'absence, retard et congé sans solde. */
   readonly grossSalary: number;
+  /** Brut imposable/social après retenues de présence et exonération transport. */
+  readonly taxableGross: number;
+  readonly attendanceDeductions: number;
   // Cotisations
   readonly employeeContributions: EmployeeContributions;
   readonly employerContributions: EmployerContributions;

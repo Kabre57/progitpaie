@@ -34,12 +34,33 @@ const getNextMonth = (monthStr: string) => {
   return `${y}-${m}`;
 };
 
+interface OvertimeEmployee {
+  id: string;
+  name: string;
+  employeeId?: string | null;
+  email?: string | null;
+  salary?: number | null;
+  jobTitle?: string | null;
+  service?: string | null;
+  direction?: string | null;
+}
+
+interface OvertimeRecord {
+  id: string;
+  date: string;
+  minutes: number;
+  rate: number;
+  reason?: string | null;
+  status: "pending" | "approved" | "rejected";
+  user?: OvertimeEmployee | null;
+}
+
 export default function OvertimePage() {
   const now = new Date();
   const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  const [overtimes, setOvertimes] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
+  const [overtimes, setOvertimes] = useState<OvertimeRecord[]>([]);
+  const [employees, setEmployees] = useState<OvertimeEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -54,7 +75,7 @@ export default function OvertimePage() {
 
   // State pour la justification obligatoire des mois passés
   const [showJustificationModal, setShowJustificationModal] = useState(false);
-  const [selectedOvertimeForJustification, setSelectedOvertimeForJustification] = useState<any | null>(null);
+  const [selectedOvertimeForJustification, setSelectedOvertimeForJustification] = useState<OvertimeRecord | null>(null);
   const [justificationReason, setJustificationReason] = useState("");
 
   // Form State for 5 legal tranches
@@ -130,7 +151,7 @@ export default function OvertimePage() {
   const totalPages = Math.ceil(filteredOvertimes.length / itemsPerPage);
   const paginatedOvertimes = filteredOvertimes.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const handleValidateClick = (o: any) => {
+  const handleValidateClick = (o: OvertimeRecord) => {
     if (isRecordPastMonth(o.date)) {
       setSelectedOvertimeForJustification(o);
       setJustificationReason("");

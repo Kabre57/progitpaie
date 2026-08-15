@@ -23,7 +23,8 @@ import type {
   TaxRatesConfig,
   IGRSchedule,
 } from "../types/payroll-types";
-import { calculateAllTaxDeductions, DEFAULT_IGR_SCHEDULE } from "./its-calculator";
+import { calculateAllTaxDeductions, DEFAULT_ITS_SCHEDULE } from "./its-calculator";
+import { CI_ITS_2024_RULE } from "../rules/ci-its-2024-rule";
 import { calculateAllEmployeeContributions, calculateAllEmployerContributions } from "./cnps-calculator";
 
 // ─── Calcul des éléments de rémunération ─────────────────────────────────────
@@ -102,7 +103,7 @@ export function calculateSeniorityYears(joiningDate: string, month: number, year
 export function calculatePayslip(
   input: PayslipCalculationInput,
   rates: TaxRatesConfig,
-  igrSchedule: IGRSchedule = DEFAULT_IGR_SCHEDULE,
+  igrSchedule: IGRSchedule = DEFAULT_ITS_SCHEDULE,
   includeCMU: boolean = true
 ): PayslipResult {
   const { employee, month, year, variables } = input;
@@ -111,8 +112,9 @@ export function calculatePayslip(
   const baseSalary = employee.baseSalary;
   const sursalaire = employee.sursalaire;
   const transportAllowance = employee.transportAllowance;
+  const housingAllowance = employee.housingAllowance ?? 0;
 
-  const overtimePay = calculateOvertimePay(
+  const overtimePay = variables.overtimeAmount ?? calculateOvertimePay(
     variables.overtimeHours,
     variables.overtimeRate
   );
@@ -121,37 +123,49 @@ export function calculatePayslip(
     (sum, bonus) => sum + bonus.amount,
     0
   );
+  const attendanceDeductions = Math.max(
+    0,
+    (variables.absenceDeduction ?? 0) +
+      (variables.lateDeduction ?? 0) +
+      (variables.unpaidLeaveDeduction ?? 0)
+  );
 
-  // ─── 2. Bruts ──────────────────────────────────────────────────
-  const grossSalary = baseSalary + sursalaire + overtimePay + totalBonuses;
+  // ─── 2. Bruts et bases CI ───────────────────────────────────────
+  // Le transport demeure présenté séparément. Sa fraction exonérée est retirée de la
+  // base sociale/fiscale, conformément au paramétrage versionné de l’entreprise.
+  const grossSalary = Math.max(0, baseSalary + sursalaire + housingAllowance + overtimePay + totalBonuses);
+  const grossCashBeforeAttendance = grossSalary + transportAllowance;
+  const grossCashAfterAttendance = Math.max(0, grossCashBeforeAttendance - attendanceDeductions);
+  const transportExemptAmount = Math.min(transportAllowance, rates.transportExemptAmount ?? 30_000);
+  const taxableGross = Math.max(0, grossCashAfterAttendance - transportExemptAmount);
+  const isZeroGross = grossCashAfterAttendance <= 0;
 
   // ─── 3. Cotisations sociales (CNPS + CMU + FDFP) ──────────────
-  const employeeContributions = calculateAllEmployeeContributions(
-    grossSalary,
-    rates,
-    includeCMU
-  );
+  const employeeContributions = isZeroGross
+    ? { cnpsRetirement: 0, cmu: 0, totalEmployee: 0 }
+    : calculateAllEmployeeContributions(taxableGross, rates, includeCMU);
 
-  const employerContributions = calculateAllEmployerContributions(
-    grossSalary,
-    rates,
-    includeCMU
-  );
+  const employerContributions = isZeroGross
+    ? { cnpsRetirement: 0, cnpsFamily: 0, cnpsAccident: 0, cmu: 0, fdfpTA: 0, fdfpTFC: 0, totalEmployer: 0 }
+    : calculateAllEmployerContributions(taxableGross, rates, includeCMU);
 
-  // ─── 4. Impôts (ITS + CN + IGR + CE) ──────────────────────────
-  const taxDeductions = calculateAllTaxDeductions(
-    grossSalary,
-    employee.partsIGR,
-    rates,
-    igrSchedule
-  );
+  // ─── 4. ITS unique (Réforme CI 2024 + RICF) ───────────────────
+  const taxDeductions = isZeroGross
+    ? { its: 0, cn: 0, igr: 0, ce: 0, totalTaxEmployee: 0 }
+    : calculateAllTaxDeductions(
+        taxableGross,
+        employee.partsIGR,
+        rates,
+        igrSchedule,
+        employeeContributions.cnpsRetirement
+      );
 
   // ─── 5. Totaux et Net ─────────────────────────────────────────
   const totalDeductions =
-    employeeContributions.totalEmployee + taxDeductions.totalTaxEmployee;
+    attendanceDeductions + employeeContributions.totalEmployee + taxDeductions.totalTaxEmployee;
 
-  const netSalary = grossSalary + transportAllowance - totalDeductions;
-  const netToPay = netSalary - variables.loanDeduction;
+  const netSalary = isZeroGross ? 0 : Math.max(0, grossCashBeforeAttendance - totalDeductions);
+  const netToPay = isZeroGross ? 0 : Math.max(0, netSalary - variables.loanDeduction);
 
   // ─── 6. Résultat immutable ─────────────────────────────────────
   return {
@@ -162,9 +176,12 @@ export function calculatePayslip(
     baseSalary,
     sursalaire,
     transportAllowance,
+    housingAllowance,
     overtimePay,
     totalBonuses,
     grossSalary,
+    taxableGross,
+    attendanceDeductions,
     employeeContributions,
     employerContributions,
     taxDeductions,
@@ -172,6 +189,6 @@ export function calculatePayslip(
     netSalary,
     netToPay,
     calculatedAt: new Date().toISOString(),
-    formulaVersion: ` -CI-${igrSchedule.validFrom.substring(0, 4)}-v1`,
+    formulaVersion: rates.ruleVersion ?? CI_ITS_2024_RULE.id,
   };
 }

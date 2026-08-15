@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant } from "@/lib/database/tenant-context";
 import { PrismaEmployeeRepository } from "@/lib/infrastructure/repositories/prisma/PrismaEmployeeRepository";
@@ -31,10 +32,10 @@ export async function GET(
     }
 
     return NextResponse.json({ success: true, data }, { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/v2/employees/[id] error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur", code: "SERVER_ERROR" },
+      { success: false, error: getErrorMessage(error) || "Erreur serveur", code: "SERVER_ERROR" },
       { status: 500 }
     );
   }
@@ -69,11 +70,11 @@ export async function PUT(
       { success: true, data, message: "Fiche salarié mise à jour avec succès" },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("PUT /api/v2/employees/[id] error:", error);
-    const status = error.message.includes("non trouvé") ? 404 : 400;
+    const status = getErrorMessage(error).includes("non trouvé") ? 404 : 400;
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur de mise à jour", code: "SERVER_ERROR" },
+      { success: false, error: getErrorMessage(error) || "Erreur de mise à jour", code: "SERVER_ERROR" },
       { status }
     );
   }
@@ -95,11 +96,11 @@ export async function DELETE(
       { success: true, data, message: "Salarié désactivé avec succès" },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("DELETE /api/v2/employees/[id] error:", error);
-    const status = error.message.includes("non trouvé") ? 404 : 500;
+    const status = getErrorMessage(error).includes("non trouvé") ? 404 : 500;
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur de suppression", code: "SERVER_ERROR" },
+      { success: false, error: getErrorMessage(error) || "Erreur de suppression", code: "SERVER_ERROR" },
       { status }
     );
   }

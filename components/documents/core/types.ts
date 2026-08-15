@@ -22,6 +22,33 @@ export interface ArticleItem {
   content: string;
 }
 
+export interface PayslipAppearanceConfig {
+  primaryColor?: string;
+  headerTitle?: string;
+  headerSubtitle?: string;
+}
+
+export interface PayslipLegalConfig {
+  legalNotice?: string;
+  showEmployerStamp?: boolean;
+  showEmployeeSignature?: boolean;
+}
+
+export interface PayslipRatesConfig {
+  cnpsEmployeeRetraite: number;
+  cnpsEmployerRetraite: number;
+  cnpsEmployerAT: number;
+  cnpsEmployerPF: number;
+  fdfpTA: number;
+  fdfpFPC: number;
+  itsRate: number;
+  cmuBase: number;
+  cmuEmployeeRate: number;
+  cmuEmployerRate: number;
+  transportExemptAmount: number;
+  showCMU?: boolean;
+}
+
 export interface DocumentPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;

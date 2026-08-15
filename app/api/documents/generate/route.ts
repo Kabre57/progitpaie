@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsPDF } from "jspdf";
-import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
+import type { DocumentEmployeeProfile } from "@/lib/application/document/ports/DocumentGenerationRepository";
+import { PrismaDocumentGenerationRepository } from "@/lib/infrastructure/repositories/prisma/PrismaDocumentGenerationRepository";
 import { requireTenant } from "@/lib/database/tenant-context";
 import { validateBody } from "@/lib/validate";
 import { documentGenerationSchema, type DocumentGenerationInput } from "@/shared/validation/document.schema";
@@ -12,9 +12,9 @@ import { generateSeveranceHTML } from "@/lib/templates/documents/severance-templ
 import { PDFDocumentFactory } from "@/lib/infrastructure/pdf/pdf-document-factory";
 import { ContractPDFBuilder } from "@/lib/infrastructure/pdf/builders/contract-pdf-builder";
 
-type EmployeeDocumentRecord = Prisma.UserGetPayload<{
-  include: { company: true; department: true };
-}>;
+const documentRepository = new PrismaDocumentGenerationRepository();
+
+type EmployeeDocumentRecord = DocumentEmployeeProfile;
 
 function jsonObject(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     const input = validation.data;
     const targetUserId = input.userId ?? input.employeeId;
 
-    const company = await prisma.company.findUnique({ where: { id: tenant.companyId } });
+    const company = await documentRepository.getCompany(tenant.companyId);
     if (!company) {
       return NextResponse.json({ success: false, error: "Société introuvable" }, { status: 404 });
     }
@@ -125,23 +125,17 @@ export async function POST(request: NextRequest): Promise<Response> {
         fdfpData: jsonObject(input.fdfpData),
       });
     } else if (["payslip", "bulletin"].includes(input.docType)) {
-      const payroll = await prisma.payroll.findFirst({
-        where: { userId: targetUserId, month: input.month, year: input.year, user: { companyId: tenant.companyId } },
-        include: { user: true },
-      });
+      const payroll = await documentRepository.getPayslip(tenant.companyId, targetUserId, input.month, input.year);
       if (!payroll) return NextResponse.json({ success: false, error: "Bulletin introuvable" }, { status: 404 });
-      pdf = textPdf("BULLETIN DE PAIE", `${payroll.user.name} - ${input.month}/${input.year}\nSalaire brut: ${payroll.grossSalary} FCFA\nRetenues: ${payroll.totalDeductions} FCFA\nNet à payer: ${payroll.netSalary} FCFA`);
+      pdf = textPdf("BULLETIN DE PAIE", `${payroll.employeeName} - ${input.month}/${input.year}\nSalaire brut: ${payroll.grossSalary} FCFA\nRetenues: ${payroll.totalDeductions} FCFA\nNet à payer: ${payroll.netSalary} FCFA`);
     } else if (input.docType === "ordre_virement") {
       pdf = textPdf("ORDRE DE VIREMENT", `Banque: ${input.bankName ?? "Non renseignée"}\nPériode: ${input.month}/${input.year}\nMontant total: ${input.totalAmount ?? 0} FCFA`);
     } else if (input.docType === "rns") {
-      const employee = await prisma.user.findFirst({ where: { id: targetUserId, companyId: tenant.companyId } });
+      const employee = await documentRepository.getEmployee(tenant.companyId, targetUserId);
       if (!employee) return NextResponse.json({ success: false, error: "Salarié introuvable" }, { status: 404 });
       pdf = textPdf("RELEVÉ NOMINATIF DES SALAIRES", `${input.customName ?? employee.name}\n${JSON.stringify(input.rnsData ?? [], null, 2)}`);
     } else if (input.docType === "contract") {
-      const employee = await prisma.user.findFirst({
-        where: { id: targetUserId, companyId: tenant.companyId },
-        include: { company: true, department: true },
-      });
+      const employee = await documentRepository.getEmployee(tenant.companyId, targetUserId);
       if (!employee) return NextResponse.json({ success: false, error: "Salarié introuvable" }, { status: 404 });
 
       pdf = ContractPDFBuilder.generatePDF({
@@ -164,10 +158,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         ],
       });
     } else {
-      const employee = await prisma.user.findFirst({
-        where: { id: targetUserId, companyId: tenant.companyId },
-        include: { company: true, department: true },
-      });
+      const employee = await documentRepository.getEmployee(tenant.companyId, targetUserId);
       if (!employee) return NextResponse.json({ success: false, error: "Salarié introuvable" }, { status: 404 });
       const document = employeeHtml(input, employee);
       pdf = textPdf(document.title.toUpperCase(), htmlToText(document.html));

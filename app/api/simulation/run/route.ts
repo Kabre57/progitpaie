@@ -25,7 +25,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       success: true,
       simulation: result,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/simulation/run error:", error);
     return NextResponse.json(
       { success: false, error: "Échec du calcul de la simulation budgétaire" },

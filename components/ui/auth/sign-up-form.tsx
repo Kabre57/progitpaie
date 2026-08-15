@@ -4,12 +4,13 @@ import React, { useState } from "react";
 import { Label, Input, PasswordInput, Button } from "@/components/ui/auth-fuse";
 
 export interface SignUpFormProps {
-  onSubmit: (data: { name: string; email: string; password: string; department?: string }) => void;
+  onSubmit: (data: { name: string; email: string; password: string; department?: string; companyName?: string }) => void;
   isLoading?: boolean;
   error?: string | null;
 }
 
 export function SignUpForm({ onSubmit, isLoading, error }: SignUpFormProps) {
+  const [companyName, setCompanyName] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,7 +26,7 @@ export function SignUpForm({ onSubmit, isLoading, error }: SignUpFormProps) {
       return;
     }
     setValidationError(null);
-    onSubmit({ name, email, password, department: department || undefined });
+    onSubmit({ name, email, password, department: department || undefined, companyName: companyName || undefined });
   };
 
   const departmentOptions = [
@@ -42,10 +43,10 @@ export function SignUpForm({ onSubmit, isLoading, error }: SignUpFormProps) {
   ];
 
   return (
-    <form onSubmit={handleSubmit} autoComplete="on" className="flex flex-col gap-6">
+    <form method="post" onSubmit={handleSubmit} autoComplete="on" className="flex flex-col gap-6">
       <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-2xl font-bold text-[var(--neu-text)]">Créer un compte</h1>
-        <p className="text-sm text-[var(--neu-text-secondary)]">Renseignez vos informations ci-dessous pour vous inscrire</p>
+        <h1 className="text-2xl font-bold text-[var(--neu-text)]">Tester PROGITPAIE en mode Démo</h1>
+        <p className="text-sm text-[var(--neu-text-secondary)]">Créez votre espace Démo isolé et testez gratuitement PROGITPAIE pendant 14 jours.</p>
       </div>
 
       {(validationError || error) && (
@@ -55,6 +56,19 @@ export function SignUpForm({ onSubmit, isLoading, error }: SignUpFormProps) {
       )}
 
       <div className="grid gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="companyName">Nom de l’entreprise à tester</Label>
+          <Input
+            id="companyName"
+            name="companyName"
+            type="text"
+            placeholder="PROGITPAIE Côte d’Ivoire"
+            required
+            autoComplete="organization"
+            value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)}
+          />
+        </div>
         <div className="grid gap-2">
           <Label htmlFor="name">Nom Complet</Label>
           <Input
@@ -116,7 +130,7 @@ export function SignUpForm({ onSubmit, isLoading, error }: SignUpFormProps) {
           </select>
         </div>
         <Button type="submit" className="mt-2" disabled={isLoading}>
-          {isLoading ? "Création du compte..." : "Créer un compte"}
+          {isLoading ? "Création de l’espace Démo..." : "Commencer l’essai Démo de 14 jours"}
         </Button>
       </div>
     </form>

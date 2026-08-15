@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/security/requireSuperAdmin";
 import { GlobalSettingsUseCase } from "@/lib/application/admin/use-cases/GlobalSettingsUseCase";
@@ -13,10 +14,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const settings = await settingsUC.get();
     return NextResponse.json({ success: true, data: settings });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/v2/admin/settings/global error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Erreur serveur" },
+      { success: false, error: getErrorMessage(error) || "Erreur serveur" },
       { status: 500 }
     );
   }
@@ -46,10 +47,10 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
     const updated = await settingsUC.update(parsed.data);
     return NextResponse.json({ success: true, data: updated });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("PUT /api/v2/admin/settings/global error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Échec de la mise à jour" },
+      { success: false, error: getErrorMessage(error) || "Échec de la mise à jour" },
       { status: 500 }
     );
   }

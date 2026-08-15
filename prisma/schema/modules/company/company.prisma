@@ -17,8 +17,10 @@ model Company {
   latitude     Float?  @default(5.3484) // Latitude GPS du siège / bureau (ex: Abidjan 5.3484)
   longitude    Float?  @default(-4.0305) // Longitude GPS du siège / bureau (ex: Abidjan -4.0305)
   radiusMeters Float   @default(100.0) // Rayon d'autorisation de pointage en mètres (ex: 100m)
-  isMain       Boolean @default(false) // Entreprise principale par défaut
+  isMain       Boolean @default(false) // Héritage : société principale historique, non utilisé pour le multi-tenant
   isActive     Boolean @default(true)
+  isDemo       Boolean @default(false) // Tenant prospect en mode démonstration
+  demoExpiresAt DateTime? // Expiration du tenant de démonstration
 
   // KYB & Verification
   verificationStatus VerificationStatus @default(PENDING)
