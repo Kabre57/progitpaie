@@ -89,23 +89,45 @@ $PNPM_BIN exec tsc --project tsconfig.rotation.json
 echo "🏗️ Construction des images Docker..."
 docker compose build app
 
-# 7. Démarrage des conteneurs d'infrastructure
-docker compose up -d postgres redis
+# 7. Démarrage des conteneurs d'infrastructure (PostgreSQL & Redis)
+echo "🗄️ Démarrage des conteneurs d'infrastructure (PostgreSQL & Redis)..."
+docker compose up -d --remove-orphans postgres redis
 
-# 8. Application des migrations Prisma depuis l'hôte (port mappé 127.0.0.1:5433)
+# 8. Attente robuste de la santé PostgreSQL (jusqu'à 90s avec validation SELECT 1 et diagnostic)
+echo "⏳ Attente que PostgreSQL soit prêt et accepte les connexions (90s max)..."
+HEALTH_OK=false
+for i in {1..45}; do
+  if docker compose exec -T postgres pg_isready -U "${POSTGRES_USER:-progitpaie}" >/dev/null 2>&1; then
+    if docker compose exec -T postgres psql -U "${POSTGRES_USER:-progitpaie}" -d "${POSTGRES_DB:-progitpaie}" -c "SELECT 1;" >/dev/null 2>&1; then
+      HEALTH_OK=true
+      break
+    fi
+  fi
+  sleep 2
+done
+
+if [ "$HEALTH_OK" != true ]; then
+  echo "❌ PostgreSQL n'est pas opérationnel après 90 secondes."
+  echo "📊 État des conteneurs :"
+  docker compose ps
+  echo "📜 Logs PostgreSQL (100 dernières lignes) :"
+  docker compose logs --tail=100 postgres
+  exit 1
+fi
+
+echo "✅ PostgreSQL est opérationnel et validé par SELECT 1."
+
+# 9. Application des migrations Prisma depuis l'hôte (port mappé 127.0.0.1:5433)
 echo "🗄️ Application des migrations Prisma..."
-echo "⏳ Attente que PostgreSQL soit prêt (30s max)..."
-timeout 30 sh -c 'until docker compose exec -T postgres pg_isready -U "${POSTGRES_USER:-progitpaie}" >/dev/null 2>&1; do sleep 2; done' \
-  || { echo "❌ PostgreSQL n'a pas répondu dans les 30 secondes."; exit 1; }
 DATABASE_URL="postgresql://${POSTGRES_USER:-progitpaie}:${DB_PASSWORD}@127.0.0.1:5433/${POSTGRES_DB:-progitpaie}?schema=public" \
   $PNPM_BIN exec prisma migrate deploy --schema=prisma/schema \
-  || { echo "⚠️ migrate deploy a échoué. Vérifiez prisma/migrations/."; exit 1; }
+  || { echo "❌ migrate deploy a échoué. Vérifiez prisma/migrations/."; exit 1; }
 
-# 9. Relance du conteneur d'application en mode Rolling Update
+# 10. Relance du conteneur d'application en mode Rolling Update
 echo "🔄 Relance du conteneur d'application..."
-docker compose up -d --no-deps app
+docker compose up -d --remove-orphans --no-deps app
 
-# 10. Attente et vérification du Health Check (20 tentatives x 3s = 60s)
+# 11. Attente et vérification du Health Check (/api/health)
 echo "⏳ Vérification du Health Check (/api/health)..."
 HEALTH_PASSED=false
 for i in {1..20}; do
@@ -126,8 +148,10 @@ if [ "$HEALTH_PASSED" = true ]; then
   cat prisma/migrations/20260806190000_advanced_pg_features/migration.sql | \
     docker compose exec -T postgres psql -U "${POSTGRES_USER:-progitpaie}" -d "${POSTGRES_DB:-progitpaie}" || true
 
-  echo "✅ Health Check RÉUSSI ! Déploiement Zéro Temps d'Arrêt validé."
+  echo "================================================================="
+  echo "✅ Déploiement de PROGITPAIE terminé avec succès !"
   echo "🌐 URL : https://progitpaie.online"
+  echo "================================================================="
 else
   echo "❌ ÉCHEC DU HEALTH CHECK ! Lancement du Rollback automatique..."
   bash "$(dirname "$0")/rollback.sh"
