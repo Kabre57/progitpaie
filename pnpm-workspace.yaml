@@ -1,3 +1,6 @@
+packages:
+  - '.'
+
 # Scripts de build explicitement autorisés pour les dépendances natives et Prisma.
 # Cette liste évite le blocage ERR_PNPM_IGNORED_BUILDS sans autoriser tous les paquets.
 overrides:
