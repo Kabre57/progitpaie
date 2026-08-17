@@ -8,22 +8,28 @@ set -euo pipefail
 
 # Export du PATH pour garantir l'accès à pnpm, node et corepack sur tout VPS
 export PNPM_HOME="${PNPM_HOME:-$HOME/.local/share/pnpm}"
-export PATH="$PNPM_HOME:$HOME/.nvm/versions/node/$(node -v 2>/dev/null || echo 'v24.0.0')/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+export PATH="$PNPM_HOME:$HOME/.nvm/versions/node/$(node -v 2>/dev/null || echo 'v20.0.0')/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
 if [ -f "$HOME/.bashrc" ]; then
     # shellcheck source=/dev/null
     source "$HOME/.bashrc" 2>/dev/null || true
 fi
 
-# Verification et installation automatique de pnpm 11.21.0 si absent sur l'hote VPS
-if ! command -v pnpm >/dev/null 2>&1; then
-    echo "📦 pnpm non detecte sur le VPS. Installation globale de pnpm@11.21.0..."
-    if command -v corepack >/dev/null 2>&1; then
-        corepack enable >/dev/null 2>&1 || true
-        corepack prepare pnpm@11.21.0 --activate >/dev/null 2>&1 || true
-    fi
-    if ! command -v pnpm >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
-        npm install -g pnpm@11.21.0 >/dev/null 2>&1 || sudo npm install -g pnpm@11.21.0 >/dev/null 2>&1 || true
+# Ajustement intelligent de la version pnpm selon la version de Node hôte
+# Node 20.x → pnpm 9.15.4 (100% compatible Node 20 & Lockfile v9)
+# Node 22+  → pnpm 11.21.0
+NODE_MAJOR=$(node -v 2>/dev/null | cut -d'.' -f1 | sed 's/v//' || echo "20")
+if [ "${NODE_MAJOR:-20}" -lt 22 ]; then
+    TARGET_PNPM_VERSION="9.15.4"
+else
+    TARGET_PNPM_VERSION="11.21.0"
+fi
+
+# Verification et installation de pnpm si absent ou incompatible avec la version Node locale
+if ! command -v pnpm >/dev/null 2>&1 || ! pnpm --version >/dev/null 2>&1; then
+    echo "📦 Ajustement de pnpm@${TARGET_PNPM_VERSION} pour Node v$(node -v 2>/dev/null || echo 'inconnu')..."
+    if command -v npm >/dev/null 2>&1; then
+        npm install -g "pnpm@${TARGET_PNPM_VERSION}" >/dev/null 2>&1 || sudo npm install -g "pnpm@${TARGET_PNPM_VERSION}" >/dev/null 2>&1 || true
     fi
 fi
 
