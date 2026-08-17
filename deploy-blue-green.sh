@@ -95,7 +95,7 @@ docker compose up -d postgres redis
 # 8. Application des migrations Prisma depuis l'hôte (port mappé 127.0.0.1:5433)
 echo "🗄️ Application des migrations Prisma..."
 echo "⏳ Attente que PostgreSQL soit prêt (30s max)..."
-timeout 30 sh -c 'until pg_isready -h 127.0.0.1 -p 5433 -U "${POSTGRES_USER:-progitpaie}" 2>/dev/null; do sleep 2; done' \
+timeout 30 sh -c 'until docker compose exec -T postgres pg_isready -U "${POSTGRES_USER:-progitpaie}" >/dev/null 2>&1; do sleep 2; done' \
   || { echo "❌ PostgreSQL n'a pas répondu dans les 30 secondes."; exit 1; }
 DATABASE_URL="postgresql://${POSTGRES_USER:-progitpaie}:${DB_PASSWORD}@127.0.0.1:5433/${POSTGRES_DB:-progitpaie}?schema=public" \
   $PNPM_BIN exec prisma migrate deploy --schema=prisma/schema \
