@@ -15,10 +15,15 @@ if [ -f "$HOME/.bashrc" ]; then
     source "$HOME/.bashrc" 2>/dev/null || true
 fi
 
-# Résolution automatique du binaire pnpm
+# Verification et installation automatique de pnpm 11.21.0 si absent sur l'hote VPS
 if ! command -v pnpm >/dev/null 2>&1; then
+    echo "📦 pnpm non detecte sur le VPS. Installation globale de pnpm@11.21.0..."
     if command -v corepack >/dev/null 2>&1; then
         corepack enable >/dev/null 2>&1 || true
+        corepack prepare pnpm@11.21.0 --activate >/dev/null 2>&1 || true
+    fi
+    if ! command -v pnpm >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+        npm install -g pnpm@11.21.0 >/dev/null 2>&1 || sudo npm install -g pnpm@11.21.0 >/dev/null 2>&1 || true
     fi
 fi
 
