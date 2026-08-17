@@ -37,15 +37,29 @@ fi
 git fetch origin main
 git reset --hard origin/main
 
-# 3. Construction des images Docker
+# 3. Préparation et Build Local de l'application Next.js Standalone
+echo "🔨 Préparation des artefacts (Prisma, Next.js Standalone, Rotation TS)..."
+pnpm prisma:generate
+pnpm build
+pnpm exec tsc --project tsconfig.rotation.json
+
+# 4. Construction des images Docker
 echo "🏗️ Construction des images Docker..."
-docker compose build app migrate
+docker compose build app
 
-# 4. Exécution des migrations Prisma en base de données
-echo "🗄️ Exécution des migrations Prisma..."
-docker compose run --rm migrate
+# 5. Démarrage des conteneurs d'infrastructure
+docker compose up -d postgres redis
 
-# 5. Relance du conteneur d'application en mode Rolling Update
+# 6. Application des migrations Prisma depuis l'hôte (port mappé 127.0.0.1:5433)
+echo "🗄️ Application des migrations Prisma..."
+echo "⏳ Attente que PostgreSQL soit prêt (30s max)..."
+timeout 30 sh -c 'until pg_isready -h 127.0.0.1 -p 5433 -U "${POSTGRES_USER:-progitpaie}" 2>/dev/null; do sleep 2; done' \
+  || { echo "❌ PostgreSQL n'a pas répondu dans les 30 secondes."; exit 1; }
+DATABASE_URL="postgresql://${POSTGRES_USER:-progitpaie}:${DB_PASSWORD}@127.0.0.1:5433/${POSTGRES_DB:-progitpaie}?schema=public" \
+  pnpm exec prisma migrate deploy --schema=prisma/schema \
+  || { echo "⚠️ migrate deploy a échoué. Vérifiez prisma/migrations/."; exit 1; }
+
+# 7. Relance du conteneur d'application en mode Rolling Update
 echo "🔄 Relance du conteneur d'application..."
 docker compose up -d --no-deps app
 
