@@ -75,20 +75,24 @@ fi
 
 PNPM_BIN=$(command -v pnpm || echo "pnpm")
 
-# 4. Préparation et Build Local de l'application Next.js Standalone
+# 4. Synchronisation des dépendances (ex: exceljs, jspdf, etc.)
+echo "📦 Installation / Synchronisation des dépendances hôte..."
+$PNPM_BIN install --frozen-lockfile
+
+# 5. Préparation et Build Local de l'application Next.js Standalone
 echo "🔨 Préparation des artefacts (Prisma, Next.js Standalone, Rotation TS)..."
 $PNPM_BIN prisma:generate
 $PNPM_BIN build
 $PNPM_BIN exec tsc --project tsconfig.rotation.json
 
-# 5. Construction des images Docker
+# 6. Construction des images Docker
 echo "🏗️ Construction des images Docker..."
 docker compose build app
 
-# 6. Démarrage des conteneurs d'infrastructure
+# 7. Démarrage des conteneurs d'infrastructure
 docker compose up -d postgres redis
 
-# 7. Application des migrations Prisma depuis l'hôte (port mappé 127.0.0.1:5433)
+# 8. Application des migrations Prisma depuis l'hôte (port mappé 127.0.0.1:5433)
 echo "🗄️ Application des migrations Prisma..."
 echo "⏳ Attente que PostgreSQL soit prêt (30s max)..."
 timeout 30 sh -c 'until pg_isready -h 127.0.0.1 -p 5433 -U "${POSTGRES_USER:-progitpaie}" 2>/dev/null; do sleep 2; done' \
@@ -97,11 +101,11 @@ DATABASE_URL="postgresql://${POSTGRES_USER:-progitpaie}:${DB_PASSWORD}@127.0.0.1
   $PNPM_BIN exec prisma migrate deploy --schema=prisma/schema \
   || { echo "⚠️ migrate deploy a échoué. Vérifiez prisma/migrations/."; exit 1; }
 
-# 8. Relance du conteneur d'application en mode Rolling Update
+# 9. Relance du conteneur d'application en mode Rolling Update
 echo "🔄 Relance du conteneur d'application..."
 docker compose up -d --no-deps app
 
-# 9. Attente et vérification du Health Check (20 tentatives x 3s = 60s)
+# 10. Attente et vérification du Health Check (20 tentatives x 3s = 60s)
 echo "⏳ Vérification du Health Check (/api/health)..."
 HEALTH_PASSED=false
 for i in {1..20}; do
