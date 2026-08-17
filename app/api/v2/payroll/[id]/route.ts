@@ -5,6 +5,7 @@ import { PrismaNotificationAdapter } from "@/lib/infrastructure/repositories/pri
 import { UpdatePayrollBonusesUseCase } from "@/lib/application/payroll/use-cases/UpdatePayrollBonuses";
 import { FinalizePayrollUseCase } from "@/lib/application/payroll/use-cases/FinalizePayroll";
 import { updatePayrollBonusesSchema } from "@/shared/validation/payroll-v2.schema";
+import { prisma } from "@/lib/db";
 import { ApiResponse } from "@/types";
 
 const repository = new PrismaPayrollRepository();
@@ -78,6 +79,44 @@ export async function PATCH(
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : "Erreur de finalisation", code: "SERVER_ERROR" },
       { status }
+    );
+  }
+}
+
+// DELETE /api/v2/payroll/[id] - Supprimer un bulletin de paie individuel
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+): Promise<NextResponse<ApiResponse<unknown>>> {
+  try {
+    const authResult = await requireTenant(request, "admin");
+    if (authResult instanceof NextResponse) return authResult;
+
+    const { id } = await params;
+    const record = await prisma.payroll.findFirst({
+      where: { id, companyId: authResult.companyId },
+    });
+
+    if (!record) {
+      return NextResponse.json(
+        { success: false, error: "Bulletin de paie non trouvé", code: "NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    await prisma.payroll.delete({
+      where: { id },
+    });
+
+    return NextResponse.json(
+      { success: true, message: "Bulletin de paie supprimé avec succès" },
+      { status: 200 }
+    );
+  } catch (error: unknown) {
+    console.error("DELETE /api/v2/payroll/[id] error:", error);
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : "Erreur de suppression", code: "SERVER_ERROR" },
+      { status: 500 }
     );
   }
 }

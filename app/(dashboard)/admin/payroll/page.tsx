@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { NeuCard, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { DollarSign, Download, User as UserIcon, TrendingUp, Edit3, Printer } from "lucide-react";
-import { ChipLoader } from "@/components/ui/chip-loader";
+import { DollarSign, Download, User as UserIcon, TrendingUp, Edit3, Printer, Trash2, AlertTriangle } from "lucide-react";
 import { List2 } from "@/components/ui/list-2";
 import { NeuBadge } from "@/components/ui/neu-badge";
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
@@ -15,6 +14,7 @@ import { useVisualNotice } from "@/components/ui/visual-notice-modal";
 
 interface PayrollRecord {
   _id: string;
+  id?: string;
   userId: { _id: string; id?: string; name: string; email?: string; employeeId?: string };
   user?: { id: string; name: string; email: string; employeeId?: string };
   month: number;
@@ -35,7 +35,7 @@ interface PayrollRecord {
 }
 
 export default function AdminPayrollPage() {
-  const { showValidationPayment, showErrorForm, showErrorTech } = useVisualNotice();
+  const { showValidationPayment, showErrorForm, showErrorTech, showValidationSubmission } = useVisualNotice();
   const [payroll, setPayroll] = useState<PayrollRecord[]>([]);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -44,6 +44,12 @@ export default function AdminPayrollPage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [downloadingBulk, setDownloadingBulk] = useState(false);
+
+  // Modales de confirmation de suppression
+  const [bulletinToDelete, setBulletinToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [showResetMonthModal, setShowResetMonthModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   const [activeEditDoc, setActiveEditDoc] = useState<{
     userId: string;
     name: string;
@@ -140,6 +146,65 @@ export default function AdminPayrollPage() {
     }
   };
 
+  const handleDeleteSingleBulletin = async () => {
+    if (!bulletinToDelete) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/payroll/${bulletinToDelete.id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setBulletinToDelete(null);
+        fetchPayroll();
+        showValidationSubmission({
+          title: "BULLETIN SUPPRIMÉ",
+          description: `Le bulletin de paie pour ${bulletinToDelete.name} a été supprimé.`,
+          confirmLabel: "Fermer",
+        });
+      } else {
+        showErrorForm({
+          title: "SUPPRESSION IMPOSSIBLE",
+          description: json.error || "Impossible de supprimer ce bulletin.",
+          confirmLabel: "Fermer",
+        });
+      }
+    } catch (err) {
+      console.error("Delete bulletin error:", err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleResetMonthPayrollSubmit = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/payroll?month=${month}&year=${year}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setShowResetMonthModal(false);
+        fetchPayroll();
+        showValidationSubmission({
+          title: "PAIE DU MOIS RÉINITIALISÉE",
+          description: json.message || `La paie de ${month}/${year} a été réinitialisée et supprimée.`,
+          confirmLabel: "Fermer",
+        });
+      } else {
+        showErrorForm({
+          title: "RÉINITIALISATION IMPOSSIBLE",
+          description: json.error || "Impossible de réinitialiser la paie du mois.",
+          confirmLabel: "Fermer",
+        });
+      }
+    } catch (err) {
+      console.error("Reset month payroll error:", err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const downloadPayslip = (userId: string) => {
     window.open(`/api/export/payslip/${userId}?month=${month}&year=${year}`, "_blank");
   };
@@ -153,12 +218,12 @@ export default function AdminPayrollPage() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `bulletins-groupes-${month}-${year}.pdf`;
+        a.download = `Bulletins-Paie-${month}-${year}.pdf`;
         document.body.appendChild(a);
         a.click();
         a.remove();
       } else {
-        alert("Erreur lors de l'exportation groupée des bulletins de salaire");
+        alert("Erreur lors du téléchargement des bulletins groupés.");
       }
     } catch (err) {
       console.error("Bulk export error:", err);
@@ -167,16 +232,16 @@ export default function AdminPayrollPage() {
     }
   };
 
-  return (
-    <div className="relative space-y-6" style={{ minHeight: "400px" }}>
-      {loading && <ChipLoader overlay size="md" label="Chargement de la paie..." />}
+  const monthName = new Date(year, month - 1).toLocaleString("fr-FR", { month: "long" });
 
+  return (
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-[var(--neu-text)] flex items-center gap-2">
             <DollarSign className="text-[var(--neu-accent)]" /> Livre de Paie Mensuel & Édition de Bulletins
-          </h2>
+          </h1>
           <p className="text-[var(--neu-text-secondary)] text-sm mt-1">
             Gestion du Livre de Paie et Édition Groupée des Bulletins de Paie.
           </p>
@@ -218,12 +283,21 @@ export default function AdminPayrollPage() {
                   })
                 }
                 variant="ghost"
-                className="border border-[var(--neu-border)]"
+                className="border border-[var(--neu-border)] text-xs"
               >
-                <Printer className="w-4 h-4 mr-1 text-[var(--neu-accent)]" /> Aperçu Groupé A4
+                <Printer className="w-4 h-4 mr-1 text-[var(--neu-accent)]" /> Aperçu A4
               </NeuButton>
-              <NeuButton onClick={handleBulkPayslipExport} loading={downloadingBulk} variant="ghost" className="border border-[var(--neu-border)]">
-                <Download className="w-4 h-4 mr-1 text-[var(--neu-accent)]" /> Édition Groupée PDF
+              <NeuButton onClick={handleBulkPayslipExport} loading={downloadingBulk} variant="ghost" className="border border-[var(--neu-border)] text-xs">
+                <Download className="w-4 h-4 mr-1 text-[var(--neu-accent)]" /> Édition PDF
+              </NeuButton>
+
+              <NeuButton
+                onClick={() => setShowResetMonthModal(true)}
+                variant="ghost"
+                className="border border-red-200 dark:border-red-900 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 text-xs font-bold"
+                title="En cas d'erreur, réinitialisez et supprimez le calcul de paie de ce mois pour pouvoir tout recommencer."
+              >
+                <Trash2 className="w-4 h-4 mr-1" /> Supprimer Paie du Mois
               </NeuButton>
             </>
           )}
@@ -242,15 +316,18 @@ export default function AdminPayrollPage() {
             <EmptyState
               icon={DollarSign}
               title="Aucun bulletin de paie généré"
-              description={`Aucun bulletin pour ${new Date(year, month - 1).toLocaleString("fr-FR", { month: "long" })} ${year}. Cliquez sur "Générer la Paie du Mois" pour calculer.`}
+              description={`Aucun bulletin pour ${monthName} ${year}. Cliquez sur "Générer la Paie du Mois" pour calculer.`}
             />
           ) : (
             <List2 
               items={paginatedPayroll.map((record) => {
+                const recordId = record._id || record.id || "";
                 const userIdVal = record.userId?.id || record.userId?._id || "";
+                const employeeName = record.user?.name || record.userId?.name || "Salarié";
+
                 return {
                   icon: <UserIcon className="w-5 h-5 text-[var(--neu-accent)]" />,
-                  title: record.user?.name || record.userId?.name || "Salarié",
+                  title: employeeName,
                   category: record.user?.employeeId || record.userId?.employeeId || record.user?.email || record.userId?.email || "EMP",
                   description: (
                     <div className="flex flex-col gap-2">
@@ -279,7 +356,7 @@ export default function AdminPayrollPage() {
                           <NeuButton
                             size="icon"
                             variant="ghost"
-                            onClick={() => handleFinalize(record._id)}
+                            onClick={() => handleFinalize(recordId)}
                             className="h-8 w-8 text-[var(--neu-accent)] hover:bg-[var(--neu-accent)]/10"
                             title="Valider la Paie"
                           >
@@ -291,7 +368,7 @@ export default function AdminPayrollPage() {
                           variant="ghost"
                           onClick={() => setActiveEditDoc({
                             userId: userIdVal,
-                            name: record.userId?.name || "",
+                            name: employeeName,
                             salary: record.netSalary,
                             docType: "payslip"
                           })}
@@ -307,6 +384,16 @@ export default function AdminPayrollPage() {
                           title="Télécharger PDF Rapide"
                         >
                           <Download className="w-4 h-4" />
+                        </NeuButton>
+
+                        <NeuButton
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setBulletinToDelete({ id: recordId, name: employeeName })}
+                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                          title="Supprimer ce bulletin de paie (en cas d'erreur de calcul)"
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </NeuButton>
                       </div>
                     </div>
@@ -348,48 +435,129 @@ export default function AdminPayrollPage() {
             <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-700 dark:text-amber-300 space-y-1">
               <p className="font-semibold">{earlyRestrictionData.error}</p>
               <p className="opacity-80">
-                La période légale autorisée par votre entreprise s'ouvre le <strong>{earlyRestrictionData.startDayOfMonth} du mois</strong>.
+                La période réglementaire recommandée débute le {earlyRestrictionData.startDayOfMonth} du mois. Pour générer avant cette date, veuillez fournir un motif de dérogation RH validé.
               </p>
             </div>
 
-            {earlyRestrictionData.requiresJustification ? (
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-[var(--neu-text-secondary)]">
-                  Justification / Motif de la Génération Anticipée * (min. 10 caractères)
-                </label>
-                <textarea
-                  value={justificationReason}
-                  onChange={(e) => setJustificationReason(e.target.value)}
-                  placeholder="ex: Fermeture annuelle anticipée de l'entreprise, vacances collectives de fin d'année..."
-                  rows={3}
-                  className="w-full p-3 rounded-xl bg-[var(--neu-surface-light)] border border-[var(--neu-border)] text-xs text-[var(--neu-text)] focus:outline-none focus:border-[var(--neu-accent)]"
-                />
-                <p className="text-[10px] opacity-70 text-[var(--neu-text-secondary)]">
-                  ℹ️ Cette justification sera enregistrée dans les journaux d'audit de l'entreprise.
-                </p>
-              </div>
-            ) : null}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Motif obligatoire de la dérogation anticipée *
+              </label>
+              <textarea
+                value={justificationReason}
+                onChange={(e) => setJustificationReason(e.target.value)}
+                placeholder="Exemple : Clôture anticipée demandée par la direction financière / départ en congés massif..."
+                className="w-full h-24 p-3 text-xs bg-[var(--neu-bg)] border border-[var(--neu-border)] rounded-xl outline-none focus:border-[var(--neu-accent)] text-[var(--neu-text)]"
+              />
+            </div>
 
-            <div className="flex justify-end gap-3 pt-3 border-t border-[var(--neu-border)]">
+            <div className="flex items-center justify-end gap-3 pt-2">
               <NeuButton
-                variant="ghost"
+                variant="outline"
                 onClick={() => {
                   setShowJustificationModal(false);
-                  setJustificationReason("");
                   setEarlyRestrictionData(null);
                 }}
+                className="text-xs px-4"
               >
                 Annuler
               </NeuButton>
-              {earlyRestrictionData.requiresJustification && (
-                <NeuButton
-                  variant="accent"
-                  disabled={generating || justificationReason.trim().length < 10}
-                  onClick={() => handleGenerate(justificationReason.trim())}
-                >
-                  {generating ? "Traitement..." : "Débloquer & Générer la Paie"}
-                </NeuButton>
-              )}
+              <NeuButton
+                variant="accent"
+                onClick={() => handleGenerate(justificationReason)}
+                disabled={!justificationReason.trim() || generating}
+                className="text-xs px-4 bg-amber-600 hover:bg-amber-700 text-white font-bold"
+              >
+                {generating ? "Génération en cours…" : "Valider la Dérogation"}
+              </NeuButton>
+            </div>
+          </NeuCard>
+        </div>
+      )}
+
+      {/* Modal Confirmation Suppression Bulletin Individuel */}
+      {bulletinToDelete && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <NeuCard className="w-full max-w-md p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 rounded-2xl">
+            <div className="flex items-center gap-3 text-red-600 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">
+                  Supprimer ce bulletin de paie ?
+                </h3>
+                <p className="text-xs text-slate-500">Correction d'une erreur de calcul</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              Voulez-vous vraiment supprimer le bulletin de paie de{" "}
+              <strong className="text-slate-900 dark:text-slate-100">{bulletinToDelete.name}</strong> pour le mois de {monthName} {year} ? Vous pourrez ensuite relancer le calcul si nécessaire.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <NeuButton
+                variant="outline"
+                onClick={() => setBulletinToDelete(null)}
+                className="text-xs px-4"
+              >
+                Annuler
+              </NeuButton>
+              <NeuButton
+                variant="accent"
+                onClick={handleDeleteSingleBulletin}
+                disabled={deleting}
+                className="text-xs px-4 bg-red-600 hover:bg-red-700 text-white font-bold gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {deleting ? "Suppression…" : "Confirmer la suppression"}
+              </NeuButton>
+            </div>
+          </NeuCard>
+        </div>
+      )}
+
+      {/* Modal Confirmation Réinitialisation Globale de la Paie du Mois */}
+      {showResetMonthModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <NeuCard className="w-full max-w-lg p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 rounded-2xl">
+            <div className="flex items-center gap-3 text-red-600 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">
+                  Réinitialiser la paie de {monthName} {year} ?
+                </h3>
+                <p className="text-xs text-slate-500">Suppression des calculs de paie brouillons</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-700 dark:text-red-300">
+              <p className="font-bold mb-1">⚠️ Action de réinitialisation en cas d'erreur :</p>
+              <p>
+                Cette action supprimera tous les bulletins brouillons générés pour la période de <strong>{monthName} {year}</strong>. Vous pourrez ensuite réajuster les données et cliquer à nouveau sur "Générer la Paie du Mois".
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <NeuButton
+                variant="outline"
+                onClick={() => setShowResetMonthModal(false)}
+                className="text-xs px-4"
+              >
+                Annuler
+              </NeuButton>
+              <NeuButton
+                variant="accent"
+                onClick={handleResetMonthPayrollSubmit}
+                disabled={deleting}
+                className="text-xs px-4 bg-red-600 hover:bg-red-700 text-white font-bold gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {deleting ? "Réinitialisation…" : "Réinitialiser & Supprimer la Paie du Mois"}
+              </NeuButton>
             </div>
           </NeuCard>
         </div>

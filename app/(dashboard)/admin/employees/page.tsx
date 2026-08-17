@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Plus, Users } from "lucide-react";
+import { Plus, Users, Trash2, AlertTriangle } from "lucide-react";
 import { NeuButton } from "@/components/ui/neu-button";
-import { useEmployees, useCreateEmployee, useUpdateEmployee } from "@/lib/hooks/useEmployees";
+import { NeuCard } from "@/components/ui/neu-card";
+import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee } from "@/lib/hooks/useEmployees";
 import { useToast } from "@/components/ui/neu-toast";
 import { CreateEmployeeInput, EmployeeDTO } from "@/shared/types/contracts/employees.contract";
 import { EmployeeFilterBar } from "@/components/admin/employees/EmployeeFilterBar";
@@ -58,10 +59,14 @@ export default function EmployeeManagementPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState(emptyFormData);
 
+  // Modal de confirmation de suppression
+  const [employeeToDelete, setEmployeeToDelete] = useState<EmployeeDTO | null>(null);
+
   // React Query Hooks
   const { data: employeesResponse, isLoading } = useEmployees({ limit: 100 });
   const createEmployeeMutation = useCreateEmployee();
   const updateEmployeeMutation = useUpdateEmployee();
+  const deleteEmployeeMutation = useDeleteEmployee();
 
   const employees: EmployeeDTO[] = useMemo(() => {
     if (!employeesResponse) return [];
@@ -121,6 +126,21 @@ export default function EmployeeManagementPage() {
     });
     setIsEditMode(true);
     setIsDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!employeeToDelete) return;
+    const targetId = employeeToDelete.id || employeeToDelete._id;
+    if (!targetId) return;
+
+    try {
+      await deleteEmployeeMutation.mutateAsync(targetId);
+      toast.success(`Le salarié ${employeeToDelete.name} a été supprimé / désactivé avec succès.`);
+      setEmployeeToDelete(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erreur lors de la suppression du salarié";
+      toast.error(msg);
+    }
   };
 
   const formSubmitting = createEmployeeMutation.isPending || updateEmployeeMutation.isPending;
@@ -197,6 +217,7 @@ export default function EmployeeManagementPage() {
         employees={paginatedEmployees}
         isLoading={isLoading}
         onEditClick={handleOpenEdit}
+        onDeleteClick={(emp) => setEmployeeToDelete(emp)}
         currentPage={currentPage}
         totalPages={totalPages}
         totalItems={filtered.length}
@@ -215,6 +236,49 @@ export default function EmployeeManagementPage() {
         onSubmit={handleSubmit}
         formSubmitting={formSubmitting}
       />
+
+      {/* Modal de confirmation de suppression */}
+      {employeeToDelete && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <NeuCard className="w-full max-w-md p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 rounded-2xl">
+            <div className="flex items-center gap-3 text-red-600 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">
+                  Confirmation de suppression
+                </h3>
+                <p className="text-xs text-slate-500">Action irréversible sur la fiche salarié</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              Voulez-vous vraiment supprimer ou désactiver la fiche de{" "}
+              <strong className="text-slate-900 dark:text-slate-100">{employeeToDelete.name}</strong> (Matricule: {employeeToDelete.employeeId || "N/A"}) ?
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <NeuButton
+                variant="outline"
+                onClick={() => setEmployeeToDelete(null)}
+                className="text-xs px-4"
+              >
+                Annuler
+              </NeuButton>
+              <NeuButton
+                variant="accent"
+                onClick={handleConfirmDelete}
+                disabled={deleteEmployeeMutation.isPending}
+                className="text-xs px-4 bg-red-600 hover:bg-red-700 text-white font-bold gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {deleteEmployeeMutation.isPending ? "Suppression…" : "Confirmer la suppression"}
+              </NeuButton>
+            </div>
+          </NeuCard>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Pencil, Loader2 } from "lucide-react";
+import { Pencil, Trash2, Loader2 } from "lucide-react";
 import { NeuCard, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuBadge } from "@/components/ui/neu-badge";
@@ -12,6 +12,7 @@ interface EmployeeTableProps {
   employees: EmployeeDTO[];
   isLoading: boolean;
   onEditClick: (emp: EmployeeDTO) => void;
+  onDeleteClick?: (emp: EmployeeDTO) => void;
   currentPage: number;
   totalPages: number;
   totalItems: number;
@@ -23,6 +24,7 @@ export function EmployeeTable({
   employees,
   isLoading,
   onEditClick,
+  onDeleteClick,
   currentPage,
   totalPages,
   totalItems,
@@ -116,9 +118,23 @@ export function EmployeeTable({
                       {(Number(emp.salary) || 0).toLocaleString()} F
                     </td>
                     <td className="px-3 py-3 text-center">
-                      <NeuButton size="icon" variant="ghost" onClick={() => onEditClick(emp)} className="h-7 w-7">
-                        <Pencil className="w-3.5 h-3.5 text-[var(--neu-accent)]" />
-                      </NeuButton>
+                      <div className="flex items-center justify-center gap-1">
+                        <NeuButton size="icon" variant="ghost" onClick={() => onEditClick(emp)} className="h-7 w-7" title="Éditer la fiche">
+                          <Pencil className="w-3.5 h-3.5 text-[var(--neu-accent)]" />
+                        </NeuButton>
+
+                        {onDeleteClick && (
+                          <NeuButton
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => onDeleteClick(emp)}
+                            className="h-7 w-7 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600"
+                            title="Supprimer / Désactiver ce salarié"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </NeuButton>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

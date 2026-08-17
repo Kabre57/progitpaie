@@ -62,4 +62,11 @@ export class PrismaContractRepository implements ContractRepository {
       return mapPrismaToDomainContract(created);
     }
   }
+
+  public async delete(companyId: string, id: string): Promise<boolean> {
+    const result = await prisma.contract.deleteMany({
+      where: { id, companyId },
+    });
+    return result.count > 0;
+  }
 }

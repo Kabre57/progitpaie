@@ -1,1 +1,1 @@
-export { GET, POST } from "../v2/payroll/route";
+export { GET, POST, DELETE } from "../v2/payroll/route";

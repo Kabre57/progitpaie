@@ -11,4 +11,5 @@ export interface ContractRepository {
   list(query: ListContractsQuery): Promise<readonly WorkContract[]>;
   findByIdForTenant(companyId: string, id: string): Promise<WorkContract | null>;
   save(contract: WorkContract): Promise<WorkContract>;
+  delete(companyId: string, id: string): Promise<boolean>;
 }

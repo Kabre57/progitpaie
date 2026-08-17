@@ -11,6 +11,7 @@ import {
   type PayrollGenerationRulesDTO,
 } from "@/shared/validation/payroll-settings-v2.schema";
 import { PayrollGenerationRulesService } from "@/lib/domain/payroll/services/payroll-generation-rules.service";
+import { prisma } from "@/lib/db";
 import { ApiResponse } from "@/types";
 
 const repository = new PrismaPayrollRepository();
@@ -156,6 +157,52 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     console.error("POST /api/v2/payroll error:", error);
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : "Erreur lors de la génération", code: "SERVER_ERROR" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/v2/payroll?month=X&year=Y - Réinitialiser / Supprimer la paie générée du mois (brouillons)
+export async function DELETE(request: NextRequest): Promise<NextResponse<ApiResponse<unknown>>> {
+  try {
+    const authResult = await requireTenant(request, "admin");
+    if (authResult instanceof NextResponse) return authResult;
+
+    const { searchParams } = new URL(request.url);
+    const monthStr = searchParams.get("month");
+    const yearStr = searchParams.get("year");
+
+    if (!monthStr || !yearStr) {
+      return NextResponse.json(
+        { success: false, error: "Le mois et l'année sont obligatoires pour réinitialiser la paie du mois", code: "VALIDATION_ERROR" },
+        { status: 400 }
+      );
+    }
+
+    const month = Number(monthStr);
+    const year = Number(yearStr);
+
+    const deleted = await prisma.payroll.deleteMany({
+      where: {
+        companyId: authResult.companyId,
+        month,
+        year,
+        status: "draft",
+      },
+    });
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: `${deleted.count} bulletin(s) brouillon(s) réinitialisé(s) et supprimé(s) pour ${month}/${year}`,
+        data: { count: deleted.count },
+      },
+      { status: 200 }
+    );
+  } catch (error: unknown) {
+    console.error("DELETE /api/v2/payroll error:", error);
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : "Erreur de réinitialisation", code: "SERVER_ERROR" },
       { status: 500 }
     );
   }

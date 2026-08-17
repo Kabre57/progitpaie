@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react";
 import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
-import { NeuInput } from "@/components/ui/neu-input";
-import { NeuSelect } from "@/components/ui/neu-select";
 import { NeuBadge } from "@/components/ui/neu-badge";
-import { FileText, Plus, Download, Search, CheckCircle, RefreshCw, Edit3 } from "lucide-react";
+import { FileText, Plus, Download, Search, CheckCircle, RefreshCw, Edit3, Trash2, AlertTriangle } from "lucide-react";
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
 
 import { NeuPagination } from "@/components/ui/neu-pagination";
@@ -22,7 +20,6 @@ export default function ContractsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [showModal, setShowModal] = useState(false);
-  const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
   const [activeEditDoc, setActiveEditDoc] = useState<{
     userId: string;
     name: string;
@@ -37,47 +34,11 @@ export default function ContractsPage() {
     docType: "contract" | "attestation" | "certificat" | "payslip";
   } | null>(null);
 
-  // Form State
-  const [userId, setUserId] = useState("");
-  const [type, setType] = useState("CDI");
-  const [category, setCategory] = useState("employe");
-  const [jobTitle, setJobTitle] = useState("");
-  const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
-  const [endDate, setEndDate] = useState("");
-  const [baseSalary, setBaseSalary] = useState("0");
-  const [sursalaire, setSursalaire] = useState("0");
-  const [transportAllowance, setTransportAllowance] = useState("0");
-  const [housingAllowance, setHousingAllowance] = useState("0");
-  const [submitting, setSubmitting] = useState(false);
+  // État de confirmation de suppression
+  const [contractToDelete, setContractToDelete] = useState<{ id: string; userName: string; jobTitle?: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const [searchTerm, setSearchTerm] = useState("");
-
-  const handleEmployeeSelect = (selectedUserId: string) => {
-    setUserId(selectedUserId);
-    const emp = employees.find((e) => e.id === selectedUserId);
-    if (emp) {
-      setBaseSalary(emp.salary ? String(emp.salary) : "0");
-      setSursalaire(emp.sursalaire ? String(emp.sursalaire) : "0");
-      const tVal = emp.transportAllowance ?? emp.transport ?? 30000;
-      setTransportAllowance(String(tVal));
-      const hVal = emp.housingAllowance ?? 0;
-      setHousingAllowance(String(hVal));
-      if (emp.jobTitle) setJobTitle(emp.jobTitle);
-      if (emp.category) setCategory(emp.category);
-    }
-  };
-
-  useEffect(() => {
-    fetchContracts();
-    fetchEmployees();
-  }, []);
-
-  const filteredContracts = contracts.filter((c) =>
-    c.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.jobTitle?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const totalPages = Math.ceil(filteredContracts.length / itemsPerPage);
-  const paginatedContracts = filteredContracts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const fetchContracts = async () => {
     setLoading(true);
@@ -85,7 +46,7 @@ export default function ContractsPage() {
       const res = await fetch("/api/contracts");
       const json = await res.json();
       if (json.success) {
-        setContracts(json.data || []);
+        setContracts(json.data);
       }
     } catch (err) {
       console.error("Fetch contracts error:", err);
@@ -98,101 +59,79 @@ export default function ContractsPage() {
     try {
       const res = await fetch("/api/employees");
       const json = await res.json();
-      if (json.success) {
-        setEmployees(json.data || []);
+      if (json.data && Array.isArray(json.data)) {
+        setEmployees(json.data);
       }
     } catch (err) {
       console.error("Fetch employees error:", err);
     }
   };
 
-  const handleCreateContract = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
+  useEffect(() => {
+    fetchContracts();
+    fetchEmployees();
+  }, []);
+
+  const filteredContracts = contracts.filter((c) => {
+    const term = searchTerm.toLowerCase();
+    const userName = c.user?.name || "";
+    const title = c.jobTitle || "";
+    return userName.toLowerCase().includes(term) || title.toLowerCase().includes(term);
+  });
+
+  const totalPages = Math.ceil(filteredContracts.length / itemsPerPage);
+  const paginatedContracts = filteredContracts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handleDeleteContractSubmit = async () => {
+    if (!contractToDelete) return;
+    setDeleting(true);
+
     try {
-      const res = await fetch("/api/contracts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          type,
-          category,
-          jobTitle,
-          startDate,
-          endDate: endDate || null,
-          baseSalary: parseFloat(baseSalary) || 0,
-          sursalaire: parseFloat(sursalaire) || 0,
-          transportAllowance: parseFloat(transportAllowance) || 0,
-          housingAllowance: parseFloat(housingAllowance) || 0,
-        }),
+      const res = await fetch(`/api/contracts/${contractToDelete.id}`, {
+        method: "DELETE",
       });
       const json = await res.json();
-      if (json.success) {
-        setShowModal(false);
+
+      if (res.ok && json.success) {
+        setContractToDelete(null);
         fetchContracts();
         showValidationSubmission({
-          title: "CONTRAT ÉTABLI !",
-          description: "Le contrat de travail a été enregistré avec succès dans le registre de l'entreprise.",
-          confirmLabel: "Continuer",
+          title: "CONTRAT SUPPRIMÉ",
+          description: `Le contrat de travail pour ${contractToDelete.userName} a été supprimé avec succès.`,
+          confirmLabel: "Fermer",
         });
       } else {
         showErrorForm({
-          title: "ACTION IMPOSSIBLE",
-          description: json.error || "Certains champs obligatoires sont manquants ou incorrects. Veuillez vérifier vos informations.",
-          confirmLabel: "Corriger les erreurs",
+          title: "SUPPRESSION IMPOSSIBLE",
+          description: json.error || "Impossible de supprimer ce contrat.",
+          confirmLabel: "Réessayer",
         });
       }
     } catch (err) {
-      console.error("Create contract error:", err);
+      console.error("Delete contract error:", err);
       showErrorTech({
-        title: "OUPS ! UNE ERREUR EST SURVENUE",
-        description: "Le serveur ne répond pas. Veuillez vérifier votre connexion et réessayer.",
-        confirmLabel: "Réessayer",
-        secondaryLabel: "Retour",
+        title: "ERREUR SERVEUR",
+        description: "Une erreur réseau est survenue lors de la suppression du contrat.",
+        confirmLabel: "Fermer",
       });
     } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDownloadPDF = async (targetUserId: string, docType: string) => {
-    setDownloadingDoc(`${targetUserId}-${docType}`);
-    try {
-      const res = await fetch("/api/documents/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: targetUserId, docType }),
-      });
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${docType}-${new Date().getTime()}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      } else {
-        const errJson = await res.json().catch(() => ({}));
-        alert(errJson.error || "Erreur lors de la génération du document PDF.");
-      }
-    } catch (err) {
-      console.error("Download PDF error:", err);
-    } finally {
-      setDownloadingDoc(null);
+      setDeleting(false);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* En-tête */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[var(--neu-text)] flex items-center gap-2">
             <FileText className="text-[var(--neu-accent)]" /> Gestion des Contrats & Actes RH
           </h1>
           <p className="text-[var(--neu-text-secondary)] text-sm mt-1">
-            Établissez les contrats de travail (CDI, CDD, Stage) et générez les attestations RH au format PDF.
+            Établissez les contrats de travail (CDI, CDD, Stage) et gérez les actes RH des salariés.
           </p>
         </div>
         <NeuButton onClick={() => setShowModal(true)} className="flex items-center gap-2">
@@ -200,7 +139,7 @@ export default function ContractsPage() {
         </NeuButton>
       </div>
 
-      {/* Filter / Search Bar */}
+      {/* Barre de Filtre / Recherche */}
       <NeuCard className="p-4 flex flex-col sm:flex-row gap-4 justify-between items-center">
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--neu-text-secondary)]" size={18} />
@@ -217,7 +156,7 @@ export default function ContractsPage() {
         </NeuButton>
       </NeuCard>
 
-      {/* Contracts Table */}
+      {/* Tableau des Contrats */}
       <NeuCard className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-[var(--neu-text)]">
@@ -229,7 +168,7 @@ export default function ContractsPage() {
                 <th className="px-6 py-4">Salaire de Base</th>
                 <th className="px-6 py-4">Indemnités</th>
                 <th className="px-6 py-4">Statut</th>
-                <th className="px-6 py-4 text-right">Actes RH (PDF)</th>
+                <th className="px-6 py-4 text-right">Actes RH (PDF) & Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--neu-border)]">
@@ -273,7 +212,7 @@ export default function ContractsPage() {
                         <CheckCircle size={12} /> {c.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right space-x-2">
+                    <td className="px-6 py-4 text-right space-x-1 whitespace-nowrap">
                       <NeuButton
                         size="sm"
                         variant="accent"
@@ -314,25 +253,19 @@ export default function ContractsPage() {
                       >
                         <FileText size={14} className="mr-1" /> Attestation
                       </NeuButton>
+
                       <NeuButton
                         size="sm"
                         variant="ghost"
-                        onClick={() => setActiveEditDoc({
-                          userId: typeof c.userId === "object" ? c.userId.id : c.userId,
-                          name: c.user?.name || "",
+                        onClick={() => setContractToDelete({
+                          id: c.id,
+                          userName: c.user?.name || "Salarié",
                           jobTitle: c.jobTitle,
-                          salary: c.baseSalary,
-                          sursalaire: c.sursalaire,
-                          transport: c.transportAllowance,
-                          category: c.category,
-                          contractType: c.type,
-                          startDate: c.startDate,
-                          endDate: c.endDate || undefined,
-                          docType: "certificat"
                         })}
-                        title="Éditer et Télécharger le Certificat de travail PDF"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 font-bold ml-1"
+                        title="Supprimer ce contrat de travail"
                       >
-                        <Download size={14} className="mr-1" /> Certificat
+                        <Trash2 size={14} className="mr-1 text-red-500" /> Supprimer
                       </NeuButton>
                     </td>
                   </tr>
@@ -350,7 +283,7 @@ export default function ContractsPage() {
         />
       </NeuCard>
 
-      {/* Modal Création Contrat (Simplifié & Manager View) */}
+      {/* Modal Nouveau Contrat */}
       <NewContractManagerModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
@@ -358,7 +291,7 @@ export default function ContractsPage() {
         onSuccess={fetchContracts}
       />
 
-      {/* Modal Édition & Génération Document RH */}
+      {/* Modal Aperçu & Édition Document */}
       {activeEditDoc && (
         <DocumentPreviewModal
           isOpen={!!activeEditDoc}
@@ -371,11 +304,54 @@ export default function ContractsPage() {
           defaultTransport={activeEditDoc.transport}
           defaultCategory={activeEditDoc.category}
           defaultContractType={activeEditDoc.contractType}
-          defaultJoiningDate={activeEditDoc.startDate}
           startDate={activeEditDoc.startDate}
           endDate={activeEditDoc.endDate || undefined}
           docType={activeEditDoc.docType}
         />
+      )}
+
+      {/* Modal de confirmation de suppression de contrat */}
+      {contractToDelete && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <NeuCard className="w-full max-w-md p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 rounded-2xl">
+            <div className="flex items-center gap-3 text-red-600 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">
+                  Supprimer ce contrat ?
+                </h3>
+                <p className="text-xs text-slate-500">Annulation d'un contrat de travail</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              Voulez-vous vraiment supprimer le contrat de travail de{" "}
+              <strong className="text-slate-900 dark:text-slate-100">{contractToDelete.userName}</strong>
+              {contractToDelete.jobTitle ? ` (${contractToDelete.jobTitle})` : ""} ?
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <NeuButton
+                variant="outline"
+                onClick={() => setContractToDelete(null)}
+                className="text-xs px-4"
+              >
+                Annuler
+              </NeuButton>
+              <NeuButton
+                variant="accent"
+                onClick={handleDeleteContractSubmit}
+                disabled={deleting}
+                className="text-xs px-4 bg-red-600 hover:bg-red-700 text-white font-bold gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {deleting ? "Suppression…" : "Confirmer la suppression"}
+              </NeuButton>
+            </div>
+          </NeuCard>
+        </div>
       )}
     </div>
   );
