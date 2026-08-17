@@ -108,37 +108,39 @@ export function ReverseSalaryCalculatorCard({
   };
 
   return (
-    <NeuCard className="border-2 border-[var(--neu-accent)]">
-      <NeuCardHeader className="bg-[var(--neu-surface-light)] border-b border-[var(--neu-border)] p-4 flex flex-row items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Calculator className="text-[var(--neu-accent)] w-5 h-5" />
-          <NeuCardTitle className="text-base font-bold text-[var(--neu-text)]">
-            Module de Négociation au NET & Simulation Coût Entreprise
+    <NeuCard className="border border-blue-200 dark:border-blue-900 bg-white dark:bg-slate-900 shadow-lg rounded-2xl overflow-hidden">
+      <NeuCardHeader className="bg-slate-100/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 p-4 flex flex-row items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shrink-0">
+            <Calculator className="w-4 h-4" />
+          </div>
+          <NeuCardTitle className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+            Négociation NET & Coût Entreprise
           </NeuCardTitle>
         </div>
-        <NeuBadge variant="success" className="gap-1">
-          <Sparkles className="w-3 h-3" /> Paramètres à valider
+        <NeuBadge variant="success" className="gap-1 text-[11px] shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300 border-emerald-300">
+          <Sparkles className="w-3 h-3" /> Vue RH experte
         </NeuBadge>
       </NeuCardHeader>
 
-      <NeuCardContent className="p-5 space-y-6">
+      <NeuCardContent className="p-4 sm:p-5 space-y-4">
         {/* Entrées du calcul */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-[var(--neu-surface-light)] p-4 rounded-xl border border-[var(--neu-border)]">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
           <div>
-            <label className="text-xs font-bold text-[var(--neu-text-secondary)] block mb-1">
-              Salaire NET à Payer souhaité (FCFA) *
+            <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+              Net souhaité (FCFA) *
             </label>
             <NeuInput
               type="number"
               value={targetNetInput}
               onChange={(e) => setTargetNetInput(e.target.value)}
               placeholder="ex: 500000"
-              className="font-bold text-lg text-[var(--neu-accent)]"
+              className="font-black text-base text-blue-600 dark:text-blue-400"
             />
           </div>
 
           <div>
-            <label className="text-xs font-bold text-[var(--neu-text-secondary)] block mb-1">
+            <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
               Situation Matrimoniale
             </label>
             <NeuSelect
@@ -154,8 +156,8 @@ export function ReverseSalaryCalculatorCard({
           </div>
 
           <div>
-            <label className="text-xs font-bold text-[var(--neu-text-secondary)] block mb-1">
-              Nombre d’enfants à charge (0 à 6+)
+            <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+              Enfants à charge
             </label>
             <NeuSelect
               value={String(childrenCount)}
@@ -174,10 +176,10 @@ export function ReverseSalaryCalculatorCard({
         </div>
 
         {/* Options complémentaires et transport */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center bg-[var(--neu-surface-light)] p-4 rounded-xl border border-[var(--neu-border)]">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
           <div>
-            <label className="text-xs font-bold text-[var(--neu-text-secondary)] block mb-1">
-              Indemnité de Transport (FCFA)
+            <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+              Transport (FCFA)
             </label>
             <NeuInput
               type="number"
@@ -187,130 +189,149 @@ export function ReverseSalaryCalculatorCard({
             />
             {simulation.transportTaxableSurplus > 0 && (
               <span className="text-[10px] font-bold text-amber-600 flex items-center gap-1 mt-1">
-                <AlertCircle className="w-3 h-3" /> Surplus imposable: +{simulation.transportTaxableSurplus.toLocaleString()} FCFA
+                <AlertCircle className="w-3 h-3 shrink-0" /> Surplus: +{simulation.transportTaxableSurplus.toLocaleString()} FCFA
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-2 pt-4">
+          <div className="flex items-center gap-2 pb-2">
             <input
               type="checkbox"
               id="housingCheck"
               checked={hasHousing}
               onChange={(e) => setHasHousing(e.target.checked)}
-              className="w-4 h-4 rounded text-[var(--neu-accent)] focus:ring-0"
+              className="w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
             />
-            <label htmlFor="housingCheck" className="text-xs font-bold text-[var(--neu-text)] flex items-center gap-1 cursor-pointer">
-              <Building2 className="w-4 h-4 text-blue-500" /> Logement de fonction (+15%)
+            <label htmlFor="housingCheck" className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1 cursor-pointer">
+              <Building2 className="w-3.5 h-3.5 text-blue-500 shrink-0" /> Logement (+15%)
             </label>
           </div>
 
-          <div className="flex items-center gap-2 pt-4">
+          <div className="flex items-center gap-2 pb-2">
             <input
               type="checkbox"
               id="vehicleCheck"
               checked={hasVehicle}
               onChange={(e) => setHasVehicle(e.target.checked)}
-              className="w-4 h-4 rounded text-[var(--neu-accent)] focus:ring-0"
+              className="w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
             />
-            <label htmlFor="vehicleCheck" className="text-xs font-bold text-[var(--neu-text)] flex items-center gap-1 cursor-pointer">
-              <Car className="w-4 h-4 text-emerald-500" /> Véhicule de fonction (+10%)
+            <label htmlFor="vehicleCheck" className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1 cursor-pointer">
+              <Car className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> Véhicule (+10%)
             </label>
           </div>
         </div>
 
-        {/* Bandeau familial et avertissement de validation locale */}
-        <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          Simulation indicative : les taux et règles doivent être validés avec le référent paie ivoirien avant utilisation réglementaire.
-        </p>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-emerald-50 dark:bg-emerald-950/40 p-3 rounded-xl border border-emerald-200 dark:border-emerald-800 gap-3">
-          <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            <div>
-              <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
-                Calcul Familial : {simulation.partsIGR} Part(s) IGR
-              </span>
-              <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
-                Réduction familiale indicative : <strong>-{simulation.ricfDeduction.toLocaleString()} FCFA / mois</strong>
-              </p>
+        {/* Bandeau familial */}
+        <div className="space-y-2">
+          <p className="text-[10px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900/60 rounded-lg p-2 leading-relaxed">
+            Simulation indicative : les taux et règles doivent être validés avec le référent paie ivoirien avant utilisation réglementaire.
+          </p>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-emerald-50 dark:bg-emerald-950/40 p-3 rounded-xl border border-emerald-200 dark:border-emerald-800 gap-2">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <div>
+                <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                  Calcul Familial : {simulation.partsIGR} Part(s) IGR
+                </span>
+                <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                  Réduction familiale indicative : <strong>-{simulation.ricfDeduction.toLocaleString()} FCFA / mois</strong>
+                </p>
+              </div>
             </div>
-          </div>
 
-          {simulation.reformComparison.employeeGain > 0 && (
-            <NeuBadge variant="success" className="px-3 py-1 text-xs">
-              Gain indicatif : +{simulation.reformComparison.employeeGain.toLocaleString()} FCFA / mois
-            </NeuBadge>
-          )}
+            {simulation.reformComparison.employeeGain > 0 && (
+              <NeuBadge variant="success" className="px-2.5 py-0.5 text-[11px] shrink-0">
+                Gain indicatif : +{simulation.reformComparison.employeeGain.toLocaleString()} FCFA
+              </NeuBadge>
+            )}
+          </div>
         </div>
 
-        {/* Décomposition salariale */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2 bg-[var(--neu-surface-light)] p-3 rounded-xl border border-[var(--neu-border)]">
-            <h4 className="text-xs font-bold text-[var(--neu-text)] uppercase border-b pb-1 flex justify-between">
-              <span>Retenues Salariales (Prélèvements)</span>
-              <span>FCFA</span>
-            </h4>
-            <div className="space-y-1 text-xs text-[var(--neu-text-secondary)]">
-              <div className="flex justify-between">
-                <span>CNPS Retraite Salarié (6,3%) :</span>
-                <span className="font-semibold">{simulation.cnpsEmployee.toLocaleString()}</span>
+        {/* Décomposition salariale - stacked or side-by-side cleanly */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
+          {/* Retenues Salariales */}
+          <div className="space-y-2 bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-1.5 mb-1">
+              <span className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight">
+                Retenues Salariales
+              </span>
+              <span className="text-[10px] font-bold text-slate-400">FCFA</span>
+            </div>
+            <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+              <div className="flex justify-between items-center gap-2">
+                <span className="truncate">CNPS Retraite Salarié (6,3%)</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100 shrink-0">{simulation.cnpsEmployee.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Couverture Maladie (CMU) :</span>
-                <span className="font-semibold">{simulation.cmuEmployee.toLocaleString()}</span>
+              <div className="flex justify-between items-center gap-2">
+                <span className="truncate">Couverture Maladie (CMU)</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100 shrink-0">{simulation.cmuEmployee.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Impôt Unique (ITS Barème 2024) :</span>
-                <span className="font-semibold">{simulation.itsBrut.toLocaleString()}</span>
+              <div className="flex justify-between items-center gap-2">
+                <span className="truncate">Impôt Unique (ITS 2024)</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100 shrink-0">{simulation.itsBrut.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-emerald-600 font-bold">
-                <span>Réduction Familiale (RICF) :</span>
-                <span>-{simulation.ricfDeduction.toLocaleString()}</span>
+              <div className="flex justify-between items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
+                <span className="truncate">Réduction Familiale (RICF)</span>
+                <span className="shrink-0">-{simulation.ricfDeduction.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-rose-600 font-bold border-t pt-1">
-                <span>TOTAL RETENUES SALARIALES :</span>
-                <span>{simulation.totalEmployeeDeductions.toLocaleString()} FCFA</span>
+              <div className="flex justify-between items-center gap-2 text-rose-600 dark:text-rose-400 font-extrabold border-t border-slate-200 dark:border-slate-800 pt-1.5">
+                <span>TOTAL RETENUES</span>
+                <span className="shrink-0">{simulation.totalEmployeeDeductions.toLocaleString()} FCFA</span>
               </div>
             </div>
           </div>
 
-          <div className="space-y-2 bg-[var(--neu-surface-light)] p-3 rounded-xl border border-[var(--neu-border)]">
-            <h4 className="text-xs font-bold text-[var(--neu-text)] uppercase border-b pb-1 flex justify-between">
-              <span>Charges Patronales & Budget Entreprise</span>
-              <span>FCFA</span>
-            </h4>
-            <div className="space-y-1 text-xs text-[var(--neu-text-secondary)]">
-              <div className="flex justify-between">
-                <span>CNPS Patronale (16,45%) :</span>
-                <span className="font-semibold">{simulation.cnpsEmployer.toLocaleString()}</span>
+          {/* Charges Patronales & Coût Entreprise */}
+          <div className="space-y-2 bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-1.5 mb-1">
+                <span className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight">
+                  Charges Patronales
+                </span>
+                <span className="text-[10px] font-bold text-slate-400">FCFA</span>
               </div>
-              <div className="flex justify-between">
-                <span>Taxes FDFP (TFC 0.6% + TAP 0.4%) :</span>
-                <span className="font-semibold">{simulation.fdfpEmployer.toLocaleString()}</span>
+              <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+                <div className="flex justify-between items-center gap-2">
+                  <span className="truncate">CNPS Patronale (16,45%)</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100 shrink-0">{simulation.cnpsEmployer.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="truncate font-normal">Taxes FDFP (TFC + TAP)</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100 shrink-0">{simulation.fdfpEmployer.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center gap-2 border-t border-slate-200 dark:border-slate-800 pt-1.5 font-extrabold text-slate-900 dark:text-slate-100">
+                  <span>TOTAL CHARGES</span>
+                  <span className="shrink-0">{simulation.totalEmployerCharges.toLocaleString()} FCFA</span>
+                </div>
               </div>
-              <div className="flex justify-between border-t pt-1 font-bold text-[var(--neu-text)]">
-                <span>TOTAL CHARGES PATRONALES :</span>
-                <span>{simulation.totalEmployerCharges.toLocaleString()} FCFA</span>
-              </div>
-              <div className="flex justify-between bg-blue-50 dark:bg-blue-950/60 p-2 rounded-lg text-blue-900 dark:text-blue-100 font-bold text-sm border border-blue-200 mt-2">
-                <span>COÛT TOTAL ENTREPRISE :</span>
-                <span>{simulation.totalCompanyCost.toLocaleString()} FCFA</span>
+            </div>
+
+            {/* Total Coût Entreprise Highlight Card */}
+            <div className="bg-slate-900 text-white p-3 rounded-xl border border-slate-800 shadow-md mt-2 space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                Coût Total Entreprise
+              </span>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-xl font-black tracking-tight text-white">
+                  {simulation.totalCompanyCost.toLocaleString()}
+                </span>
+                <span className="text-xs font-bold text-blue-400 uppercase">FCFA</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex flex-col sm:flex-row justify-end items-center gap-3 pt-2">
+        <div className="flex flex-col sm:flex-row justify-end items-center gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
           <NeuButton
             type="button"
             variant="outline"
             onClick={handleDownloadOfferLetter}
             disabled={downloadingPdf || targetNet <= 0}
-            className="w-full sm:w-auto gap-2"
+            className="w-full sm:w-auto text-xs gap-1.5 py-2"
           >
-            <FileText className="w-4 h-4" />
-            {downloadingPdf ? "Génération PDF..." : "📄 Télécharger la Lettre d'Offre PDF"}
+            <FileText className="w-3.5 h-3.5 text-blue-600" />
+            {downloadingPdf ? "Génération PDF..." : "Télécharger Offre PDF"}
           </NeuButton>
 
           {onApplyCalculatedSalary && (
@@ -319,10 +340,10 @@ export function ReverseSalaryCalculatorCard({
               variant="accent"
               onClick={handleApply}
               disabled={targetNet <= 0}
-              className="w-full sm:w-auto gap-2"
+              className="w-full sm:w-auto text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2"
             >
-              <CheckCircle className="w-4 h-4" />
-              Reporter le Salaire de Base ({simulation.baseSalary.toLocaleString()} FCFA) & Sursalaire ({simulation.sursalaire.toLocaleString()} FCFA)
+              <CheckCircle className="w-3.5 h-3.5" />
+              Reporter le Salaire
             </NeuButton>
           )}
         </div>

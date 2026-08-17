@@ -120,7 +120,7 @@ export function NewContractManagerModal({
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <NeuCard className="w-full max-w-6xl p-6 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-2xl max-h-[92vh] flex flex-col">
+      <NeuCard className={`w-full ${viewMode === "expert" ? "max-w-[1360px]" : "max-w-6xl"} p-6 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-2xl max-h-[92vh] flex flex-col transition-all duration-200`}>
         {/* En-tête */}
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
           <div>
@@ -172,7 +172,7 @@ export function NewContractManagerModal({
         {/* Contenu principal en deux colonnes */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-y-auto pr-1">
           {/* Colonne gauche : informations et paramètres du contrat */}
-          <div className="lg:col-span-7 space-y-6">
+          <div className={`${viewMode === "expert" ? "lg:col-span-6" : "lg:col-span-7"} space-y-6`}>
             <form id="new-contract-form" onSubmit={handleCreateContractSubmit} className="space-y-6">
               {/* Section 1 : informations du salarié */}
               <div className="space-y-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -197,7 +197,6 @@ export function NewContractManagerModal({
                       ))}
                     </NeuSelect>
                   </div>
-
                 </div>
 
                 <div>
@@ -271,14 +270,12 @@ export function NewContractManagerModal({
                     )}
                   </div>
                 </div>
-
-
               </div>
             </form>
           </div>
 
           {/* Colonne droite : simulation de rémunération */}
-          <div className="lg:col-span-5">
+          <div className={`${viewMode === "expert" ? "lg:col-span-6" : "lg:col-span-5"}`}>
             {viewMode === "simplified" ? (
               <SimplifiedSalaryNegotiationCard
                 candidateName={employees.find((e) => e.id === userId)?.name}
