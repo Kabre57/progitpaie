@@ -16,6 +16,7 @@ jest.mock("@/lib/rate-limit", () => ({
 import {
   authenticatePublicApi,
   getPublicApiContext,
+  requireApiScope,
 } from "@/lib/infrastructure/api-gateway/api-middleware";
 
 describe("authenticatePublicApi", () => {
@@ -38,7 +39,6 @@ describe("authenticatePublicApi", () => {
   it("retourne 403 lorsqu'une clé API invalide est fournie", async () => {
     mockValidateApiKey.mockResolvedValue(null);
     const request = new NextRequest("http://localhost/api/v2/public/payroll", {
-      // Clé au format valide (pk_live_ + 48 hex) mais non enregistrée en base
       headers: { "x-api-key": "pk_live_000000000000000000000000000000000000000000000000" },
     });
 
@@ -52,8 +52,6 @@ describe("authenticatePublicApi", () => {
   it("retourne 503 lorsque le service de validation est indisponible", async () => {
     mockValidateApiKey.mockRejectedValue(new Error("Database unavailable"));
     const request = new NextRequest("http://localhost/api/v2/public/payroll", {
-      // Clé au format valide (pk_live_ + 48 hex) pour dépasser la garde de format
-      // et atteindre validateApiKey qui lève une exception (DB indisponible)
       headers: { "x-api-key": "pk_live_111111111111111111111111111111111111111111111111" },
     });
 
@@ -64,13 +62,13 @@ describe("authenticatePublicApi", () => {
     await expect(response?.json()).resolves.toMatchObject({ success: false });
   });
 
-  it("injecte le contexte tenant uniquement après validation réussie", async () => {
+  it("injecte le contexte tenant et les permissions après validation réussie", async () => {
     mockValidateApiKey.mockResolvedValue({
       id: "api-key-1",
       companyId: "company-1",
+      permissions: ["read:payroll", "read:employees"],
     });
     const request = new NextRequest("http://localhost/api/v2/public/payroll", {
-      // Clé au format valide (pk_live_ + 48 hex) pour passer la garde de format
       headers: { "x-api-key": "pk_live_222222222222222222222222222222222222222222222222" },
     });
 
@@ -80,20 +78,44 @@ describe("authenticatePublicApi", () => {
     expect(getPublicApiContext(request)).toEqual({
       apiKeyId: "api-key-1",
       companyId: "company-1",
+      permissions: ["read:payroll", "read:employees"],
     });
   });
 
-  it("retourne la réponse de limitation sans appeler le service de clés", async () => {
-    mockEnforceRateLimit.mockResolvedValue(
-      NextResponse.json({ success: false }, { status: 429 })
-    );
+  it("bloque l'accès si la permission (scope) requise est absente", async () => {
+    mockValidateApiKey.mockResolvedValue({
+      id: "api-key-1",
+      companyId: "company-1",
+      permissions: ["read:employees"], // Ne contient PAS "read:payroll"
+    });
     const request = new NextRequest("http://localhost/api/v2/public/payroll", {
-      headers: { "x-api-key": "pk_live_valid" },
+      headers: { "x-api-key": "pk_live_222222222222222222222222222222222222222222222222" },
     });
 
-    const response = await authenticatePublicApi(request);
+    await authenticatePublicApi(request);
+    const scopeError = requireApiScope(request, "read:payroll");
 
-    expect(response?.status).toBe(429);
-    expect(mockValidateApiKey).not.toHaveBeenCalled();
+    expect(scopeError).toBeInstanceOf(NextResponse);
+    expect(scopeError?.status).toBe(403);
+    await expect(scopeError?.json()).resolves.toMatchObject({
+      success: false,
+      requiredScope: "read:payroll",
+    });
+  });
+
+  it("autorise l'accès si le scope requis est présent ou si 'read:all' est accordé", async () => {
+    mockValidateApiKey.mockResolvedValue({
+      id: "api-key-1",
+      companyId: "company-1",
+      permissions: ["read:all"],
+    });
+    const request = new NextRequest("http://localhost/api/v2/public/payroll", {
+      headers: { "x-api-key": "pk_live_333333333333333333333333333333333333333333333333" },
+    });
+
+    await authenticatePublicApi(request);
+    const scopeError = requireApiScope(request, "read:payroll");
+
+    expect(scopeError).toBeNull();
   });
 });

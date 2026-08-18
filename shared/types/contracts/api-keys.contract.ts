@@ -7,7 +7,8 @@ export interface ApiKeyItemDTO {
   name: string;
   keyPrefix: string;
   permissions: Record<string, boolean> | string[] | ApiKeyPermissionsDTO;
-  lastUsedAt?: string;
-  createdAt: string;
+  lastUsedAt?: string | Date | null;
+  expiresAt?: string | Date | null;
+  createdAt: string | Date;
   isActive: boolean;
 }

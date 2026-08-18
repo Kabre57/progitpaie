@@ -1,7 +1,8 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
  * PROGITPAIE — Route Publique v2 Payroll pour ERP partenaires 🔌
- * Accès par Clé API (X-API-Key: pk_live_...) — Rate limit : 120 req/min
+ * Accès par Clé API (X-API-Key: pk_live_...) — Scope requis: "read:payroll"
+ * Rate limit : 120 req/min
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
@@ -10,6 +11,7 @@ import { z } from "zod";
 import {
   authenticatePublicApi,
   getPublicApiContext,
+  requireApiScope,
 } from "@/lib/infrastructure/api-gateway/api-middleware";
 import { ListPayrollsUseCase } from "@/lib/application/payroll/use-cases/ListPayrolls";
 import { PrismaPayrollRepository } from "@/lib/infrastructure/repositories/prisma/PrismaPayrollRepository";
@@ -26,6 +28,9 @@ const listPayrollsUseCase = new ListPayrollsUseCase(payrollRepository);
 export async function GET(request: NextRequest): Promise<Response> {
   const authError = await authenticatePublicApi(request);
   if (authError) return authError;
+
+  const scopeError = requireApiScope(request, "read:payroll");
+  if (scopeError) return scopeError;
 
   const context = getPublicApiContext(request);
   if (!context) {

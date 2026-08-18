@@ -13,11 +13,12 @@ const apiKeyService = new ApiKeyService();
 export interface PublicApiContext {
   companyId: string;
   apiKeyId: string;
+  permissions: string[];
 }
 
 /**
  * Authentifie une requête API publique via X-API-Key ou Authorization Bearer.
- * Retourne un objet { companyId, apiKeyId } si valide, ou une NextResponse d'erreur.
+ * Transmet le tenant, l'identifiant de la clé et les permissions associées.
  */
 export async function authenticatePublicApi(
   request: NextRequest
@@ -43,8 +44,6 @@ export async function authenticatePublicApi(
   }
 
   // Validation du format avant tout accès base de données.
-  // Les clés valides ont le format pk_live_<48 hex chars> (56 chars au total).
-  // Une clé au format invalide est rejetée immédiatement avec 403.
   if (!rawKey.startsWith("pk_live_") || rawKey.length !== 56) {
     return NextResponse.json(
       { success: false, error: "Clé API invalide, révoquée ou expirée." },
@@ -68,20 +67,62 @@ export async function authenticatePublicApi(
     );
   }
 
-  // Injecter le companyId dans les headers de la requête pour les routes consommatrices
+  // Injecter le companyId, apiKeyId et permissions dans les headers internes
   request.headers.set("x-api-company-id", result.companyId);
   request.headers.set("x-api-key-id", result.id);
+  request.headers.set("x-api-permissions", JSON.stringify(result.permissions));
 
   return null; // Authentification réussie
 }
 
 /**
- * Extrait le companyId résolu par authenticatePublicApi depuis les headers internes.
- * À appeler uniquement après authenticatePublicApi dans la même route.
+ * Extrait le contexte API Publique (companyId, apiKeyId, permissions) depuis les headers internes.
  */
 export function getPublicApiContext(request: NextRequest): PublicApiContext | null {
   const companyId = request.headers.get("x-api-company-id");
   const apiKeyId = request.headers.get("x-api-key-id");
+  const permissionsStr = request.headers.get("x-api-permissions");
+
   if (!companyId || !apiKeyId) return null;
-  return { companyId, apiKeyId };
+
+  let permissions: string[] = [];
+  if (permissionsStr) {
+    try {
+      permissions = JSON.parse(permissionsStr);
+    } catch {
+      permissions = [];
+    }
+  }
+
+  return { companyId, apiKeyId, permissions };
+}
+
+/**
+ * Garde de sécurité pour valider qu'une clé API dispose du scope requis.
+ * Exemple: requireApiScope(request, "read:payroll")
+ */
+export function requireApiScope(request: NextRequest, requiredScope: string): NextResponse | null {
+  const context = getPublicApiContext(request);
+  if (!context) {
+    return NextResponse.json(
+      { success: false, error: "Contexte d'authentification API manquant" },
+      { status: 401 }
+    );
+  }
+
+  const { permissions } = context;
+  const hasAccess = permissions.includes("read:all") || permissions.includes(requiredScope);
+
+  if (!hasAccess) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Permission insuffisante. La permission '${requiredScope}' est requise pour cet endpoint.`,
+        requiredScope,
+      },
+      { status: 403 }
+    );
+  }
+
+  return null; // Accès autorisé
 }
