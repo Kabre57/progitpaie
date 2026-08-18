@@ -13,8 +13,9 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
     const where: Prisma.UserWhereInput = {
       companyId: query.companyId,
       role: "employee",
+      // Par défaut, ne retourner que les salariés actifs (isActive: true) sauf demande explicite
+      isActive: query.isActive !== undefined ? query.isActive : true,
     };
-    if (query.isActive !== undefined) where.isActive = query.isActive;
     if (query.departmentId) where.departmentId = query.departmentId;
     if (query.search) {
       where.OR = [
@@ -54,6 +55,24 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
     });
     if (!record) return null;
     return mapPrismaToDomainEmployee(record);
+  }
+
+  public async delete(companyId: string, id: string): Promise<boolean> {
+    try {
+      // Tentative de suppression physique (Hard Delete)
+      const result = await prisma.user.deleteMany({
+        where: { id, companyId },
+      });
+      if (result.count > 0) return true;
+    } catch {
+      // Fallback vers la désactivation (Soft Delete) si des relations de clés étrangères existent
+      await prisma.user.updateMany({
+        where: { id, companyId },
+        data: { isActive: false },
+      });
+      return true;
+    }
+    return false;
   }
 
   public async save(employee: Employee): Promise<Employee> {
