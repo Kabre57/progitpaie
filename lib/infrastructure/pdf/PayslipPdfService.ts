@@ -27,6 +27,14 @@ interface CompanySettingsRecord {
   cnpsNumber?: string;
 }
 
+function calculateConfiguredIts(gross: number, brackets: Array<{ min: number; max: number | null; rate: number }>): number {
+  return brackets.reduce((tax, bracket) => {
+    const upper = bracket.max ?? gross;
+    const taxableSlice = Math.max(0, Math.min(gross, upper) - bracket.min + (bracket.min === 0 ? 0 : 1));
+    return tax + Math.round(taxableSlice * (bracket.rate / 100));
+  }, 0);
+}
+
 export class PayslipPdfService {
   private static instance: PayslipPdfService;
 
@@ -74,6 +82,7 @@ export class PayslipPdfService {
     let appearanceConfig = DEFAULT_PAYSLIP_APPEARANCE;
     let legalConfig = DEFAULT_PAYSLIP_LEGAL;
     let rates = await RateService.getInstance().getRates();
+    const parametricConfig = await configService.getParametric(companyId);
 
     if (payroll && payroll.status === "finalized" && payroll.configSnapshotId) {
       const snapshotData = await configService.getConfigFromSnapshot(payroll.configSnapshotId);
@@ -91,11 +100,16 @@ export class PayslipPdfService {
       legalConfig = legConf;
     }
 
-    const cnpsEmployeeRate = rates.cnpsEmployeeRetraite;
-    const cnpsEmployerRetraiteRate = rates.cnpsEmployerRetraite;
-    const tfcRate = rates.fdfpFPC;
-    const tapRate = rates.fdfpTA;
-    const transportExempt = rates.transportExemptAmount;
+    const configuredContributions = parametricConfig.contributions;
+    const cnpsEmployeeRate = configuredContributions.cnpsRetraiteEmployeeRate ?? rates.cnpsEmployeeRetraite;
+    const cnpsEmployerRetraiteRate = configuredContributions.cnpsRetraiteEmployerRate ?? rates.cnpsEmployerRetraite;
+    const tfcRate = configuredContributions.fdfpFormationRate ?? rates.fdfpFPC;
+    const tapRate = configuredContributions.fdfpApprentissageRate ?? rates.fdfpTA;
+    const transportExempt = parametricConfig.other.transportExemptionCeiling ?? rates.transportExemptAmount;
+    const showCMU = rates.showCMU !== false;
+    const cmuBase = rates.cmuBase ?? 1000;
+    const cmuEmployee = showCMU ? Math.round(cmuBase * ((rates.cmuEmployeeRate ?? 50) / 100)) : 0;
+    const cmuEmployer = showCMU ? Math.round(cmuBase * ((rates.cmuEmployerRate ?? 50) / 100)) : 0;
 
     const monthName = new Date(year, month - 1).toLocaleString("fr-FR", { month: "long" });
     const empName = employee.name || "Collaborateur";
@@ -131,7 +145,7 @@ export class PayslipPdfService {
     const totalBrut = baseSalary + sursalaire + overtime + bonuses + seniorityVal;
     const brutSocial = totalBrut;
 
-    const itsTax = payroll.itsTax || Math.round(totalBrut * 0.012);
+    const itsTax = payroll.itsTax || calculateConfiguredIts(totalBrut, parametricConfig.taxBrackets);
     const cnpsEmployee = payroll.cnpsEmployee || Math.round(brutSocial * (cnpsEmployeeRate / 100));
     const cnpsEmployerRetraite = Math.round(brutSocial * (cnpsEmployerRetraiteRate / 100));
     const tfcVal = Math.round(brutSocial * (tfcRate / 100));
@@ -166,6 +180,7 @@ export class PayslipPdfService {
       civility,
       empName,
       empAddress,
+      parametricConfig,
       baseSalary,
       sursalaire,
       transport,
@@ -174,6 +189,10 @@ export class PayslipPdfService {
       seniorityVal,
       itsTax,
       cnpsEmployee,
+      cmuBase,
+      cmuEmployee,
+      cmuEmployer,
+      showCMU,
       cnpsEmployerRetraite,
       tfcVal,
       tapVal,

@@ -4,6 +4,7 @@ import { requireTenant } from "@/lib/database/tenant-context";
 import {
   DEFAULT_PAYSLIP_APPEARANCE,
   DEFAULT_PAYSLIP_LEGAL,
+  DEFAULT_PAYSLIP_PARAMETRIC,
 } from "@/lib/payslip-config";
 import { CreateAuditLogUseCase } from "@/lib/application/audit/use-cases/CreateAuditLogUseCase";
 import { PrismaAuditLogRepository } from "@/lib/infrastructure/repositories/prisma/PrismaAuditLogRepository";
@@ -20,14 +21,15 @@ export async function GET(request: NextRequest) {
     if (authResult instanceof NextResponse) return authResult;
 
     const configService = PayslipConfigService.getInstance();
-    const [appearance, legal] = await Promise.all([
+    const [appearance, legal, parametric] = await Promise.all([
       configService.getAppearance(),
       configService.getLegal(),
+      configService.getParametric(authResult.companyId),
     ]);
 
     return NextResponse.json({
       success: true,
-      data: { appearance, legal },
+      data: { appearance, legal, parametric },
     });
   } catch (error) {
     console.error("GET /api/settings/payslip error:", error);
@@ -38,6 +40,7 @@ export async function GET(request: NextRequest) {
         data: {
           appearance: DEFAULT_PAYSLIP_APPEARANCE,
           legal: DEFAULT_PAYSLIP_LEGAL,
+          parametric: DEFAULT_PAYSLIP_PARAMETRIC,
         },
       },
       { status: 500 }
@@ -103,6 +106,19 @@ export async function POST(req: NextRequest) {
       }
 
       results.legal = await configService.updateLegal(legal);
+    }
+
+    if (body.parametric && typeof body.parametric === "object") {
+      const parametric = body.parametric;
+      const currency = parametric.currency;
+      const layout = parametric.layout;
+      if (currency && (typeof currency.locale !== "string" || typeof currency.symbol !== "string")) {
+        return NextResponse.json({ success: false, error: "La devise doit définir un symbole et une locale valides" }, { status: 400 });
+      }
+      if (layout?.tableColumnWidths && (!Array.isArray(layout.tableColumnWidths) || layout.tableColumnWidths.length < 4 || layout.tableColumnWidths.some((value: unknown) => typeof value !== "number" || value <= 0))) {
+        return NextResponse.json({ success: false, error: "Les largeurs de colonnes doivent être des nombres positifs" }, { status: 400 });
+      }
+      results.parametric = await configService.updateParametric(parametric, authResult.companyId);
     }
 
     // Journalisation AuditLog (si un admin est identifié dans la requête)

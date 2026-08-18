@@ -7,6 +7,7 @@ import { NeuButton } from "@/components/ui/neu-button";
 import { NeuInput } from "@/components/ui/neu-input";
 
 import { PayrollRatesConfig, DEFAULT_PAYROLL_RATES } from "@/lib/rates-config";
+import type { PayslipParametricConfig } from "@/lib/payslip-config";
 
 export type TaxRatesData = PayrollRatesConfig;
 
@@ -14,6 +15,8 @@ interface TaxRatesCardProps {
   rates: TaxRatesData;
   setRates: (val: TaxRatesData) => void;
   onSave: () => void;
+  parametric: PayslipParametricConfig;
+  setParametric: (value: PayslipParametricConfig) => void;
   saving: boolean;
 }
 
@@ -35,6 +38,8 @@ export function TaxRatesCard({
   rates,
   setRates,
   onSave,
+  parametric,
+  setParametric,
   saving,
 }: TaxRatesCardProps) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -181,6 +186,13 @@ export function TaxRatesCard({
                 onChange={(e) => setRates({ ...rates, itsRate: Number(e.target.value) })}
               />
             </div>
+          </div>
+
+          {/* SECTION ITS PROGRESSIF : paramètre enregistré avec les autres taux */}
+          <div>
+            <h3 className="font-bold text-sm mb-3 text-[var(--neu-accent)] uppercase tracking-wider">Barème ITS progressif</h3>
+            <div className="overflow-x-auto rounded-lg border border-[var(--neu-border)]"><table className="min-w-full text-sm"><thead><tr className="bg-[var(--neu-surface-light)] text-left"><th className="p-2">Minimum</th><th className="p-2">Maximum</th><th className="p-2">Taux (%)</th><th className="p-2">Action</th></tr></thead><tbody>{parametric.taxBrackets.map((bracket, index) => <tr key={`its-bracket-${index}`} className="border-t border-[var(--neu-border)]"><td className="p-2"><input type="number" className="w-full rounded border p-2" value={bracket.min} onChange={(event) => setParametric({ ...parametric, taxBrackets: parametric.taxBrackets.map((item, itemIndex) => itemIndex === index ? { ...item, min: Number(event.target.value) } : item) })} /></td><td className="p-2"><input type="number" className="w-full rounded border p-2" value={bracket.max ?? ""} placeholder="Sans plafond" onChange={(event) => setParametric({ ...parametric, taxBrackets: parametric.taxBrackets.map((item, itemIndex) => itemIndex === index ? { ...item, max: event.target.value === "" ? null : Number(event.target.value) } : item) })} /></td><td className="p-2"><input type="number" step="0.01" min="0" max="100" className="w-full rounded border p-2" value={bracket.rate} onChange={(event) => setParametric({ ...parametric, taxBrackets: parametric.taxBrackets.map((item, itemIndex) => itemIndex === index ? { ...item, rate: Number(event.target.value) } : item) })} /></td><td className="p-2"><button type="button" className="text-red-600" onClick={() => setParametric({ ...parametric, taxBrackets: parametric.taxBrackets.filter((_, itemIndex) => itemIndex !== index) })}>Supprimer</button></td></tr>)}</tbody></table></div>
+            <button type="button" className="mt-3 rounded-lg border px-3 py-2 text-sm" onClick={() => setParametric({ ...parametric, taxBrackets: [...parametric.taxBrackets, { min: 0, max: null, rate: 0 }] })}>Ajouter une tranche</button>
           </div>
 
           {/* SECTION 4: CMU (3 Champs + Toggle) */}

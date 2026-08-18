@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 import {
   Palette, FileText, Save, Upload, X, Eye, ImageIcon, RotateCcw,
 } from "lucide-react";
 import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuInput } from "@/components/ui/neu-input";
+import { PayslipParametricCard } from "@/components/settings/payslip-parametric-card";
 import {
   PayslipAppearanceConfig,
   PayslipLegalConfig,
   DEFAULT_PAYSLIP_APPEARANCE,
   DEFAULT_PAYSLIP_LEGAL,
+  type PayslipParametricConfig,
   COLOR_PRESETS,
   LOGO_MAX_SIZE_BYTES,
   LOGO_ALLOWED_MIME_TYPES,
@@ -22,6 +24,8 @@ interface PayslipCustomizerCardProps {
   setAppearance: (val: PayslipAppearanceConfig) => void;
   legal: PayslipLegalConfig;
   setLegal: (val: PayslipLegalConfig) => void;
+  parametric: PayslipParametricConfig;
+  setParametric: Dispatch<SetStateAction<PayslipParametricConfig>>;
   onSave: () => void;
   saving: boolean;
   onPreview?: () => void;
@@ -42,6 +46,8 @@ export function PayslipCustomizerCard({
   setAppearance,
   legal,
   setLegal,
+  parametric,
+  setParametric,
   onSave,
   saving,
   onPreview,
@@ -366,6 +372,20 @@ export function PayslipCustomizerCard({
               </div>
             </label>
           </div>
+        </div>
+
+        <div className="border-t border-[var(--neu-border)] pt-6">
+          <h3 className="mb-4 font-bold text-sm uppercase tracking-wider text-[var(--neu-accent)]">Rubriques, mise en page et colonnes</h3>
+          <PayslipParametricCard
+            parametric={parametric}
+            setParametric={setParametric}
+            primaryColor={appearance.primaryColor}
+            onSave={() => undefined}
+            saving={saving}
+            visibleSections={["rubrics", "layout", "columns"]}
+            showHeader={false}
+            showPreview={true}
+          />
         </div>
 
         {/* ══════════════════════════════════════════ */}

@@ -5,6 +5,7 @@ import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/componen
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuInput } from "@/components/ui/neu-input";
 import { NeuSelect } from "@/components/ui/neu-select";
+import type { PayslipParametricConfig } from "@/lib/payslip-config";
 
 export interface CompanySettingsData {
   periodMonth: string;
@@ -38,6 +39,8 @@ interface CompanySettingsCardProps {
   company: CompanySettingsData;
   setCompany: (val: CompanySettingsData) => void;
   onSave: () => void;
+  parametric: PayslipParametricConfig;
+  setParametric: (value: PayslipParametricConfig) => void;
   saving: boolean;
 }
 
@@ -45,6 +48,8 @@ export function CompanySettingsCard({
   company,
   setCompany,
   onSave,
+  parametric,
+  setParametric,
   saving,
 }: CompanySettingsCardProps) {
   return (
@@ -92,6 +97,16 @@ export function CompanySettingsCard({
             />
           </div>
         </NeuCardContent>
+      </NeuCard>
+
+      <NeuCard>
+        <NeuCardHeader><NeuCardTitle>Devise et format des montants</NeuCardTitle></NeuCardHeader>
+        <NeuCardContent><div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <NeuInput label="Code devise" value={parametric.currency.code} onChange={(e) => setParametric({ ...parametric, currency: { ...parametric.currency, code: e.target.value.toUpperCase() } })} />
+          <NeuInput label="Symbole devise" value={parametric.currency.symbol} onChange={(e) => setParametric({ ...parametric, currency: { ...parametric.currency, symbol: e.target.value } })} />
+          <NeuInput label="Locale d’affichage" value={parametric.currency.locale} onChange={(e) => setParametric({ ...parametric, currency: { ...parametric.currency, locale: e.target.value } })} />
+          <NeuInput label="Nombre de décimales" type="number" min="0" max="4" value={parametric.currency.decimals} onChange={(e) => setParametric({ ...parametric, currency: { ...parametric.currency, decimals: Number(e.target.value) } })} />
+        </div></NeuCardContent>
       </NeuCard>
 
       {/* Card 2: Identification de l'Entreprise (L10-L23 Excel) */}

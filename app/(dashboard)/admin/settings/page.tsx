@@ -14,12 +14,15 @@ import { BanksSettingsCard, BankItem } from "@/components/settings/banks-setting
 import { LocationSettingsCard, LocationData } from "@/components/settings/location-settings-card";
 import GeolocationConfig from "@/components/settings/geolocation-config";
 import { PayslipCustomizerCard } from "@/components/settings/payslip-customizer-card";
+import { PayslipParametricCard } from "@/components/settings/payslip-parametric-card";
 import { DEFAULT_PAYROLL_RATES } from "@/lib/rates-config";
 import {
   PayslipAppearanceConfig,
   PayslipLegalConfig,
   DEFAULT_PAYSLIP_APPEARANCE,
   DEFAULT_PAYSLIP_LEGAL,
+  DEFAULT_PAYSLIP_PARAMETRIC,
+  PayslipParametricConfig,
 } from "@/lib/payslip-config";
 
 import { PayrollPeriodSettingsCard } from "@/components/settings/payroll-period-settings-card";
@@ -129,6 +132,7 @@ export default function AdminSettingsPage() {
   // État pour la configuration du bulletin de paie (7ème onglet)
   const [payslipAppearance, setPayslipAppearance] = useState<PayslipAppearanceConfig>(DEFAULT_PAYSLIP_APPEARANCE);
   const [payslipLegal, setPayslipLegal] = useState<PayslipLegalConfig>(DEFAULT_PAYSLIP_LEGAL);
+  const [payslipParametric, setPayslipParametric] = useState<PayslipParametricConfig>(DEFAULT_PAYSLIP_PARAMETRIC);
 
   const [payrollRules, setPayrollRules] = useState<PayrollGenerationRulesDTO>({
     startDayOfMonth: 25,
@@ -167,6 +171,9 @@ export default function AdminSettingsPage() {
           if (json.data.payslip_legal) {
             setPayslipLegal((prev) => ({ ...prev, ...json.data.payslip_legal }));
           }
+          if (json.data.payslip_parametric) {
+            setPayslipParametric((prev) => ({ ...prev, ...json.data.payslip_parametric }));
+          }
         }
 
         // Charger aussi depuis l'endpoint dédié /api/settings/payslip
@@ -179,6 +186,9 @@ export default function AdminSettingsPage() {
             }
             if (payslipJson.data.legal) {
               setPayslipLegal((prev) => ({ ...prev, ...payslipJson.data.legal }));
+            }
+            if (payslipJson.data.parametric) {
+              setPayslipParametric(payslipJson.data.parametric);
             }
           }
         } catch {
@@ -215,7 +225,7 @@ export default function AdminSettingsPage() {
     }
   };
 
-  const savePayslipConfig = async () => {
+  const savePayslipConfig = async (parametricOverride?: PayslipParametricConfig) => {
     setSaving(true);
     try {
       const res = await fetch("/api/settings/payslip", {
@@ -224,6 +234,7 @@ export default function AdminSettingsPage() {
         body: JSON.stringify({
           appearance: payslipAppearance,
           legal: payslipLegal,
+          parametric: parametricOverride ?? payslipParametric,
         }),
       });
       const json = await res.json();
@@ -357,6 +368,8 @@ export default function AdminSettingsPage() {
           company={company}
           setCompany={setCompany}
           onSave={() => saveSettingsKey("company_info", company)}
+          parametric={payslipParametric}
+          setParametric={setPayslipParametric}
           saving={saving}
         />
       )}
@@ -367,6 +380,8 @@ export default function AdminSettingsPage() {
           rates={rates}
           setRates={setRates}
           onSave={() => saveSettingsKey("tax_rates", rates)}
+          parametric={payslipParametric}
+          setParametric={setPayslipParametric}
           saving={saving}
         />
       )}
@@ -426,12 +441,14 @@ export default function AdminSettingsPage() {
           setAppearance={setPayslipAppearance}
           legal={payslipLegal}
           setLegal={setPayslipLegal}
+          parametric={payslipParametric}
+          setParametric={setPayslipParametric}
           onSave={savePayslipConfig}
           saving={saving}
         />
       )}
 
-      {/* Tab 8: Période & Contrôles de Génération de Paie */}
+      {/* Période & Contrôles de Génération de Paie */}
       {activeTab === "payroll_period" && (
         <PayrollPeriodSettingsCard
           rules={payrollRules}

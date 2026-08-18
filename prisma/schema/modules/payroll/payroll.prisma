@@ -15,6 +15,9 @@ model PayslipConfigSnapshot {
   // Snapshot des taux métier au moment de la génération
   ratesConfig Json // Copie complète de PayrollRatesConfig
 
+  // Snapshot du profil paramétrique complet (nullable pour compatibilité ascendante)
+  parametricConfig Json?
+
   // Préparation Multi-Company (nullable pour compatibilité ascendante)
   companyId String
 

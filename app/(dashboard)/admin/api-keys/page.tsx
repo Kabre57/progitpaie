@@ -71,7 +71,7 @@ export default function ApiKeysAdminPage() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--neu-text)] flex items-center gap-2">
             <Cpu className="text-purple-500" size={28} />
-            API Publique & Connecteurs ERP (SAP, Sage, Odoo) 🔌
+            API Publique & Connecteurs
           </h1>
           <p className="text-sm text-[var(--neu-text-subtle)] mt-1">
             Gestion des clés API sécurisées (SHA-256) et des accès des systèmes tiers

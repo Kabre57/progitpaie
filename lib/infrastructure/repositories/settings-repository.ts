@@ -42,6 +42,20 @@ export class SettingsRepository implements ISettingsRepository {
     });
   }
 
+  public async getCompanySetting<T = unknown>(companyId: string, key: string): Promise<T | null> {
+    const doc = await prisma.companySettings.findUnique({ where: { companyId_key: { companyId, key } } });
+    return doc?.value ? (doc.value as unknown as T) : null;
+  }
+
+  public async saveCompanySetting<T>(companyId: string, key: string, value: T): Promise<void> {
+    const jsonValue = value as unknown as Prisma.InputJsonValue;
+    await prisma.companySettings.upsert({
+      where: { companyId_key: { companyId, key } },
+      update: { value: jsonValue },
+      create: { companyId, key, value: jsonValue },
+    });
+  }
+
   /**
    * Récupère les informations officielles de l'entreprise
    */
@@ -73,6 +87,7 @@ export class SettingsRepository implements ISettingsRepository {
     appearanceConfig: unknown;
     legalConfig: unknown;
     ratesConfig: unknown;
+    parametricConfig?: unknown;
     createdById: string;
   }): Promise<string> {
     const snapshot = await prisma.payslipConfigSnapshot.create({
@@ -81,6 +96,7 @@ export class SettingsRepository implements ISettingsRepository {
         appearanceConfig: data.appearanceConfig as Prisma.InputJsonValue,
         legalConfig: data.legalConfig as Prisma.InputJsonValue,
         ratesConfig: data.ratesConfig as Prisma.InputJsonValue,
+        ...(data.parametricConfig !== undefined ? { parametricConfig: data.parametricConfig as Prisma.InputJsonValue } : {}),
         createdById: data.createdById,
       },
     });
@@ -94,6 +110,7 @@ export class SettingsRepository implements ISettingsRepository {
     appearanceConfig: unknown;
     legalConfig: unknown;
     ratesConfig: unknown;
+    parametricConfig?: unknown;
   } | null> {
     const snapshot = await prisma.payslipConfigSnapshot.findUnique({
       where: { id: snapshotId },
@@ -103,6 +120,7 @@ export class SettingsRepository implements ISettingsRepository {
       appearanceConfig: snapshot.appearanceConfig,
       legalConfig: snapshot.legalConfig,
       ratesConfig: snapshot.ratesConfig,
+      parametricConfig: snapshot.parametricConfig,
     };
   }
 }

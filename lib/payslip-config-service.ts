@@ -4,6 +4,8 @@ import {
   PayslipLegalConfig,
   DEFAULT_PAYSLIP_APPEARANCE,
   DEFAULT_PAYSLIP_LEGAL,
+  DEFAULT_PAYSLIP_PARAMETRIC,
+  PayslipParametricConfig,
 } from "./payslip-config";
 import { RateService } from "./rate-service";
 import { PayrollRatesConfig } from "./rates-config";
@@ -24,8 +26,10 @@ export class PayslipConfigService {
 
   private cachedAppearance: PayslipAppearanceConfig | null = null;
   private cachedLegal: PayslipLegalConfig | null = null;
+  private cachedParametric: PayslipParametricConfig | null = null;
   private lastFetchAppearance: number = 0;
   private lastFetchLegal: number = 0;
+  private lastFetchParametric: number = 0;
   private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL
 
   private constructor() {
@@ -103,6 +107,65 @@ export class PayslipConfigService {
     }
   }
 
+  /** Récupère le profil complet des paramètres métiers et de mise en page. */
+  public async getParametric(companyId?: string): Promise<PayslipParametricConfig> {
+    const now = Date.now();
+    if (this.cachedParametric && now - this.lastFetchParametric < this.CACHE_TTL_MS) return this.cachedParametric;
+    try {
+      const val = companyId
+        ? await this.settingsRepo.getCompanySetting<Partial<PayslipParametricConfig>>(companyId, "payslip_parametric")
+        : await this.settingsRepo.getByKey<Partial<PayslipParametricConfig>>("payslip_parametric");
+      this.cachedParametric = {
+        ...DEFAULT_PAYSLIP_PARAMETRIC,
+        ...val,
+        company: { ...DEFAULT_PAYSLIP_PARAMETRIC.company, ...(val?.company || {}) },
+        period: { ...DEFAULT_PAYSLIP_PARAMETRIC.period, ...(val?.period || {}) },
+        currency: { ...DEFAULT_PAYSLIP_PARAMETRIC.currency, ...(val?.currency || {}) },
+        contributions: { ...DEFAULT_PAYSLIP_PARAMETRIC.contributions, ...(val?.contributions || {}) },
+        other: { ...DEFAULT_PAYSLIP_PARAMETRIC.other, ...(val?.other || {}) },
+        bank: { ...DEFAULT_PAYSLIP_PARAMETRIC.bank, ...(val?.bank || {}) },
+        geolocation: { ...DEFAULT_PAYSLIP_PARAMETRIC.geolocation, ...(val?.geolocation || {}) },
+        layout: { ...DEFAULT_PAYSLIP_PARAMETRIC.layout, ...(val?.layout || {}) },
+        taxBrackets: val?.taxBrackets || DEFAULT_PAYSLIP_PARAMETRIC.taxBrackets,
+        salaryGrid: val?.salaryGrid || DEFAULT_PAYSLIP_PARAMETRIC.salaryGrid,
+        jobTitles: val?.jobTitles || DEFAULT_PAYSLIP_PARAMETRIC.jobTitles,
+        categories: val?.categories || DEFAULT_PAYSLIP_PARAMETRIC.categories,
+        salaryScales: val?.salaryScales || DEFAULT_PAYSLIP_PARAMETRIC.salaryScales,
+        rubrics: val?.rubrics || DEFAULT_PAYSLIP_PARAMETRIC.rubrics,
+      };
+      this.lastFetchParametric = Date.now();
+      return this.cachedParametric;
+    } catch (error) {
+      console.error("PayslipConfigService: Échec lecture parametric, fallback:", error);
+      return this.cachedParametric || { ...DEFAULT_PAYSLIP_PARAMETRIC };
+    }
+  }
+
+  /** Met à jour le profil paramétrique complet après validation de l’API. */
+  public async updateParametric(config: Partial<PayslipParametricConfig>, companyId?: string): Promise<PayslipParametricConfig> {
+    const current = await this.getParametric();
+    const updated: PayslipParametricConfig = {
+      ...current,
+      ...config,
+      company: { ...current.company, ...(config.company || {}) },
+      period: { ...current.period, ...(config.period || {}) },
+      currency: { ...current.currency, ...(config.currency || {}) },
+      contributions: { ...current.contributions, ...(config.contributions || {}) },
+      other: { ...current.other, ...(config.other || {}) },
+      bank: { ...current.bank, ...(config.bank || {}) },
+      geolocation: { ...current.geolocation, ...(config.geolocation || {}) },
+      layout: { ...current.layout, ...(config.layout || {}) },
+    };
+    if (companyId) {
+      await this.settingsRepo.saveCompanySetting(companyId, "payslip_parametric", updated);
+    } else {
+      await this.settingsRepo.saveByKey("payslip_parametric", updated);
+    }
+    this.cachedParametric = updated;
+    this.lastFetchParametric = Date.now();
+    return updated;
+  }
+
   // ═══════════════════════════════════════════════
   // ÉCRITURE (avec Invalidation immédiate du cache)
   // ═══════════════════════════════════════════════
@@ -160,6 +223,7 @@ export class PayslipConfigService {
     if (!companyId) throw new Error("Administrateur introuvable");
     const appearance = await this.getAppearance();
     const legal = await this.getLegal();
+    const parametric = await this.getParametric(companyId);
     const rateService = RateService.getInstance();
     const rates = await rateService.getRates();
 
@@ -177,6 +241,7 @@ export class PayslipConfigService {
       appearanceConfig: appearanceForSnapshot,
       legalConfig: legal,
       ratesConfig: rates,
+      parametricConfig: parametric,
       createdById: adminId,
     });
   }
@@ -192,6 +257,7 @@ export class PayslipConfigService {
     appearance: PayslipAppearanceConfig;
     legal: PayslipLegalConfig;
     rates: PayrollRatesConfig;
+    parametric: PayslipParametricConfig;
   } | null> {
     try {
       const snapshot = await this.settingsRepo.getPayslipConfigSnapshot(snapshotId);
@@ -216,6 +282,10 @@ export class PayslipConfigService {
           ...DEFAULT_PAYROLL_RATES,
           ...(snapshot.ratesConfig as unknown as Partial<PayrollRatesConfig>),
         },
+        parametric: {
+          ...DEFAULT_PAYSLIP_PARAMETRIC,
+          ...((snapshot.parametricConfig as unknown as Partial<PayslipParametricConfig> | undefined) || {}),
+        },
       };
     } catch (error) {
       console.error("PayslipConfigService: Échec lecture snapshot:", error);
@@ -233,7 +303,9 @@ export class PayslipConfigService {
   public invalidateCache(): void {
     this.cachedAppearance = null;
     this.cachedLegal = null;
+    this.cachedParametric = null;
     this.lastFetchAppearance = 0;
     this.lastFetchLegal = 0;
+    this.lastFetchParametric = 0;
   }
 }

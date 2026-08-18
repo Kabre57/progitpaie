@@ -11,6 +11,7 @@ import { generateWorkAttestationHTML } from "@/lib/templates/documents/attestati
 import { generateSeveranceHTML } from "@/lib/templates/documents/severance-templates";
 import { PDFDocumentFactory } from "@/lib/infrastructure/pdf/pdf-document-factory";
 import { ContractPDFBuilder } from "@/lib/infrastructure/pdf/builders/contract-pdf-builder";
+import { PayslipPdfService } from "@/lib/infrastructure/pdf/PayslipPdfService";
 
 const documentRepository = new PrismaDocumentGenerationRepository();
 
@@ -125,9 +126,16 @@ export async function POST(request: NextRequest): Promise<Response> {
         fdfpData: jsonObject(input.fdfpData),
       });
     } else if (["payslip", "bulletin"].includes(input.docType)) {
-      const payroll = await documentRepository.getPayslip(tenant.companyId, targetUserId, input.month, input.year);
-      if (!payroll) return NextResponse.json({ success: false, error: "Bulletin introuvable" }, { status: 404 });
-      pdf = textPdf("BULLETIN DE PAIE", `${payroll.employeeName} - ${input.month}/${input.year}\nSalaire brut: ${payroll.grossSalary} FCFA\nRetenues: ${payroll.totalDeductions} FCFA\nNet à payer: ${payroll.netSalary} FCFA`);
+      if (!targetUserId) {
+        return NextResponse.json({ success: false, error: "Salarié requis" }, { status: 400 });
+      }
+      const generatedPayslip = await PayslipPdfService.getInstance().generatePayslipBuffer({
+        userId: targetUserId,
+        month: input.month ?? 1,
+        year: input.year ?? new Date().getFullYear(),
+        companyId: tenant.companyId,
+      });
+      pdf = generatedPayslip.buffer;
     } else if (input.docType === "ordre_virement") {
       pdf = textPdf("ORDRE DE VIREMENT", `Banque: ${input.bankName ?? "Non renseignée"}\nPériode: ${input.month}/${input.year}\nMontant total: ${input.totalAmount ?? 0} FCFA`);
     } else if (input.docType === "rns") {
