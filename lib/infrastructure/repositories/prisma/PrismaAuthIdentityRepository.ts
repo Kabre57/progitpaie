@@ -78,9 +78,26 @@ export class PrismaAuthIdentityRepository implements AuthIdentityRepository {
         sursalaire: true,
         joiningDate: true,
         createdAt: true,
+        roleId: true,
+        customRole: {
+          select: {
+            name: true,
+            permissions: true,
+          },
+        },
       },
     });
     if (!user) return null;
+
+    let effectivePermissions: string[] = [];
+    if (user.role === "super_admin") {
+      effectivePermissions = ["*"];
+    } else if (user.customRole?.permissions && Array.isArray(user.customRole.permissions)) {
+      effectivePermissions = user.customRole.permissions as string[];
+    } else if (user.role === "admin") {
+      effectivePermissions = ["*"];
+    }
+
     return {
       id: user.id,
       name: user.name,
@@ -96,6 +113,9 @@ export class PrismaAuthIdentityRepository implements AuthIdentityRepository {
       sursalaire: user.sursalaire,
       joiningDate: user.joiningDate,
       createdAt: user.createdAt,
+      roleId: user.roleId ?? null,
+      roleName: user.customRole?.name ?? null,
+      permissions: effectivePermissions,
     };
   }
 }

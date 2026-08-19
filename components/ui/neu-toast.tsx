@@ -202,13 +202,18 @@ const useToast = () => {
   if (!context) {
     throw new Error("useToast must be used within a ToastProvider");
   }
-  return {
-    success: (message: string) => context.addToast(message, "success"),
-    error: (message: string) => context.addToast(message, "error"),
-    warning: (message: string) => context.addToast(message, "warning"),
-    info: (message: string) => context.addToast(message, "info"),
-    remove: context.removeToast,
-  };
+  const { addToast, removeToast } = context;
+
+  return React.useMemo(
+    () => ({
+      success: (message: string) => addToast(message, "success"),
+      error: (message: string) => addToast(message, "error"),
+      warning: (message: string) => addToast(message, "warning"),
+      info: (message: string) => addToast(message, "info"),
+      remove: removeToast,
+    }),
+    [addToast, removeToast]
+  );
 };
 
 interface NeuToastProps {

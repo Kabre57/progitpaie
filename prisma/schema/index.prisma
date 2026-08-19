@@ -10,6 +10,8 @@
 // Modules Métier
 // - ./modules/company/company.prisma
 // - ./modules/company/settings.prisma
+// - ./modules/company/permission.prisma
+// - ./modules/company/role.prisma
 // - ./modules/employee/employee.prisma
 // - ./modules/employee/attendance.prisma
 // - ./modules/employee/contract.prisma

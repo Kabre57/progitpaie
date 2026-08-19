@@ -24,6 +24,9 @@ export interface AuthSessionProfile {
   sursalaire: number;
   joiningDate: Date | null;
   createdAt: Date;
+  roleId: string | null;
+  roleName: string | null;
+  permissions: string[];
 }
 
 export interface AuthPasswordRecord {

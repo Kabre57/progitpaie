@@ -1,0 +1,42 @@
+// ════════════════════════════════════════════════════════════════════════
+// PROGITPAIE — Module Permissions Dynamiques 🔐
+// ════════════════════════════════════════════════════════════════════════
+
+/// Modules / Domaines de permissions personnalisables créés par les utilisateurs
+model PermissionModule {
+  id          String   @id @default(cuid())
+  companyId   String   // Isolation stricte par entreprise 🏢
+  name        String   // ex: "Salariés & RH", "Gestion de la Paie"
+  code        String   // ex: "employees", "payroll", "custom_module"
+  description String?
+  icon        String?  @default("Shield")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  permissions PermissionDefinition[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@map("permission_modules")
+}
+
+/// Permissions unitaires créées et configurées dans chaque module
+model PermissionDefinition {
+  id          String   @id @default(cuid())
+  companyId   String   // Isolation stricte par entreprise 🏢
+  moduleId    String
+  name        String   // ex: "Consulter les salariés", "Valider les primes"
+  code        String   // ex: "employees.read", "payroll.approve_bonus"
+  action      String   @default("read") // "read" | "create" | "update" | "delete" | "approve" | "export" | "custom"
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  module      PermissionModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, code])
+  @@index([companyId, moduleId])
+  @@map("permission_definitions")
+}

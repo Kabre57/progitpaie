@@ -1,0 +1,22 @@
+// ════════════════════════════════════════════════════════════════════════
+// PROGITPAIE — Module Rôles Personnalisés 👥
+// ════════════════════════════════════════════════════════════════════════
+
+/// Rôles personnalisés créés par les utilisateurs avec matrice de permissions
+model Role {
+  id          String   @id @default(cuid())
+  companyId   String   // Isolation multi-tenant 🏢
+  name        String   // ex: "Gestionnaire Paie Junior", "Superviseur Pointage"
+  description String?
+  permissions Json     // Liste des codes de permissions cochées (ex: ["employees.read", "payroll.calculate"])
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  users       User[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@map("roles")
+}

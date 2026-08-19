@@ -37,6 +37,7 @@ export default function RootLayout({
     <html
       lang="fr"
       suppressHydrationWarning
+      data-scroll-behavior="smooth"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body suppressHydrationWarning className="min-h-full flex flex-col bg-[var(--neu-bg)] text-[var(--neu-text)] transition-colors duration-300">

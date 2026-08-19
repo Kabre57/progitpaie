@@ -68,6 +68,8 @@ model User {
   company    Company     @relation("CompanyEmployees", fields: [companyId], references: [id], onDelete: Restrict)
   department Department? @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
   shift      Shift?      @relation("ShiftEmployees", fields: [shiftId], references: [id], onDelete: SetNull)
+  roleId     String?     // Rôle dynamique personnalisé
+  customRole Role?       @relation(fields: [roleId], references: [id], onDelete: SetNull)
 
   // Relations inverses
   attendances          Attendance[]                   @relation("UserAttendances")

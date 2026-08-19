@@ -33,6 +33,7 @@ import {
   Archive,
   Key,
   Network,
+  Shield,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSidebar } from "@/lib/SidebarContext";
@@ -70,6 +71,7 @@ const tenantAdminNavItems = [
   { name: "Rapports & Statistiques", href: "/admin/reports", icon: BarChart2 },
   { name: "Journal d'Audit", href: "/admin/audit-logs", icon: ScrollText },
   { name: "Clés API & ERP", href: "/admin/api-keys", icon: Key },
+  { name: "Rôles & Permissions", href: "/admin/roles", icon: Shield },
   { name: "Paramètres", href: "/admin/settings", icon: Settings },
 ];
 

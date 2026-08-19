@@ -59,10 +59,13 @@ docker compose up -d
 # 6. Application des migrations Prisma depuis l'hôte (port mappé 127.0.0.1:5433)
 # Le conteneur runner (Next.js standalone) ne contient pas le CLI Prisma.
 # On utilise le Prisma CLI local avec le port mappé Docker sur l'hôte.
-echo "🗄️ Application des migrations Prisma..."
-echo "⏳ Attente que PostgreSQL soit prêt (30s max)..."
-timeout 30 sh -c 'until pg_isready -h 127.0.0.1 -p 5433 -U "${POSTGRES_USER:-progitpaie}" 2>/dev/null; do sleep 2; done' \
-  || { echo "❌ PostgreSQL n'a pas répondu dans les 30 secondes."; exit 1; }
+echo "⏳ Attente que PostgreSQL soit prêt..."
+for i in $(seq 1 15); do
+  if docker compose exec -T postgres pg_isready -U "${POSTGRES_USER:-progitpaie}" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 2
+done
 DATABASE_URL="postgresql://${POSTGRES_USER:-progitpaie}:${DB_PASSWORD}@127.0.0.1:5433/${POSTGRES_DB:-progitpaie}?schema=public" \
   pnpm exec prisma migrate deploy --schema=prisma/schema \
   || { echo "⚠️  migrate deploy a échoué. Vérifiez prisma/migrations/."; exit 1; }

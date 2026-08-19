@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
 // The application uses a multi-file Prisma schema in prisma/schema. Without an

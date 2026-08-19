@@ -59,6 +59,9 @@ model Company {
   payrollEarningLines    PayrollEarningLine[]
   provisionSnapshots     ProvisionCalculationSnapshot[]
   documents              CompanyDocument[]
+  roles                  Role[]
+  permissionModules      PermissionModule[]
+  permissionDefinitions  PermissionDefinition[]
 
   @@map("companies")
 }

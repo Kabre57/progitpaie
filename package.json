@@ -21,6 +21,7 @@
     "prisma:migrate": "pnpm exec prisma migrate dev --schema=prisma/schema",
     "prisma:studio": "pnpm exec prisma studio --schema=prisma/schema",
     "prisma:seed": "pnpm exec prisma db seed",
+    "seed:superadmin": "pnpm exec tsx scripts/create-super-admin.ts",
     "prisma:validate": "pnpm exec tsx prisma/scripts/validate.ts",
     "prisma:deploy": "pnpm exec prisma generate --schema=prisma/schema && pnpm exec prisma migrate deploy --schema=prisma/schema"
   },
@@ -80,6 +81,7 @@
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.12",
+    "tsx": "^4.19.3",
     "typescript": "^5"
   }
 }

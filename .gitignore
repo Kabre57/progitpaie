@@ -70,6 +70,7 @@ copy_logipaie_rh24.xlsx
 check_long_files.sh
 secure-ports.sh
 deploy-local.sh
+deploy-local.ps1
 
 # ── Dossier nginx (géré directement sur le VPS, pas via Git) ─────────────────
 # nginx/  ← décommentez si votre config nginx est gérée manuellement sur le VPS
