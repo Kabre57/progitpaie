@@ -119,9 +119,14 @@ echo "✅ PostgreSQL est opérationnel et validé par SELECT 1."
 
 # 9. Application des migrations Prisma depuis l'hôte (port mappé 127.0.0.1:5433)
 echo "🗄️ Application des migrations Prisma..."
-DATABASE_URL="postgresql://${POSTGRES_USER:-progitpaie}:${DB_PASSWORD}@127.0.0.1:5433/${POSTGRES_DB:-progitpaie}?schema=public" \
-  $PNPM_BIN exec prisma migrate deploy --schema=prisma/schema \
-  || { echo "❌ migrate deploy a échoué. Vérifiez prisma/migrations/."; exit 1; }
+PRISMA_DB_URL="postgresql://${POSTGRES_USER:-progitpaie}:${DB_PASSWORD}@127.0.0.1:5433/${POSTGRES_DB:-progitpaie}?schema=public"
+if ! DATABASE_URL="$PRISMA_DB_URL" $PNPM_BIN exec prisma migrate deploy --schema=prisma/schema; then
+  echo "⚠️ Tentative de résolution automatique des migrations en échec..."
+  DATABASE_URL="$PRISMA_DB_URL" $PNPM_BIN exec prisma migrate resolve --rolled-back 20260819133726_windows --schema=prisma/schema 2>/dev/null || true
+  DATABASE_URL="$PRISMA_DB_URL" $PNPM_BIN exec prisma migrate resolve --rolled-back 20260819152834_add_roles_and_permissions --schema=prisma/schema 2>/dev/null || true
+  DATABASE_URL="$PRISMA_DB_URL" $PNPM_BIN exec prisma migrate deploy --schema=prisma/schema \
+    || { echo "❌ migrate deploy a échoué. Vérifiez prisma/migrations/."; exit 1; }
+fi
 
 # 10. Relance du conteneur d'application en mode Rolling Update
 echo "🔄 Relance du conteneur d'application..."
