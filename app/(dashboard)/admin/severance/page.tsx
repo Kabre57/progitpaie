@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/components/ui/neu-card";
+import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuInput } from "@/components/ui/neu-input";
 import { NeuSelect } from "@/components/ui/neu-select";
@@ -273,7 +273,7 @@ export default function SeverancePage() {
                   <div className="p-3 bg-[var(--neu-surface-light)] border border-[var(--neu-border)] rounded-xl text-xs space-y-1">
                     <p className="font-semibold text-[var(--neu-accent)]">ℹ️ Fiche Salarié (Registre du Personnel) :</p>
                     <div className="grid grid-cols-2 gap-2 text-[var(--neu-text-secondary)]">
-                      <span>• Date d'Embauche : <strong className="text-[var(--neu-text)]">{jDate}</strong></span>
+                      <span>• Date d&apos;Embauche : <strong className="text-[var(--neu-text)]">{jDate}</strong></span>
                       <span>• Poste / Fonction : <strong className="text-[var(--neu-text)]">{emp.jobTitle || "Collaborateur"}</strong></span>
                       <span>• Salaire de Base : <strong className="text-[var(--neu-text)]">{(emp.salary || 0).toLocaleString()} FCFA</strong></span>
                       <span>• Sursalaire : <strong className="text-[var(--neu-text)]">{(emp.sursalaire || 0).toLocaleString()} FCFA</strong></span>

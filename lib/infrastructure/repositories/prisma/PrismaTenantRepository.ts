@@ -11,7 +11,7 @@ import {
 import { UserRole, type Prisma } from "@prisma/client";
 
 export class PrismaTenantRepository implements TenantRepository {
-  private mapToDomain(c: Prisma.CompanyGetPayload<{}>): Tenant {
+  private mapToDomain(c: Prisma.CompanyGetPayload<Record<string, never>>): Tenant {
     const statusVal = c.isActive ? "ACTIVE" : "INACTIVE";
     return new Tenant({
       id: new TenantId(c.id),

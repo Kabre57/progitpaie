@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Wifi, WifiOff, Bell, MapPin, Calendar, CheckCircle2 } from "lucide-react";
+import { Wifi, WifiOff, MapPin, Calendar } from "lucide-react";
 import { RealtimeNotification } from "@/hooks/use-socket";
 
 export interface RealtimeToastProps {

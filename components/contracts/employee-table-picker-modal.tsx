@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, UserCheck, X, ArrowUpDown, Building, Check, User } from "lucide-react";
+import { Search, UserCheck, X, Check, User } from "lucide-react";
 import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuInput } from "@/components/ui/neu-input";
@@ -81,7 +81,7 @@ export function EmployeeTablePickerModal({
               <UserCheck className="text-blue-600 w-5 h-5" /> Sélection du salarié
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Recherchez et triez les employés de l'entreprise pour lui attribuer un contrat.
+              Recherchez et triez les employés de l&apos;entreprise pour lui attribuer un contrat.
             </p>
           </div>
 
@@ -166,7 +166,7 @@ export function EmployeeTablePickerModal({
                 Aucun salarié ne correspond à votre recherche.
               </p>
               <p className="text-xs text-slate-400">
-                Essayez d'effacer les filtres ou vérifiez l'orthographe du nom.
+                Essayez d&apos;effacer les filtres ou vérifiez l&apos;orthographe du nom.
               </p>
             </div>
           ) : (

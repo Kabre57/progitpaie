@@ -8,7 +8,7 @@ import { ApiResponse, JWTPayload } from "@/types";
  * Returns the user payload if valid, null otherwise
  */
 export async function getAuthUser(
-  request: Request
+  _request?: Request
 ): Promise<JWTPayload | null> {
   try {
     const cookieStore = await cookies();

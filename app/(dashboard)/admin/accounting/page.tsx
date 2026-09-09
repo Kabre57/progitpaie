@@ -124,24 +124,38 @@ export default function AccountingPage() {
             <thead>
               <tr className="border-b border-[var(--neu-border)] bg-[var(--neu-surface-light)] text-[var(--neu-text-secondary)] uppercase text-[11px] font-semibold tracking-wider">
                 <th className="px-4 py-3">Compte Général  </th>
-                <th className="px-4 py-3">Intitulé du Compte / Libellé d'Écriture</th>
+                <th className="px-4 py-3">Intitulé du Compte / Libellé d&apos;Écriture</th>
                 <th className="px-4 py-3 text-right">Débit (FCFA)</th>
                 <th className="px-4 py-3 text-right">Crédit (FCFA)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--neu-border)] text-xs">
-              {vouchers.map((row, idx) => (
-                <tr key={idx} className="hover:bg-[var(--neu-surface-light)] transition-colors">
-                  <td className="px-4 py-3 font-mono font-bold text-[var(--neu-accent)]">{row.account}</td>
-                  <td className="px-4 py-3 font-medium text-[var(--neu-text)]">{row.label}</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-emerald-500">
-                    {row.debit > 0 ? `${row.debit.toLocaleString()} FCFA` : "-"}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-amber-500">
-                    {row.credit > 0 ? `${row.credit.toLocaleString()} FCFA` : "-"}
+              {loading ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-[var(--neu-text-secondary)]">
+                    Chargement des écritures comptables...
                   </td>
                 </tr>
-              ))}
+              ) : vouchers.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-[var(--neu-text-secondary)]">
+                    Aucune écriture pour cette période.
+                  </td>
+                </tr>
+              ) : (
+                vouchers.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-[var(--neu-surface-light)] transition-colors">
+                    <td className="px-4 py-3 font-mono font-bold text-[var(--neu-accent)]">{row.account}</td>
+                    <td className="px-4 py-3 font-medium text-[var(--neu-text)]">{row.label}</td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-emerald-500">
+                      {row.debit > 0 ? `${row.debit.toLocaleString()} FCFA` : "-"}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-amber-500">
+                      {row.credit > 0 ? `${row.credit.toLocaleString()} FCFA` : "-"}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-[var(--neu-border)] bg-[var(--neu-surface-light)] font-bold text-sm">

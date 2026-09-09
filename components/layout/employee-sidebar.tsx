@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -59,9 +60,12 @@ export function EmployeeSidebar() {
         {/* Logo */}
         <div className="h-20 flex items-center justify-center border-b border-[var(--neu-border)] p-4">
           <Link href="/employee" className="flex items-center gap-2">
-            <img 
+            <Image 
               src="/logo.png" 
               alt="progitpaie Logo" 
+              width={160}
+              height={48}
+              priority
               className={cn(
                 "transition-all duration-300",
                 isCollapsed ? "w-10 h-10 object-contain" : "h-12 w-auto object-contain"

@@ -465,7 +465,7 @@ export default function ApiKeysAdminPage() {
                 <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">
                   Révoquer cette Clé API ?
                 </h3>
-                <p className="text-xs text-slate-500">Désactivation irréversible de l'accès ERP</p>
+                <p className="text-xs text-slate-500">Désactivation irréversible de l&apos;accès ERP</p>
               </div>
             </div>
 
@@ -502,7 +502,7 @@ export default function ApiKeysAdminPage() {
                 <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">
                   Rotation de la Clé API
                 </h3>
-                <p className="text-xs text-slate-500">Désactivation de l'ancienne clé & génération d'une nouvelle</p>
+                <p className="text-xs text-slate-500">Désactivation de l&apos;ancienne clé &amp; génération d&apos;une nouvelle</p>
               </div>
             </div>
 

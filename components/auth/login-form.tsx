@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardDescription, NeuCardContent, NeuCardFooter } from "@/components/ui/neu-card";
@@ -28,7 +28,6 @@ interface LoginResponse {
 }
 
 export default function LoginForm() {
-  const router = useRouter();
   const [formData, setFormData] = useState<LoginFormData>({
     email: "",
     password: "",
@@ -99,7 +98,14 @@ export default function LoginForm() {
     <NeuCard className="w-full max-w-md mx-auto">
       <NeuCardHeader className="text-center pt-8">
         <div className="flex justify-center mb-6">
-          <img src="/logo.png" alt="progitpaie Logo" className="h-20 w-auto object-contain" />
+          <Image
+            src="/logo.png"
+            alt="progitpaie Logo"
+            width={200}
+            height={80}
+            priority
+            className="h-20 w-auto object-contain"
+          />
         </div>
         <NeuCardTitle className="text-2xl">Welcome Back</NeuCardTitle>
         <NeuCardDescription>

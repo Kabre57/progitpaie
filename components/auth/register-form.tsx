@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
-import { User, Mail, Lock, Eye, EyeOff, Building2 } from "lucide-react";
+import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardDescription, NeuCardContent, NeuCardFooter } from "@/components/ui/neu-card";
 import { NeuInput } from "@/components/ui/neu-input";
 import { NeuSelect } from "@/components/ui/neu-select";
@@ -138,7 +139,14 @@ export default function RegisterForm() {
     <NeuCard className="w-full max-w-md mx-auto">
       <NeuCardHeader className="text-center pt-8">
         <div className="flex justify-center mb-6">
-          <img src="/logo.png" alt="progitpaie Logo" className="h-20 w-auto object-contain" />
+          <Image
+            src="/logo.png"
+            alt="progitpaie Logo"
+            width={200}
+            height={80}
+            priority
+            className="h-20 w-auto object-contain"
+          />
         </div>
         <NeuCardTitle className="text-2xl">Create Account</NeuCardTitle>
         <NeuCardDescription>

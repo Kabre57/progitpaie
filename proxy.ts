@@ -40,10 +40,9 @@ export function proxy(request: NextRequest) {
   }
 
   // Content-Security-Policy (CSP)
-  const isDev = process.env.NODE_ENV !== "production";
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""};
+    script-src 'self' 'unsafe-inline';
     style-src 'self' 'unsafe-inline';
     img-src 'self' blob: data: https:;
     font-src 'self' data:;
@@ -51,7 +50,7 @@ export function proxy(request: NextRequest) {
     base-uri 'self';
     form-action 'self';
     frame-ancestors 'none';
-    ${isDev ? "" : "upgrade-insecure-requests;"}
+    upgrade-insecure-requests;
   `.replace(/\s{2,}/g, " ").trim();
 
   response.headers.set("Content-Security-Policy", cspHeader);

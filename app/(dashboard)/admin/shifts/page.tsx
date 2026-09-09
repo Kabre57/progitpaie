@@ -1,21 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Clock, Plus, Pencil, Trash2, Loader2, X, Check } from "lucide-react";
+import { Clock, Plus, Trash2, Loader2, X, Check } from "lucide-react";
 import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuInput } from "@/components/ui/neu-input";
 import { NeuBadge } from "@/components/ui/neu-badge";
-import {
-  NeuTable,
-  NeuTableHeader,
-  NeuTableBody,
-  NeuTableRow,
-  NeuTableHead,
-  NeuTableCell,
-} from "@/components/ui/neu-table";
-import { EmptyState } from "@/components/ui/empty-state";
-import { List2, ListItem } from "@/components/ui/list-2";
+import { List2 } from "@/components/ui/list-2";
 import { IShift } from "@/types";
 
 interface ShiftFormData {

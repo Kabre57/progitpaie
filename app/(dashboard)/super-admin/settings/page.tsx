@@ -1,17 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Settings,
-  Shield,
-  FileCheck,
   Save,
   RotateCcw,
   RefreshCw,
   Percent,
   Calendar,
   Lock,
-  DollarSign,
 } from "lucide-react";
 import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
@@ -21,9 +19,8 @@ import type { GlobalSettingsDTO } from "@/lib/application/admin/dto/GlobalSettin
 type SectionKey = "cnpsRates" | "leavePolicy" | "securityPolicy";
 
 export default function SuperAdminSettingsPage() {
-  const [settings, setSettings] = useState<GlobalSettingsDTO | null>(null);
+  const queryClient = useQueryClient();
   const [draft, setDraft] = useState<GlobalSettingsDTO | null>(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -33,25 +30,20 @@ export default function SuperAdminSettingsPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const fetchSettings = async () => {
-    setLoading(true);
-    try {
+  const { data: settings, isLoading, isFetching, refetch } = useQuery<GlobalSettingsDTO | null>({
+    queryKey: ["super-admin-global-settings"],
+    queryFn: async () => {
       const res = await fetch("/api/v2/admin/settings/global");
       const json = await res.json();
       if (json.success) {
-        setSettings(json.data);
         setDraft(JSON.parse(JSON.stringify(json.data)));
+        return json.data as GlobalSettingsDTO;
       }
-    } catch {
-      showToast("error", "Erreur de chargement des paramètres");
-    } finally {
-      setLoading(false);
-    }
-  };
+      throw new Error(json.error || "Erreur de chargement des paramètres");
+    },
+  });
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
+  const loading = isLoading;
 
   const handleSave = async () => {
     if (!draft) return;
@@ -69,7 +61,7 @@ export default function SuperAdminSettingsPage() {
 
       const json = await res.json();
       if (json.success) {
-        setSettings(json.data);
+        queryClient.invalidateQueries({ queryKey: ["super-admin-global-settings"] });
         setDraft(JSON.parse(JSON.stringify(json.data)));
         showToast("success", "Paramètres enregistrés avec succès ✓");
       } else {
@@ -93,7 +85,7 @@ export default function SuperAdminSettingsPage() {
       });
       const json = await res.json();
       if (json.success) {
-        setSettings(json.data);
+        queryClient.invalidateQueries({ queryKey: ["super-admin-global-settings"] });
         setDraft(JSON.parse(JSON.stringify(json.data)));
         showToast("success", "Valeurs légales par défaut restaurées ✓");
       } else {
@@ -149,7 +141,7 @@ export default function SuperAdminSettingsPage() {
             Paramètres Globaux du Système
           </h1>
           <p className="text-xs text-[var(--neu-text-secondary)] mt-0.5">
-            Configuration nationale · Côte d'Ivoire · Mise à jour par le Super Administrateur uniquement
+            Configuration nationale · Côte d&apos;Ivoire · Mise à jour par le Super Administrateur uniquement
             {settings?.lastUpdatedAt && (
               <span className="ml-2 text-[#666cff]">
                 · Dernière modification : {new Date(settings.lastUpdatedAt).toLocaleString("fr-FR")}
@@ -161,8 +153,8 @@ export default function SuperAdminSettingsPage() {
           <NeuButton
             variant="ghost"
             size="sm"
-            onClick={fetchSettings}
-            loading={loading}
+            onClick={() => refetch()}
+            loading={isFetching}
             title="Actualiser"
           >
             <RefreshCw size={14} />
@@ -342,7 +334,7 @@ export default function SuperAdminSettingsPage() {
               className="rounded accent-[#666cff] w-4 h-4"
             />
             <label htmlFor="mfaRequired" className="font-semibold text-[var(--neu-text)] cursor-pointer">
-              Exiger l'Authentification 2FA (MFA) pour tous les Admins
+              Exiger l&apos;Authentification 2FA (MFA) pour tous les Admins
             </label>
           </div>
         </div>

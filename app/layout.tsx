@@ -1,21 +1,16 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/neu-toast";
 import { VisualNoticeProvider } from "@/components/ui/visual-notice-modal";
 import { ThemeProvider } from "@/lib/ThemeProvider";
 import { SidebarProvider } from "@/lib/SidebarContext";
 import QueryProvider from "@/components/providers/QueryProvider";
+import { SupportImpersonationBanner } from "@/components/layout/support-impersonation-banner";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Les polices Geist sont chargées via CSS (public/fonts.css) pour éviter
+// la dépendance réseau de next/font/google au moment du build.
+// Les variables CSS --font-geist-sans et --font-geist-mono restent compatibles
+// avec tous les composants existants.
 
 export const metadata: Metadata = {
   title: "progitpaie — Employee Attendance System",
@@ -37,15 +32,43 @@ export default function RootLayout({
     <html
       lang="fr"
       suppressHydrationWarning
-      data-scroll-behavior="smooth"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className="h-full antialiased"
+      style={
+        {
+          "--font-geist-sans":
+            "Geist, Inter, ui-sans-serif, system-ui, -apple-system, sans-serif",
+          "--font-geist-mono":
+            "Geist Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+        } as React.CSSProperties
+      }
     >
-      <body suppressHydrationWarning className="min-h-full flex flex-col bg-[var(--neu-bg)] text-[var(--neu-text)] transition-colors duration-300">
+      <head>
+        {/* Chargement Geist depuis CDN jsDelivr — ne bloque pas le build */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body
+        suppressHydrationWarning
+        className="min-h-full flex flex-col bg-[var(--neu-bg)] text-[var(--neu-text)] transition-colors duration-300"
+        style={{ fontFamily: "var(--font-geist-sans)" }}
+      >
         <QueryProvider>
           <ThemeProvider>
             <SidebarProvider>
               <VisualNoticeProvider>
-                <ToastProvider>{children}</ToastProvider>
+                <ToastProvider>
+                  <SupportImpersonationBanner />
+                  {children}
+                </ToastProvider>
               </VisualNoticeProvider>
             </SidebarProvider>
           </ThemeProvider>
@@ -54,3 +77,4 @@ export default function RootLayout({
     </html>
   );
 }
+

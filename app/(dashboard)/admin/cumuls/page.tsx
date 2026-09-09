@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { 
-  Calculator, Calendar, DollarSign, Users, TrendingUp, Download, Printer, User as UserIcon, FileSpreadsheet 
+  Calculator, Calendar, DollarSign, Users, TrendingUp, Printer, User as UserIcon, FileSpreadsheet, Loader2 
 } from "lucide-react";
 import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
@@ -54,7 +54,8 @@ export default function CumulsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[var(--neu-text)] flex items-center gap-2">
-            <Calculator className="w-6 h-6 text-[var(--neu-accent)]" /> Cumuls de Paie Mensuels & Annuel  
+            <Calculator className="w-6 h-6 text-[var(--neu-accent)]" /> Cumuls de Paie Mensuels &amp; Annuel
+            {loading && <Loader2 className="w-4 h-4 animate-spin text-[var(--neu-accent)]" />}
           </h1>
           <p className="text-[var(--neu-text-secondary)] text-sm">
             Récapitulatif et cumul général de la masse salariale, des retenues fiscales (ITS/IGR) et des cotisations CNPS/FDFP.

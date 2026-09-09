@@ -12,6 +12,7 @@ model User {
   employeeId           String?   // Matricule unique au sein de l'entreprise (ex: EMP-001)
   departmentId         String? // Département rattaché
   shiftId              String? // Horaire de travail (Shift) rattaché
+  roleId               String? // Rôle personnalisé rattaché
   salary               Float     @default(0) // Salaire catégoriel de base
   sursalaire           Float     @default(0) // Sursalaire négocié
   partsIGR             Float     @default(1.0) // Nombre de parts IGR (Quotient familial)
@@ -68,7 +69,6 @@ model User {
   company    Company     @relation("CompanyEmployees", fields: [companyId], references: [id], onDelete: Restrict)
   department Department? @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
   shift      Shift?      @relation("ShiftEmployees", fields: [shiftId], references: [id], onDelete: SetNull)
-  roleId     String?     // Rôle dynamique personnalisé
   customRole Role?       @relation(fields: [roleId], references: [id], onDelete: SetNull)
 
   // Relations inverses

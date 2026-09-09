@@ -1,4 +1,5 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireSuperAdmin } from "@/lib/security/requireSuperAdmin";
 
 jest.mock("@/lib/security/requireSuperAdmin", () => ({
   requireSuperAdmin: jest.fn().mockResolvedValue({
@@ -79,9 +80,7 @@ describe("API Route V2 — GET /api/v2/admin/audit-logs", () => {
   });
 
   it("retourne HTTP 401 sans authentification", async () => {
-    const { requireSuperAdmin } = require("@/lib/security/requireSuperAdmin");
-    const { NextResponse } = require("next/server");
-    (requireSuperAdmin as jest.Mock).mockResolvedValueOnce(
+    (requireSuperAdmin as unknown as jest.Mock).mockResolvedValueOnce(
       NextResponse.json({ success: false, error: "Non authentifié" }, { status: 401 })
     );
 

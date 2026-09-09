@@ -2,7 +2,6 @@
 
 import { UserCheck, UserX, Clock, TrendingUp, Timer, Users } from "lucide-react";
 import { NeuStatCard } from "@/components/ui/neu-stat-card";
-import { ChipLoader } from "@/components/ui/chip-loader";
 
 interface AttendanceStatsData {
   totalEmployees: number;

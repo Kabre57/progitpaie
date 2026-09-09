@@ -7,10 +7,6 @@ import { DeleteTenantUseCase } from "@/lib/application/tenant/use-cases/DeleteTe
 import { UpdateTenantSchema, DeleteTenantSchema } from "@/shared/validation/tenant-v2.schema";
 import { TenantMapper } from "@/lib/application/tenant/mappers/tenant.mapper";
 
-const tenantRepo = new PrismaTenantRepository();
-const getTenantByIdUC = new GetTenantByIdUseCase(tenantRepo);
-const deleteTenantUC = new DeleteTenantUseCase(tenantRepo);
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -20,6 +16,9 @@ export async function GET(
     if (authResult instanceof NextResponse) return authResult;
 
     const { id } = await params;
+    const tenantRepo = new PrismaTenantRepository();
+    const getTenantByIdUC = new GetTenantByIdUseCase(tenantRepo);
+
     const result = await getTenantByIdUC.execute(id);
 
     return NextResponse.json({
@@ -44,6 +43,7 @@ export async function PUT(
     if (authResult instanceof NextResponse) return authResult;
 
     const { id } = await params;
+    const tenantRepo = new PrismaTenantRepository();
     const tenant = await tenantRepo.findById(id);
     if (!tenant) {
       return NextResponse.json(
@@ -106,6 +106,9 @@ export async function DELETE(
         { status: 400 }
       );
     }
+
+    const tenantRepo = new PrismaTenantRepository();
+    const deleteTenantUC = new DeleteTenantUseCase(tenantRepo);
 
     const result = await deleteTenantUC.execute(id, parsed.data.confirmationName);
 

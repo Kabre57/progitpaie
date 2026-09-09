@@ -28,8 +28,8 @@ export function DeclarationPreview({
   year,
   itsData,
   cnpsData,
-  rnsData,
-  name,
+  rnsData: _rnsData,
+  name: _name,
 }: DeclarationPreviewProps) {
   const monthName = new Date(year, month - 1).toLocaleString("fr-FR", { month: "long" }).toUpperCase();
 

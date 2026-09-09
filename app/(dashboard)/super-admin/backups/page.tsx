@@ -1,7 +1,8 @@
 "use client";
 
 import { getErrorMessage } from "@/lib/error-message";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Archive,
   Download,
@@ -11,18 +12,19 @@ import {
   CheckCircle2,
   HardDrive,
   Database,
-  Calendar,
   Building2,
-  ShieldCheck,
 } from "lucide-react";
 import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import type { SystemBackupDTO } from "@/lib/application/admin/dto/BackupExportDTO";
 
+interface BackupsApiResponse {
+  backups: SystemBackupDTO[];
+  companies: Array<{ id: string; name: string }>;
+}
+
 export default function SuperAdminBackupsPage() {
-  const [backups, setBackups] = useState<SystemBackupDTO[]>([]);
-  const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
-  const [loadingBackups, setLoadingBackups] = useState(true);
+  const queryClient = useQueryClient();
   const [creatingBackup, setCreatingBackup] = useState(false);
   const [exportingMulti, setExportingMulti] = useState(false);
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
@@ -34,25 +36,24 @@ export default function SuperAdminBackupsPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const fetchBackups = async () => {
-    setLoadingBackups(true);
-    try {
+  const { data, isLoading, isFetching, refetch } = useQuery<BackupsApiResponse>({
+    queryKey: ["super-admin-backups"],
+    queryFn: async () => {
       const res = await fetch("/api/v2/admin/backups");
       const json = await res.json();
       if (json.success) {
-        setBackups(json.data.backups || []);
-        setCompanies(json.data.companies || []);
+        return {
+          backups: json.data.backups || [],
+          companies: json.data.companies || [],
+        };
       }
-    } catch {
-      showToast("error", "Échec du chargement des sauvegardes");
-    } finally {
-      setLoadingBackups(false);
-    }
-  };
+      throw new Error(json.error || "Échec du chargement des sauvegardes");
+    },
+  });
 
-  useEffect(() => {
-    fetchBackups();
-  }, []);
+  const backups = data?.backups || [];
+  const companies = data?.companies || [];
+  const loadingBackups = isLoading;
 
   const handleCreateBackup = async () => {
     setCreatingBackup(true);
@@ -65,7 +66,7 @@ export default function SuperAdminBackupsPage() {
       const json = await res.json();
       if (json.success) {
         showToast("success", "Sauvegarde système générée avec succès ✓");
-        fetchBackups();
+        queryClient.invalidateQueries({ queryKey: ["super-admin-backups"] });
       } else {
         showToast("error", json.error || "Erreur de création du backup");
       }
@@ -134,8 +135,8 @@ export default function SuperAdminBackupsPage() {
           <NeuButton
             variant="ghost"
             size="sm"
-            onClick={fetchBackups}
-            loading={loadingBackups}
+            onClick={() => refetch()}
+            loading={isFetching}
           >
             <RefreshCw size={14} />
             Actualiser
@@ -215,9 +216,13 @@ export default function SuperAdminBackupsPage() {
           </div>
 
           <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
-            {backups.length === 0 ? (
+            {loadingBackups ? (
               <div className="text-xs text-[var(--neu-text-secondary)] text-center py-8">
-                Aucune sauvegarde disponible. Cliquez sur "Créer une Sauvegarde".
+                Chargement des sauvegardes...
+              </div>
+            ) : backups.length === 0 ? (
+              <div className="text-xs text-[var(--neu-text-secondary)] text-center py-8">
+                Aucune sauvegarde disponible. Cliquez sur &quot;Créer une Sauvegarde&quot;.
               </div>
             ) : (
               backups.map((bk) => (
@@ -319,7 +324,7 @@ export default function SuperAdminBackupsPage() {
               loading={exportingMulti}
             >
               <Download size={14} />
-              Générer et Télécharger l'Export Multi-Entreprises
+              Générer et Télécharger l&apos;Export Multi-Entreprises
             </NeuButton>
           </div>
         </NeuCard>

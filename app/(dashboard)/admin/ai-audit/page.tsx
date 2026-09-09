@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Bot, ShieldAlert, CheckCircle2, AlertTriangle, Sparkles, RefreshCw, Lightbulb, ArrowUpRight } from "lucide-react";
 import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
@@ -27,27 +28,19 @@ interface AIAuditReport {
 }
 
 export default function AIAuditAdminPage() {
-  const [report, setReport] = useState<AIAuditReport | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-
-  const fetchAIAudit = async () => {
-    setLoading(true);
-    try {
+  const { data: report, isLoading, refetch, isFetching } = useQuery<AIAuditReport>({
+    queryKey: ["ai-audit"],
+    queryFn: async () => {
       const res = await fetch("/api/ai/audit");
       const json = await res.json();
-      if (json.success) {
-        setReport(json.report);
+      if (!json.success) {
+        throw new Error(json.error || "Échec du chargement de l'audit IA");
       }
-    } catch (err) {
-      console.error("Échec du chargement de l'audit IA:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return json.report as AIAuditReport;
+    },
+  });
 
-  useEffect(() => {
-    fetchAIAudit();
-  }, []);
+  const loading = isLoading || isFetching;
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -56,25 +49,25 @@ export default function AIAuditAdminPage() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--neu-text)] flex items-center gap-2">
             <Bot className="text-indigo-500" size={28} />
-            Intelligence Artificielle & Audit d'Anomalies de Paie 🤖
+            Intelligence Artificielle &amp; Audit d&apos;Anomalies de Paie 🤖
           </h1>
           <p className="text-sm text-[var(--neu-text-subtle)] mt-1">
-            Détection automatique des Outliers, contrôles de conformité fiscale DGI / CNPS & conseils d'optimisation
+            Détection automatique des Outliers, contrôles de conformité fiscale DGI / CNPS &amp; conseils d&apos;optimisation
           </p>
         </div>
 
         <button
-          onClick={fetchAIAudit}
+          onClick={() => refetch()}
           className="text-xs text-[var(--neu-text-subtle)] hover:text-indigo-500 flex items-center gap-1 bg-[var(--neu-bg-subtle)] px-3 py-2 rounded-xl"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          Lancer l'Audit IA
+          Lancer l&apos;Audit IA
         </button>
       </div>
 
       {loading || !report ? (
         <div className="text-center py-12 text-[var(--neu-text-subtle)]">
-          L'Assistant IA analyse les bulletins et fiches de paie...
+          L&apos;Assistant IA analyse les bulletins et fiches de paie...
         </div>
       ) : (
         <>
@@ -158,7 +151,7 @@ export default function AIAuditAdminPage() {
           <NeuCard className="p-5 space-y-3 bg-emerald-500/5 border border-emerald-500/20">
             <h3 className="font-bold text-sm text-emerald-600 flex items-center gap-2">
               <Sparkles size={16} />
-              Recommandations d'Optimisation des Charges (IA Advice)
+              Recommandations d&apos;Optimisation des Charges (IA Advice)
             </h3>
             <ul className="space-y-2">
               {report.optimizationTips.map((tip, idx) => (

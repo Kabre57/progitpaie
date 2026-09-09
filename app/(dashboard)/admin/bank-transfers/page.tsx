@@ -3,9 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
-import { NeuBadge } from "@/components/ui/neu-badge";
-import { Building2, Download, Printer, Search, Loader2, DollarSign, CheckCircle2, Eye } from "lucide-react";
-import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
+import { Building2, Printer, DollarSign, CheckCircle2, Eye } from "lucide-react";
 
 interface BankGroup {
   bankName: string;

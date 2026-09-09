@@ -47,25 +47,39 @@ pnpm prisma:generate
 pnpm build
 pnpm exec tsc --project tsconfig.rotation.json
 
-# 4. Build des conteneurs Docker
+# 4. Résolution des liens symboliques et injection des dépendances Next.js
+# Utilise un script Node.js multiplateforme qui déréférence récursivement
+# toutes les junctions Windows et injecte les dépendances Next/SWC manquantes.
+echo "🔗 Préparation et déréférencement du standalone pour Docker..."
+node scripts/prepare-standalone.js
+
+
+# 5. Build des conteneurs Docker
 echo "🏗️ Construction des conteneurs Docker..."
 docker compose build
 
-# 5. Redémarrage des conteneurs
+# 6. Redémarrage des conteneurs
 echo "🔄 Démarrage des conteneurs PROGITPAIE..."
 docker compose down
 docker compose up -d
 
-# 6. Application des migrations Prisma depuis l'hôte (port mappé 127.0.0.1:5433)
+# 7. Application des migrations Prisma depuis l'hôte (port mappé 127.0.0.1:5433)
 # Le conteneur runner (Next.js standalone) ne contient pas le CLI Prisma.
 # On utilise le Prisma CLI local avec le port mappé Docker sur l'hôte.
-echo "⏳ Attente que PostgreSQL soit prêt..."
+echo "🗄️ Application des migrations Prisma..."
+echo "⏳ Attente que PostgreSQL soit prêt (30s max)..."
 for i in $(seq 1 15); do
-  if docker compose exec -T postgres pg_isready -U "${POSTGRES_USER:-progitpaie}" >/dev/null 2>&1; then
+  if docker exec progitpaie-postgres pg_isready -U "${POSTGRES_USER:-progitpaie}" >/dev/null 2>&1; then
+    echo "✅ PostgreSQL est prêt !"
     break
+  fi
+  if [ "$i" -eq 15 ]; then
+    echo "❌ PostgreSQL n'a pas répondu dans les 30 secondes."
+    exit 1
   fi
   sleep 2
 done
+
 DATABASE_URL="postgresql://${POSTGRES_USER:-progitpaie}:${DB_PASSWORD}@127.0.0.1:5433/${POSTGRES_DB:-progitpaie}?schema=public" \
   pnpm exec prisma migrate deploy --schema=prisma/schema \
   || { echo "⚠️  migrate deploy a échoué. Vérifiez prisma/migrations/."; exit 1; }

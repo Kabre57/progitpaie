@@ -11,17 +11,27 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    ".build/**",
     "next-env.d.ts",
     "scripts/**",
     "tests/**",
     "load-test.js",
     "coverage/**",
+    "jest.setup.js",
   ]),
+
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-require-imports": "warn",
-      "@typescript-eslint/no-unused-vars": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          "argsIgnorePattern": "^_",
+          "varsIgnorePattern": "^_",
+          "caughtErrorsIgnorePattern": "^_"
+        }
+      ],
       "@typescript-eslint/no-empty-object-type": "warn",
       "import/no-anonymous-default-export": "warn",
       "react/no-unescaped-entities": "warn",

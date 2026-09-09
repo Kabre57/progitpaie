@@ -25,7 +25,28 @@ export function usePayroll(month?: number, year?: number) {
   });
 }
 
-// 2. Hook pour la génération de la paie mensuelle
+// 2. Hook pour les bulletins de l'employé connecté
+export function useMyPayroll(month?: number, year?: number) {
+  const queryParams = new URLSearchParams();
+  if (month) queryParams.set("month", String(month));
+  if (year) queryParams.set("year", String(year));
+
+  return useQuery<IPayroll[]>({
+    queryKey: ["payroll", "my", month, year],
+    queryFn: async () => {
+      const res = await fetch(`/api/v2/payroll/my?${queryParams.toString()}`);
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok || !contentType.includes("application/json")) {
+        return [];
+      }
+      const json = await res.json();
+      return json.data || [];
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+// 3. Hook pour la génération de la paie mensuelle
 export function useGeneratePayroll() {
   const queryClient = useQueryClient();
 

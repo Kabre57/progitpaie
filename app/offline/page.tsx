@@ -24,7 +24,7 @@ export default function OfflinePage() {
         <div className="space-y-2">
           <h1 className="text-2xl font-bold tracking-tight">Mode Hors-Ligne</h1>
           <p className="text-sm text-slate-400 leading-relaxed">
-            Vous n'avez actuellement pas de connexion internet. Vos pointages et actions sont automatiquement enregistrés et seront synchronisés dès le retour du réseau.
+            Vous n&apos;avez actuellement pas de connexion internet. Vos pointages et actions sont automatiquement enregistrés et seront synchronisés dès le retour du réseau.
           </p>
         </div>
 
@@ -42,7 +42,7 @@ export default function OfflinePage() {
             className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition pt-2"
           >
             <ArrowLeft size={14} />
-            <span>Retour à l'accueil</span>
+            <span>Retour à l&apos;accueil</span>
           </Link>
         </div>
 

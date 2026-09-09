@@ -40,3 +40,22 @@ export function useApplyLeave() {
     },
   });
 }
+
+// 3. Hook d'annulation d'une demande de congé
+export function useCancelLeave() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/leaves/my?id=${id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Échec de l'annulation de la demande");
+      return json;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leaves"] });
+    },
+  });
+}

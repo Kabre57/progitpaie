@@ -3,13 +3,9 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   ScrollText,
-  Search,
   Filter,
   RefreshCw,
   Download,
-  Calendar,
-  Building2,
-  User,
   ChevronLeft,
   ChevronRight,
   X,
@@ -94,7 +90,7 @@ export default function SuperAdminAuditLogsPage() {
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     searchTimeout.current = setTimeout(() => fetchLogs(1), search ? 400 : 0);
     return () => { if (searchTimeout.current) clearTimeout(searchTimeout.current); };
-  }, [fetchLogs]);
+  }, [fetchLogs, search]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -139,10 +135,10 @@ export default function SuperAdminAuditLogsPage() {
         <div>
           <h1 className="text-xl font-semibold text-[var(--neu-text)] flex items-center gap-3">
             <ScrollText size={24} className="text-[#666cff]" />
-            Journal d'Audit Global
+            Journal d&apos;Audit Global
           </h1>
           <p className="text-xs text-[var(--neu-text-secondary)] mt-0.5">
-            Traçabilité de toutes les actions sur l'ensemble des entreprises du groupe
+            Traçabilité de toutes les actions sur l&apos;ensemble des entreprises du groupe
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -361,7 +357,7 @@ export default function SuperAdminAuditLogsPage() {
             <div className="flex items-center justify-between border-b border-[var(--neu-border)] pb-3">
               <h2 className="text-sm font-bold text-[var(--neu-text)] flex items-center gap-2">
                 <ScrollText size={18} className="text-[#666cff]" />
-                Détail de l'Événement Audit
+                Détail de l&apos;Événement Audit
               </h2>
               <button
                 onClick={() => setSelectedLog(null)}

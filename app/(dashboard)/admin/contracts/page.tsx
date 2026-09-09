@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuBadge } from "@/components/ui/neu-badge";
-import { FileText, Plus, Download, Search, CheckCircle, RefreshCw, Edit3, Trash2, AlertTriangle } from "lucide-react";
+import { FileText, Plus, Search, CheckCircle, RefreshCw, Edit3, Trash2, AlertTriangle } from "lucide-react";
 import { DocumentPreviewModal } from "@/components/documents/document-preview-modal";
 
 import { NeuPagination } from "@/components/ui/neu-pagination";
@@ -322,7 +322,7 @@ export default function ContractsPage() {
                 <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">
                   Supprimer ce contrat ?
                 </h3>
-                <p className="text-xs text-slate-500">Annulation d'un contrat de travail</p>
+                <p className="text-xs text-slate-500">Annulation d&apos;un contrat de travail</p>
               </div>
             </div>
 

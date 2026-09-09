@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, Plus } from "lucide-react";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuInput } from "@/components/ui/neu-input";
@@ -10,8 +11,7 @@ import { TenantFilterBar } from "@/components/super-admin/tenants/TenantFilterBa
 import { TenantTable, Tenant } from "@/components/super-admin/tenants/TenantTable";
 
 export default function SuperAdminTenantsPage() {
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
@@ -34,9 +34,9 @@ export default function SuperAdminTenantsPage() {
     adminPassword: "",
   });
 
-  const fetchTenants = useCallback(async () => {
-    setLoading(true);
-    try {
+  const { data: tenantsData, isLoading, refetch } = useQuery<Tenant[]>({
+    queryKey: ["super-admin-tenants", search, statusFilter],
+    queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
       if (statusFilter !== "ALL") params.set("status", statusFilter);
@@ -44,18 +44,14 @@ export default function SuperAdminTenantsPage() {
       const res = await fetch(`/api/v2/admin/tenants?${params.toString()}`);
       const json = await res.json();
       if (json.success) {
-        setTenants(json.data.tenants || []);
+        return (json.data.tenants || []) as Tenant[];
       }
-    } catch (err) {
-      console.error("Échec de chargement des entreprises:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [search, statusFilter]);
+      throw new Error(json.error || "Échec de chargement des entreprises");
+    },
+  });
 
-  useEffect(() => {
-    fetchTenants();
-  }, [fetchTenants]);
+  const tenants = tenantsData || [];
+  const loading = isLoading;
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +81,7 @@ export default function SuperAdminTenantsPage() {
           adminEmail: "",
           adminPassword: "",
         });
-        fetchTenants();
+        queryClient.invalidateQueries({ queryKey: ["super-admin-tenants"] });
       } else {
         setErrorMessage(json.error || "Échec de la création");
       }
@@ -106,7 +102,7 @@ export default function SuperAdminTenantsPage() {
       });
       const json = await res.json();
       if (json.success) {
-        fetchTenants();
+        queryClient.invalidateQueries({ queryKey: ["super-admin-tenants"] });
       } else {
         alert(json.error);
       }
@@ -132,7 +128,7 @@ export default function SuperAdminTenantsPage() {
       if (json.success) {
         setShowDeleteModal(null);
         setDeleteConfirmInput("");
-        fetchTenants();
+        queryClient.invalidateQueries({ queryKey: ["super-admin-tenants"] });
       } else {
         setErrorMessage(json.error || "Échec de la suppression");
       }
@@ -175,7 +171,7 @@ export default function SuperAdminTenantsPage() {
         onSearchChange={setSearch}
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
-        onRefresh={fetchTenants}
+        onRefresh={() => refetch()}
         loading={loading}
       />
 

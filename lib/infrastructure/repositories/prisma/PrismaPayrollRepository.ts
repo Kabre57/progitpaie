@@ -4,7 +4,7 @@ import { PayrollPeriod } from "@/lib/domain/payroll/value-objects/PayrollPeriod"
 import { PayrollRepository, ListPayrollsQuery, ListMyPayrollsQuery } from "@/lib/application/payroll/ports/PayrollRepository";
 import { EmployeeGenerationInput, AttendanceRecordInput } from "@/lib/domain/payroll/services/PayrollGenerationService";
 import { mapPrismaToDomainPayroll } from "./mappers/prisma-payroll-entity.mapper";
-import { PayrollStatus, LeaveType, LeaveStatus, AttendanceStatus, Prisma } from "@prisma/client";
+import { PayrollStatus, LeaveType, LeaveStatus, Prisma } from "@prisma/client";
 import { PayslipConfigService } from "@/lib/payslip-config-service";
 
 export class PrismaPayrollRepository implements PayrollRepository {

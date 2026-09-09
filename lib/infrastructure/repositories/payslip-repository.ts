@@ -24,7 +24,7 @@ export type PayrollWithUserDepartment = Prisma.PayrollGetPayload<{
 export interface IPayslipRepository {
   findByUserAndPeriod(userId: string, month: number, year: number): Promise<PayrollWithUserDepartment | null>;
   findAllByPeriod(month: number, year: number): Promise<ReadonlyArray<PayrollWithUserDepartment>>;
-  savePayslip(userId: string, month: number, year: number, result: PayslipResult): Promise<Prisma.PayrollGetPayload<{}>>;
+  savePayslip(userId: string, month: number, year: number, result: PayslipResult): Promise<Prisma.PayrollGetPayload<Record<string, never>>>;
 }
 
 export class PayslipRepository implements IPayslipRepository {
@@ -71,7 +71,7 @@ export class PayslipRepository implements IPayslipRepository {
     month: number,
     year: number,
     result: PayslipResult
-  ): Promise<Prisma.PayrollGetPayload<{}>> {
+  ): Promise<Prisma.PayrollGetPayload<Record<string, never>>> {
     const employee = await prisma.user.findUnique({
       where: { id: userId },
       select: { companyId: true },

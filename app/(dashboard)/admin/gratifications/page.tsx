@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/components/ui/neu-card";
+import { NeuCard, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuInput } from "@/components/ui/neu-input";
 import { NeuBadge } from "@/components/ui/neu-badge";
-import { Gift, Calendar, DollarSign, Loader2, Download, Search, Edit3 } from "lucide-react";
+import { Gift, Calendar, DollarSign, Loader2, Search, Edit3 } from "lucide-react";
 import { NeuDialog } from "@/components/ui/neu-dialog";
 
 interface GratificationItem {
@@ -168,8 +168,8 @@ export default function GratificationsPage() {
               <thead>
                 <tr className="border-b border-[var(--neu-border)] bg-[var(--neu-surface-light)] text-[var(--neu-text-secondary)] uppercase text-[11px] font-semibold tracking-wider">
                   <th className="px-4 py-3">Matricule</th>
-                  <th className="px-4 py-3">Salarié & Département</th>
-                  <th className="px-4 py-3">Date d'Entrée</th>
+                  <th className="px-4 py-3">Salarié &amp; Département</th>
+                  <th className="px-4 py-3">Date d&apos;Entrée</th>
                   <th className="px-4 py-3 text-right">Salaire Base (Montant)</th>
                   <th className="px-4 py-3 text-center">Taux Base</th>
                   <th className="px-4 py-3 text-center">Prorata Temps</th>
@@ -182,7 +182,7 @@ export default function GratificationsPage() {
                 {filtered.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="px-4 py-8 text-center text-[var(--neu-text-secondary)]">
-                      Aucune donnée de gratification disponible pour l'année {year}.
+                      Aucune donnée de gratification disponible pour l&apos;année {year}.
                     </td>
                   </tr>
                 ) : (

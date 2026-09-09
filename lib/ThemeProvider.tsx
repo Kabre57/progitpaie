@@ -17,15 +17,16 @@ const ThemeContext = createContext<ThemeContextType>({
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("light");
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === "undefined") return "light";
+    const savedTheme = localStorage.getItem("progitpaie_theme") as Theme | null;
+    return savedTheme || "light";
+  });
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("progitpaie_theme") as Theme | null;
-    const initialTheme = savedTheme || "light";
-    setThemeState(initialTheme);
-    document.documentElement.classList.toggle("dark", initialTheme === "dark");
-    document.documentElement.setAttribute("data-theme", initialTheme);
-  }, []);
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);

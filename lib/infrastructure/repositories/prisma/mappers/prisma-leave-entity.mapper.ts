@@ -1,4 +1,4 @@
-import { Leave as PrismaLeave, LeaveStatus as PrismaLeaveStatus, LeaveType as PrismaLeaveType } from "@prisma/client";
+import { Leave as PrismaLeave } from "@prisma/client";
 import { LeaveRequest } from "@/lib/domain/leave/entities/LeaveRequest";
 import { LeaveType } from "@/lib/domain/leave/value-objects/LeaveType";
 import { LeaveStatus } from "@/lib/domain/leave/value-objects/LeaveStatus";

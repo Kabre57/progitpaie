@@ -35,8 +35,8 @@ export async function requireSuperAdmin(request: NextRequest): Promise<Authentic
     );
   }
 
-  // Seuls le rôle super_admin ou les administrateurs généraux ont l'accès global
-  if (decoded.role !== "super_admin" && decoded.role !== "admin") {
+  // Seul le rôle super_admin a l'accès aux routes d'administration globale
+  if (decoded.role !== "super_admin") {
     return NextResponse.json(
       { success: false, error: "Accès restreint au Super Administrateur" },
       { status: 403 }

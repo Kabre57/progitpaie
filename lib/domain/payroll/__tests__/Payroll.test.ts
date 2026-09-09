@@ -1,8 +1,5 @@
 import { Money } from "../money";
-import { Payroll } from "../entities/Payroll";
-import { PayrollEarning } from "../entities/PayrollEarning";
 import { PayrollPeriod } from "../value-objects/PayrollPeriod";
-import { PayrollStatus } from "../value-objects/PayrollStatus";
 import { PayrollGenerationService } from "../services/PayrollGenerationService";
 
 describe("Domaine Payroll — Tests Unitaires Purs", () => {

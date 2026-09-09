@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { MapPin, Search, Navigation, CheckCircle2, Shield, RefreshCw } from "lucide-react";
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { MapPin, Search, Navigation, CheckCircle2 } from "lucide-react";
 import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuInput } from "@/components/ui/neu-input";
@@ -23,27 +24,25 @@ export default function GeolocationConfig({
   const [lng, setLng] = useState<number>(initialLng);
   const [radius, setRadius] = useState<number>(initialRadius);
   const [addressSearch, setAddressSearch] = useState<string>("");
-  const [detectedAddress, setDetectedAddress] = useState<string>("Abidjan Plateau, Côte d'Ivoire");
+  const [detectedAddress] = useState<string>("Abidjan Plateau, Côte d'Ivoire");
   const [searching, setSearching] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
   const [searchResults, setSearchResults] = useState<Array<{ name: string; lat: number; lng: number }>>([]);
 
-  // Geocoding Inverse (Met à jour le texte d'adresse à partir des coordonnées Lat/Lng)
-  const fetchAddressForCoords = async (latitude: number, longitude: number) => {
-    try {
-      const res = await fetch(`/api/geocode/search?lat=${latitude}&lng=${longitude}`);
+  const { data: addressData } = useQuery<{ address: string } | null>({
+    queryKey: ["geocode-reverse", lat, lng],
+    queryFn: async () => {
+      const res = await fetch(`/api/geocode/search?lat=${lat}&lng=${lng}`);
       const json = await res.json();
       if (json.success && json.address) {
-        setDetectedAddress(json.address);
+        return { address: json.address };
       }
-    } catch (err) {
-      console.error("Reverse geocoding error:", err);
-    }
-  };
+      return null;
+    },
+    staleTime: 60000,
+  });
 
-  useEffect(() => {
-    fetchAddressForCoords(lat, lng);
-  }, [lat, lng]);
+  const currentAddress = addressData?.address || detectedAddress;
 
   // Recherche textuelle d'adresse
   const handleSearchAddress = async (e: React.FormEvent) => {
@@ -199,7 +198,7 @@ export default function GeolocationConfig({
       {/* REGLAGE DYNAMIQUE DU RAYON (SLIDER) */}
       <div className="space-y-2">
         <div className="flex justify-between items-center text-xs font-bold text-[var(--neu-text)]">
-          <span>📏 Rayon d'Autorisation de Pointage (Geofence Radius)</span>
+          <span>📏 Rayon d&apos;Autorisation de Pointage (Geofence Radius)</span>
           <span className="text-emerald-600 font-mono text-sm">{radius} mètres</span>
         </div>
 
@@ -224,7 +223,7 @@ export default function GeolocationConfig({
       <div className="p-3 bg-[var(--neu-bg-subtle)] rounded-xl border border-[var(--neu-border)] text-xs text-[var(--neu-text)] flex items-center justify-between">
         <div>
           <span className="font-semibold text-[var(--neu-text-subtle)] block text-[11px]">Adresse physique détectée :</span>
-          <span>{detectedAddress}</span>
+          <span>{currentAddress}</span>
         </div>
         <CheckCircle2 size={18} className="text-emerald-500 shrink-0 ml-2" />
       </div>

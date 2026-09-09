@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Target, TrendingUp, Users, Play, ArrowRight, DollarSign, Calculator, RefreshCw } from "lucide-react";
+import { Target, Play, Calculator } from "lucide-react";
 import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuInput } from "@/components/ui/neu-input";
@@ -83,7 +83,7 @@ export default function SimulationAdminPage() {
             Moteur de Simulation Salariale & Budgétaire 🎯
           </h1>
           <p className="text-sm text-[var(--neu-text-subtle)] mt-1">
-            Simulations "What-If" en temps réel sur la masse salariale, cotisations sociales et coût employeur
+            Simulations &ldquo;What-If&rdquo; en temps réel sur la masse salariale, cotisations sociales et coût employeur
           </p>
         </div>
 
@@ -101,7 +101,7 @@ export default function SimulationAdminPage() {
       <NeuCard className="p-6 space-y-4">
         <h2 className="text-base font-bold text-[var(--neu-text)] flex items-center gap-2">
           <Calculator size={20} className="text-rose-500" />
-          Configuration du Scénario d'Impact
+          Configuration du Scénario d&apos;Impact
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

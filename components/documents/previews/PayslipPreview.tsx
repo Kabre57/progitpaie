@@ -181,6 +181,13 @@ export function PayslipPreview({
         <span>NET À PAYER :</span>
         <span>{fmtNum(netSalary)} FCFA</span>
       </div>
+
+      {/* Mentions Légales */}
+      {legalConfig.legalNotice && (
+        <div className="mx-5 mt-3 pt-2 border-t border-[#e2e8f0] text-[6.5px] text-slate-400 text-center">
+          {legalConfig.legalNotice}
+        </div>
+      )}
     </div>
   );
 }

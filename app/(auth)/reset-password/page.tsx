@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { KeyRound, ShieldCheck, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { NeuCard } from "@/components/ui/neu-card";
 import { NeuInput } from "@/components/ui/neu-input";
 import { NeuButton } from "@/components/ui/neu-button";

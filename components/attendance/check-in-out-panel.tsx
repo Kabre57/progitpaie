@@ -3,10 +3,8 @@
 import { getErrorMessage } from "@/lib/error-message";
 import * as React from "react";
 import { Clock, LogIn, LogOut, CheckCircle, MapPin, AlertCircle, RefreshCw, Send } from "lucide-react";
-import { ChipLoader } from "@/components/ui/chip-loader";
 import { NeuCard, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
-import { NeuBadge } from "@/components/ui/neu-badge";
 import { useTodayAttendance, useCheckIn, useCheckOut } from "@/lib/hooks/useAttendance";
 import { useToast } from "@/components/ui/neu-toast";
 
@@ -27,16 +25,8 @@ function formatDate(date: Date): string {
   });
 }
 
-function formatShortTime(dateStr: Date | string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleTimeString("fr-FR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export default function CheckInOutPanel() {
-  const [currentTime, setCurrentTime] = React.useState<Date | null>(null);
+  const [currentTime, setCurrentTime] = React.useState<Date | null>(() => new Date());
   const [geoState, setGeoState] = React.useState<{
     loading: boolean;
     lat?: number;
@@ -59,7 +49,6 @@ export default function CheckInOutPanel() {
   const isCheckedOut = Boolean(todayRecord?.checkOut);
 
   React.useEffect(() => {
-    setCurrentTime(new Date());
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
@@ -166,7 +155,7 @@ export default function CheckInOutPanel() {
       } else {
         toast.error(json.error || "Erreur de soumission");
       }
-    } catch (err) {
+    } catch (_err) {
       toast.error("Erreur serveur");
     } finally {
       setSubmittingException(false);
@@ -248,12 +237,12 @@ export default function CheckInOutPanel() {
             </div>
 
             <p className="text-xs text-[var(--neu-text-subtle)]">
-              Vous êtes situé en dehors du rayon autorisé ou votre GPS est indisponible. Veuillez formuler une demande d'exception au service RH.
+              Vous êtes situé en dehors du rayon autorisé ou votre GPS est indisponible. Veuillez formuler une demande d&apos;exception au service RH.
             </p>
 
             <form onSubmit={handleSubmitException} className="space-y-3">
               <div>
-                <label className="text-xs font-semibold text-[var(--neu-text-subtle)] block mb-1">Motif de l'exception *</label>
+                <label className="text-xs font-semibold text-[var(--neu-text-subtle)] block mb-1">Motif de l&apos;exception *</label>
                 <select
                   value={exceptionType}
                   onChange={(e) => setExceptionType(e.target.value)}
@@ -261,7 +250,7 @@ export default function CheckInOutPanel() {
                 >
                   <option value="MISSION">Mission extérieure / Déplacement client</option>
                   <option value="REMOTE">Télétravail non programmé</option>
-                  <option value="GPS_FAILURE">Problème d'appareil / GPS bloqué</option>
+                  <option value="GPS_FAILURE">Problème d&apos;appareil / GPS bloqué</option>
                 </select>
               </div>
 

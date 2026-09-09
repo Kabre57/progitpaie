@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Trash2, Shield, FolderPlus, Key, Download, RefreshCw, AlertTriangle, Sparkles } from "lucide-react";
+import { Plus, Trash2, Shield, FolderPlus, Key, Download, Sparkles } from "lucide-react";
 import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuInput } from "@/components/ui/neu-input";
@@ -488,7 +488,7 @@ export function PermissionCatalogManager({ catalog, onRefresh }: PermissionCatal
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-[var(--neu-text)] mb-1">
-                    Type d'action
+                    Type d&apos;action
                   </label>
                   <select
                     value={permAction}

@@ -1,6 +1,9 @@
 import type { EmployeeExportRecord, EmployeeExportRepository } from "@/lib/application/employee/ports/EmployeeExportRepository";
 import { prisma } from "@/lib/db";
 
+/** Nombre maximum d'employés renvoyés en un seul export — protège contre les OOM. */
+const MAX_EXPORT_EMPLOYEES = 5_000;
+
 function toNumber(value: { toNumber(): number } | number): number {
   return typeof value === "number" ? value : value.toNumber();
 }
@@ -20,7 +23,16 @@ export class PrismaEmployeeExportRepository implements EmployeeExportRepository 
         isActive: true,
       },
       orderBy: { name: "asc" },
+      take: MAX_EXPORT_EMPLOYEES,
     });
+
+    if (employees.length === MAX_EXPORT_EMPLOYEES) {
+      console.warn(
+        `[EmployeeExport] Plafond de ${MAX_EXPORT_EMPLOYEES} employés atteint pour companyId=${companyId}. ` +
+          "L'export est tronqué."
+      );
+    }
+
     return employees.map((employee) => ({
       employeeId: employee.employeeId,
       name: employee.name,

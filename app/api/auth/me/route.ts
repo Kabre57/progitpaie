@@ -36,9 +36,6 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       sursalaire: profile.sursalaire,
       joiningDate: profile.joiningDate,
       createdAt: profile.createdAt,
-      roleId: profile.roleId,
-      roleName: profile.roleName,
-      permissions: profile.permissions,
     };
     await cacheSession(profile.id, userData);
 

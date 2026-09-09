@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   AreaChart,
@@ -152,33 +153,22 @@ const BAR_COLORS = [
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function SuperAdminDashboardPage() {
-  const [stats, setStats] = useState<DashboardStatsDTO | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-
-  const fetchStats = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
+  const { data: stats, isLoading, isFetching, error: queryError, refetch, dataUpdatedAt } = useQuery<DashboardStatsDTO>({
+    queryKey: ["super-admin-dashboard-stats"],
+    queryFn: async () => {
       const res = await fetch("/api/v2/admin/dashboard/stats");
       const json = await res.json();
       if (json.success) {
-        setStats(json.data);
-        setLastUpdated(new Date().toLocaleTimeString("fr-FR"));
-      } else {
-        setError(json.error || "Erreur de chargement");
+        return json.data as DashboardStatsDTO;
       }
-    } catch {
-      setError("Impossible de joindre le serveur");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      throw new Error(json.error || "Erreur de chargement");
+    },
+    refetchInterval: 60000,
+  });
 
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+  const loading = isLoading;
+  const error = queryError instanceof Error ? queryError.message : null;
+  const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString("fr-FR") : null;
 
   if (loading && !stats) {
     return (
@@ -206,7 +196,7 @@ export default function SuperAdminDashboardPage() {
           Impossible de charger le tableau de bord
         </h2>
         <p className="text-sm text-[var(--neu-text-secondary)]">{error}</p>
-        <NeuButton variant="default" size="md" onClick={fetchStats}>
+        <NeuButton variant="default" size="md" onClick={() => refetch()}>
           Réessayer
         </NeuButton>
       </div>
@@ -215,7 +205,7 @@ export default function SuperAdminDashboardPage() {
 
   if (!stats) return null;
 
-  const { kpis, monthlySeries, topTenants, alerts, recentActivity } = stats;
+  const { kpis, monthlySeries, topTenants, alerts, recentActivity: _recentActivity } = stats;
 
   const areaData = monthlySeries.map((p) => ({
     name: p.label,
@@ -240,7 +230,7 @@ export default function SuperAdminDashboardPage() {
             Dashboard Groupe — Super Admin
           </h1>
           <p className="text-xs text-[var(--neu-text-secondary)] mt-0.5">
-            Vue consolidée de l'ensemble du SaaS PROGITPAIE
+            Vue consolidée de l&apos;ensemble du SaaS PROGITPAIE
             {lastUpdated && (
               <span className="ml-2 text-[#666cff]">· Mis à jour à {lastUpdated}</span>
             )}
@@ -256,8 +246,8 @@ export default function SuperAdminDashboardPage() {
           <NeuButton
             variant="default"
             size="sm"
-            onClick={fetchStats}
-            loading={loading}
+            onClick={() => refetch()}
+            loading={isFetching}
           >
             <RefreshCw size={14} />
             Actualiser

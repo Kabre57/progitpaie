@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { MapPin, CheckCircle, XCircle, Clock, AlertTriangle, RefreshCw } from "lucide-react";
+import { MapPin, CheckCircle, XCircle, Clock, RefreshCw } from "lucide-react";
 import { NeuCard } from "@/components/ui/neu-card";
-import { NeuButton } from "@/components/ui/neu-button";
 
 interface AttendanceException {
   id: string;
@@ -88,12 +87,12 @@ export default function AttendanceExceptionsAdminPage() {
 
       {/* LISTE DES EXCEPTIONS */}
       <NeuCard className="p-6 space-y-4">
-        <h2 className="text-lg font-bold text-[var(--neu-text)]">Demandes d'Exceptions Soumises</h2>
+        <h2 className="text-lg font-bold text-[var(--neu-text)]">Demandes d&apos;Exceptions Soumises</h2>
 
         {loading ? (
           <div className="text-center py-8 text-[var(--neu-text-subtle)]">Chargement des demandes...</div>
         ) : exceptions.length === 0 ? (
-          <div className="text-center py-8 text-[var(--neu-text-subtle)]">Aucune demande d'exception de pointage enregistrée.</div>
+          <div className="text-center py-8 text-[var(--neu-text-subtle)]">Aucune demande d&apos;exception de pointage enregistrée.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">

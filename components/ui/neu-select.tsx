@@ -18,7 +18,8 @@ interface NeuSelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectEleme
 
 const NeuSelect = React.forwardRef<HTMLSelectElement, NeuSelectProps>(
   ({ className, label, error, options, placeholder, children, id, ...props }, ref) => {
-    const selectId = id || React.useId();
+    const generatedId = React.useId();
+    const selectId = id || generatedId;
 
     return (
       <div className="w-full">

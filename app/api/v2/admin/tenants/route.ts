@@ -6,10 +6,6 @@ import { ListTenantsUseCase } from "@/lib/application/tenant/use-cases/ListTenan
 import { CreateTenantUseCase } from "@/lib/application/tenant/use-cases/CreateTenantUseCase";
 import { CreateTenantSchema } from "@/shared/validation/tenant-v2.schema";
 
-const tenantRepo = new PrismaTenantRepository();
-const listTenantsUC = new ListTenantsUseCase(tenantRepo);
-const createTenantUC = new CreateTenantUseCase(tenantRepo);
-
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const authResult = await requireSuperAdmin(request);
@@ -21,6 +17,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const city = searchParams.get("city") ?? undefined;
     const page = parseInt(searchParams.get("page") ?? "1", 10);
     const limit = parseInt(searchParams.get("limit") ?? "20", 10);
+
+    const tenantRepo = new PrismaTenantRepository();
+    const listTenantsUC = new ListTenantsUseCase(tenantRepo);
 
     const result = await listTenantsUC.execute({ search, status, city, page, limit });
 
@@ -50,6 +49,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { status: 400 }
       );
     }
+
+    const tenantRepo = new PrismaTenantRepository();
+    const createTenantUC = new CreateTenantUseCase(tenantRepo);
 
     const created = await createTenantUC.execute(parsed.data);
 

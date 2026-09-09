@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, Clock, TrendingUp } from "lucide-react";
 import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuStatCard } from "@/components/ui/neu-stat-card";
@@ -74,48 +75,26 @@ function getWorkingDaysInMonth(month: string): number {
 }
 
 export default function EmployeeDashboard() {
-  const [user, setUser] = React.useState<User | null>(null);
-  const [records, setRecords] = React.useState<AttendanceRecord[]>([]);
-  const [currentMonth, setCurrentMonth] = React.useState<string>("");
-  const [loading, setLoading] = React.useState(true);
+  const [currentMonth, setCurrentMonth] = React.useState<string>(() => getCurrentMonth());
 
-  React.useEffect(() => {
-    setCurrentMonth(getCurrentMonth());
-    fetchUserData();
-  }, []);
-
-  React.useEffect(() => {
-    if (currentMonth) {
-      fetchAttendanceData();
-    }
-  }, [currentMonth]);
-
-  const fetchUserData = async () => {
-    try {
+  const { data: user } = useQuery<User | null>({
+    queryKey: ["auth-me"],
+    queryFn: async () => {
       const response = await fetch("/api/auth/me");
       const data = await response.json();
-      if (data.success) {
-        setUser(data.data);
-      }
-    } catch (error) {
-      console.error("Erreur lors de la récupération du profil utilisateur :", error);
-    }
-  };
+      return data.success ? data.data : null;
+    },
+  });
 
-  const fetchAttendanceData = async () => {
-    setLoading(true);
-    try {
+  const { data: records = [], isLoading: loading } = useQuery<AttendanceRecord[]>({
+    queryKey: ["employee-attendance", currentMonth],
+    queryFn: async () => {
+      if (!currentMonth) return [];
       const response = await fetch(`/api/attendance?month=${currentMonth}`);
       const data = await response.json();
-      if (data.success) {
-        setRecords(Array.isArray(data.data.records) ? data.data.records : []);
-      }
-    } catch (error) {
-      console.error("Erreur lors de la récupération des pointages :", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return data.success && Array.isArray(data.data.records) ? data.data.records : [];
+    },
+  });
 
   // Statistiques
   const workingDays = currentMonth ? getWorkingDaysInMonth(currentMonth) : 0;

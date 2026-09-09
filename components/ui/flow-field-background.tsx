@@ -49,7 +49,7 @@ export default function NeuralBackground({
     let height = container.clientHeight;
     let particles: Particle[] = [];
     let animationFrameId: number;
-    let mouse = { x: -1000, y: -1000 }; // Start off-screen
+    const mouse = { x: -1000, y: -1000 }; // Start off-screen
 
     // --- PARTICLE CLASS ---
     class Particle {

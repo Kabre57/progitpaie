@@ -9,10 +9,10 @@ export class CreatePermissionDefinitionUseCase {
     if (!input.moduleId) throw new Error("MODULE_ID_REQUIRED");
     if (!input.name || input.name.trim().length < 2) throw new Error("INVALID_PERMISSION_NAME");
     
-    const module = await this.permissionRepo.findModuleById(companyId, input.moduleId);
-    if (!module) throw new Error("MODULE_NOT_FOUND");
+    const targetModule = await this.permissionRepo.findModuleById(companyId, input.moduleId);
+    if (!targetModule) throw new Error("MODULE_NOT_FOUND");
 
-    const sanitizedCode = PermissionCatalogValidator.sanitizeCode(input.code || `${module.code}.${input.name}`);
+    const sanitizedCode = PermissionCatalogValidator.sanitizeCode(input.code || `${targetModule.code}.${input.name}`);
     if (!PermissionCatalogValidator.validateCode(sanitizedCode)) {
       throw new Error("INVALID_PERMISSION_CODE");
     }

@@ -6,6 +6,7 @@ module.exports = {
   testMatch: ["**/__tests__/**/*.test.ts", "**/__tests__/**/*.test.tsx"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
+    "^exceljs$": "exceljs/dist/exceljs.min.js",
   },
   setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
   collectCoverageFrom: [

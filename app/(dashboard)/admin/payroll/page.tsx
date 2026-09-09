@@ -487,7 +487,7 @@ export default function AdminPayrollPage() {
                 <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">
                   Supprimer ce bulletin de paie ?
                 </h3>
-                <p className="text-xs text-slate-500">Correction d'une erreur de calcul</p>
+                <p className="text-xs text-slate-500">Correction d&apos;une erreur de calcul</p>
               </div>
             </div>
 
@@ -535,9 +535,9 @@ export default function AdminPayrollPage() {
             </div>
 
             <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-700 dark:text-red-300">
-              <p className="font-bold mb-1">⚠️ Action de réinitialisation en cas d'erreur :</p>
+              <p className="font-bold mb-1">⚠️ Action de réinitialisation en cas d&apos;erreur :</p>
               <p>
-                Cette action supprimera tous les bulletins brouillons générés pour la période de <strong>{monthName} {year}</strong>. Vous pourrez ensuite réajuster les données et cliquer à nouveau sur "Générer la Paie du Mois".
+                Cette action supprimera tous les bulletins brouillons générés pour la période de <strong>{monthName} {year}</strong>. Vous pourrez ensuite réajuster les données et cliquer à nouveau sur &ldquo;Générer la Paie du Mois&rdquo;.
               </p>
             </div>
 

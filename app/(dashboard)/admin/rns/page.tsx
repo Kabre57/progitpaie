@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/components/ui/neu-card";
+import { NeuCard, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuBadge } from "@/components/ui/neu-badge";
-import { FileSpreadsheet, Download, Search, Loader2, ShieldCheck, Printer } from "lucide-react";
+import { Search, Loader2, ShieldCheck, Printer } from "lucide-react";
 
 import { NeuPagination } from "@/components/ui/neu-pagination";
 
@@ -99,7 +99,7 @@ export default function RnsPage() {
             <ShieldCheck className="text-[var(--neu-accent)]" /> Relevé Nominatif des Salaires CNPS (RNS)
           </h1>
           <p className="text-[var(--neu-text-secondary)] text-sm mt-1">
-            Formulaire officiel CNPS récapitulant l'historique des salaires bruts soumis à cotisations sociales.
+            Formulaire officiel CNPS récapitulant l&apos;historique des salaires bruts soumis à cotisations sociales.
           </p>
         </div>
       </div>
@@ -135,7 +135,7 @@ export default function RnsPage() {
                   <th className="px-4 py-3">Matricule</th>
                   <th className="px-4 py-3">Noms & Prénoms</th>
                   <th className="px-4 py-3">N° Affiliation CNPS</th>
-                  <th className="px-4 py-3">Date d'Entrée</th>
+                  <th className="px-4 py-3">Date d&apos;Entrée</th>
                   <th className="px-4 py-3">Historique des Années RNS</th>
                   <th className="px-4 py-3 text-center">Impression RNS PDF</th>
                 </tr>

@@ -16,8 +16,6 @@
  */
 
 import type {
-  EmployeePayrollData,
-  MonthlyVariableElements,
   PayslipCalculationInput,
   PayslipResult,
   TaxRatesConfig,

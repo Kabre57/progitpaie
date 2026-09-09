@@ -1,17 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { useState, useId, useEffect } from "react";
-import { Slot } from "@radix-ui/react-slot";
+import { useState, useId } from "react";
 import * as LabelPrimitive from "@radix-ui/react-label";
+import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-import { Eye, EyeOff, X, Clock } from "lucide-react";
+import { Eye, EyeOff, Clock, ArrowLeft } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import dynamic from "next/dynamic";
-
 import { ComingSoonModal } from "./auth/coming-soon-modal";
 import { Typewriter } from "./auth/typewriter";
 import { SignInForm } from "./auth/sign-in-form";
@@ -144,7 +142,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 Button.displayName = "Button";
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
+export type InputProps = React.InputHTMLAttributes<HTMLInputElement>;
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, ...props }, ref) => {
@@ -229,10 +227,10 @@ function AuthFormContainer({
 
       <div className="text-center text-sm">
         <span className="text-[var(--neu-text-secondary)]">
-          {isSignIn ? "Vous n'avez pas de compte ?" : "Vous avez déjà un compte ?"}{" "}
+          {isSignIn ? "Vous n&apos;avez pas de compte ?" : "Vous avez déjà un compte ?"}{" "}
         </span>
         <Button variant="link" className="p-0 h-auto" onClick={onToggle}>
-          {isSignIn ? "S'inscrire" : "Se connecter"}
+          {isSignIn ? "S&apos;inscrire" : "Se connecter"}
         </Button>
       </div>
 
@@ -374,7 +372,7 @@ export function AuthUI({
         className="absolute top-4 left-4 z-20 flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--neu-surface)]/80 backdrop-blur-sm border border-[var(--neu-border)] text-[var(--neu-text-secondary)] hover:text-[var(--neu-accent)] hover:border-[var(--neu-accent)]/40 transition-all duration-200 text-sm font-medium"
       >
         <ArrowLeft size={16} />
-        Retour à l'Accueil
+        Retour à l&apos;Accueil
       </Link>
 
       <div className="relative z-10 w-full min-h-screen md:grid md:grid-cols-2">
@@ -430,11 +428,11 @@ export function AuthUI({
           <div className="relative z-10 flex h-full flex-col items-center justify-end p-8 pb-12">
             <blockquote className="space-y-2 text-center">
               <p className="text-xl md:text-2xl font-medium text-white drop-shadow-lg">
-                "<Typewriter
+                &ldquo;<Typewriter
                   key={currentContent.quote.text}
                   text={currentContent.quote.text}
                   speed={60}
-                />"
+                />&rdquo;
               </p>
               <cite className="block text-sm font-light text-white/80 not-italic drop-shadow">
                 — {currentContent.quote.author}

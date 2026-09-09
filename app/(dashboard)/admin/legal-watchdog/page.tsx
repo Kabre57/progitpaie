@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Scale, ShieldAlert, CheckCircle, AlertTriangle, FileText, ArrowRight, RefreshCw } from "lucide-react";
+import { Scale, ShieldAlert, CheckCircle, FileText, ArrowRight, RefreshCw } from "lucide-react";
 import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 
@@ -90,9 +90,9 @@ export default function LegalWatchdogAdminPage() {
         <div className="flex items-start gap-3">
           <ShieldAlert className="text-amber-500 mt-1" size={20} />
           <div>
-            <h3 className="font-bold text-sm text-[var(--neu-text)]">Conformité Légale Garantie (Côte d'Ivoire)</h3>
+            <h3 className="font-bold text-sm text-[var(--neu-text)]">Conformité Légale Garantie (Côte d&apos;Ivoire)</h3>
             <p className="text-xs text-[var(--neu-text-subtle)] mt-1">
-              Les modifications de taux détectées nécessitent une validation humaine avant d'être appliquées directement au moteur de calcul modulaire.
+              Les modifications de taux détectées nécessitent une validation humaine avant d&apos;être appliquées directement au moteur de calcul modulaire.
             </p>
           </div>
         </div>
@@ -127,7 +127,7 @@ export default function LegalWatchdogAdminPage() {
                 </div>
 
                 <div className="text-xs text-[var(--neu-text-subtle)]">
-                  Date d'effet : {new Date(alert.effectiveDate).toLocaleDateString("fr-FR")}
+                  Date d&apos;effet : {new Date(alert.effectiveDate).toLocaleDateString("fr-FR")}
                 </div>
               </div>
 

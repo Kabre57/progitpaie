@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Sparkles } from "lucide-react";
 import { createRoot } from "react-dom/client";
-import { cn } from "@/lib/utils";
 
 interface Point {
   x: number;
@@ -69,12 +68,12 @@ export function MagicCursor({
   });
 
   const last = React.useRef({
-    starTimestamp: Date.now(),
+    starTimestamp: 0,
     starPosition: { x: 0, y: 0 },
     mousePosition: { x: 0, y: 0 },
   });
 
-  let count = React.useRef(0);
+  const count = React.useRef(0);
 
   const createStar = React.useCallback(
     (position: Point) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ArticleItem, DocumentPreviewModalProps } from "../core/types";
 import { fmtNum } from "../utils/formatters";
 
@@ -59,7 +59,13 @@ export function useDocumentEditor(props: DocumentPreviewModalProps) {
     setArticles(updated);
   };
 
-  useEffect(() => {
+  const [prevPropsKey, setPrevPropsKey] = useState(() => 
+    `${props.docType}_${props.defaultName || ""}_${props.defaultJobTitle || ""}_${props.defaultSalary || 0}_${props.isOpen}`
+  );
+  const currentKey = `${props.docType}_${props.defaultName || ""}_${props.defaultJobTitle || ""}_${props.defaultSalary || 0}_${props.isOpen}`;
+
+  if (prevPropsKey !== currentKey) {
+    setPrevPropsKey(currentKey);
     setName(props.defaultName || "");
     setJobTitle(props.defaultJobTitle || "Collaborateur");
     setDepartment(props.defaultDepartment || "Général");
@@ -113,12 +119,8 @@ export function useDocumentEditor(props: DocumentPreviewModalProps) {
     } else if (props.docType === "payslip") {
       setBodyText(`Bulletin de paie individuel calculé selon le barème officiel LOGIPAIE RH.`);
     }
-  }, [
-    props.defaultName, props.defaultJobTitle, props.defaultDepartment, props.defaultSalary,
-    props.defaultSursalaire, props.defaultTransport, props.defaultCategory, props.defaultJoiningDate,
-    props.defaultContractType, props.defaultCddMonths, props.startDate, props.endDate, props.returnDate,
-    props.docType, props.isOpen
-  ]);
+  }
+
 
   return {
     companyName, setCompanyName,

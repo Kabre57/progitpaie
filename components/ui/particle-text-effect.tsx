@@ -237,6 +237,8 @@ export function ParticleTextEffect({
     [PIXEL_STEPS]
   );
 
+  const animateRef = useRef<() => void>(() => {});
+
   const animate = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -273,8 +275,12 @@ export function ParticleTextEffect({
       nextWord(words[wordIndexRef.current], canvas);
     }
 
-    animationRef.current = requestAnimationFrame(animate);
+    animationRef.current = requestAnimationFrame(() => animateRef.current());
   }, [words, FRAME_INTERVAL, nextWord, DRAW_POINTS]);
+
+  useEffect(() => {
+    animateRef.current = animate;
+  }, [animate]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -322,6 +328,7 @@ export function ParticleTextEffect({
       canvas.removeEventListener("mousemove",   onMove);
       canvas.removeEventListener("contextmenu", noCtx);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);  // only on mount
 
   return (

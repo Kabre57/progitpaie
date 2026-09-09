@@ -38,7 +38,7 @@ export function ComingSoonModal({ isOpen, onClose }: { isOpen: boolean; onClose:
               onClick={onClose}
               className="px-6 py-2 rounded-xl bg-[var(--neu-accent)] text-white font-medium shadow-[4px_4px_8px_var(--neu-shadow-dark),-4px_-4px-8px_var(--neu-shadow-light)] hover:shadow-[6px_6px_12px_var(--neu-shadow-dark),-6px_-6px-12px_var(--neu-shadow-light)] transition-all"
             >
-              D'accord
+              D&apos;accord
             </button>
           </div>
         </div>

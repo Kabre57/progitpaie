@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ChevronLeft, ChevronRight, Search, Filter } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { NeuCard, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuSelect } from "@/components/ui/neu-select";

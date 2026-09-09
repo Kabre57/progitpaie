@@ -1,46 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { NeuCard, NeuCardContent } from "@/components/ui/neu-card";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ClipboardCheck, Calendar, Clock } from "lucide-react";
-import { List2, ListItem } from "@/components/ui/list-2";
+import { ClipboardCheck, Calendar } from "lucide-react";
+import { List2 } from "@/components/ui/list-2";
 import { NeuBadge } from "@/components/ui/neu-badge";
-
-interface AttendanceRecord {
-  _id: string;
-  date: string;
-  checkIn?: string;
-  checkOut?: string;
-  status: string;
-  hoursWorked: number;
-}
+import { useAttendance } from "@/lib/hooks/useAttendance";
 
 export default function EmployeeAttendancePage() {
-  const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchAttendance();
-  }, [month, year]);
-
-  const fetchAttendance = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/attendance?month=${year}-${String(month).padStart(2, "0")}`);
-      const data = await response.json();
-      if (data.success) {
-        setRecords(data.data.records || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch attendance", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: records = [], isLoading: loading } = useAttendance(undefined, month, year);
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {

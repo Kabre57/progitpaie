@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, use } from "react";
+import React, { useState, use } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -23,6 +24,9 @@ interface TenantDetailData {
   tenant: {
     id: string;
     name: string;
+    slug: string;
+    subdomain?: string;
+    legalName?: string;
     taxNumber?: string;
     cnpsNumber?: string;
     rccm?: string;
@@ -54,9 +58,7 @@ interface TenantDetailData {
 
 export default function TenantDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const [data, setData] = useState<TenantDetailData | null>(null);
-  const [kyb, setKyb] = useState<CompanyKybDetailsDTO | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const queryClient = useQueryClient();
 
   // Form states for Subscription
   const [editSub, setEditSub] = useState(false);
@@ -74,9 +76,12 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
   const [uploadFileName, setUploadFileName] = useState("");
   const [uploadingDoc, setUploadingDoc] = useState(false);
 
-  const fetchTenantDetail = useCallback(async () => {
-    setLoading(true);
-    try {
+  const { data: detailData, isLoading, refetch } = useQuery<{
+    data: TenantDetailData | null;
+    kyb: CompanyKybDetailsDTO | null;
+  }>({
+    queryKey: ["super-admin-tenant-detail", id],
+    queryFn: async () => {
       const [resTenant, resKyb] = await Promise.all([
         fetch(`/api/v2/admin/tenants/${id}`),
         fetch(`/api/v2/admin/tenants/${id}/documents`),
@@ -85,24 +90,23 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
       const jsonTenant = await resTenant.json();
       const jsonKyb = await resKyb.json();
 
-      if (jsonTenant.success) setData(jsonTenant.data);
-      if (jsonKyb.success) {
-        setKyb(jsonKyb.data);
-        setPlan(jsonKyb.data.plan);
-        setSubStatus(jsonKyb.data.subscriptionStatus);
-        setMonthlyPrice(jsonKyb.data.monthlyPriceFCFA);
-        setMaxEmployees(jsonKyb.data.maxEmployeesAllowed);
-      }
-    } catch (err) {
-      console.error("Échec de chargement des détails entreprise:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+      const tData = jsonTenant.success ? (jsonTenant.data as TenantDetailData) : null;
+      const kData = jsonKyb.success ? (jsonKyb.data as CompanyKybDetailsDTO) : null;
 
-  useEffect(() => {
-    fetchTenantDetail();
-  }, [fetchTenantDetail]);
+      if (kData) {
+        setPlan(kData.plan);
+        setSubStatus(kData.subscriptionStatus);
+        setMonthlyPrice(kData.monthlyPriceFCFA);
+        setMaxEmployees(kData.maxEmployeesAllowed);
+      }
+
+      return { data: tData, kyb: kData };
+    },
+  });
+
+  const data = detailData?.data || null;
+  const kyb = detailData?.kyb || null;
+  const loading = isLoading;
 
   const handleUpdateSubscription = async () => {
     setSavingSub(true);
@@ -119,7 +123,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
       });
       const json = await res.json();
       if (json.success) {
-        setKyb(json.data);
+        refetch();
         setEditSub(false);
       }
     } catch (err) {
@@ -139,7 +143,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
       });
       const json = await res.json();
       if (json.success) {
-        setKyb(json.data);
+        refetch();
       }
     } catch (err) {
       console.error("Erreur validation KYB:", err);
@@ -163,7 +167,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
       });
       const json = await res.json();
       if (json.success) {
-        fetchTenantDetail();
+        queryClient.invalidateQueries({ queryKey: ["super-admin-tenant-detail", id] });
         setUploadFileName("");
       }
     } catch (err) {
@@ -207,7 +211,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
           </div>
         </div>
 
-        <NeuButton variant="ghost" size="sm" onClick={fetchTenantDetail}>
+        <NeuButton variant="ghost" size="sm" onClick={() => refetch()}>
           <RefreshCw size={14} /> Actualiser
         </NeuButton>
       </div>

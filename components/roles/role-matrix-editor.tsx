@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { X, Check, Shield, CheckSquare, Square, Info } from "lucide-react";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuInput } from "@/components/ui/neu-input";
@@ -33,18 +33,13 @@ export function RoleMatrixEditor({
 
   const isEditing = Boolean(role?.id);
 
-  // Initialize or reset form when role changes
-  useEffect(() => {
-    if (role) {
-      setName(role.name || "");
-      setDescription(role.description || "");
-      setSelectedPermissions(new Set(role.permissions || []));
-    } else {
-      setName("");
-      setDescription("");
-      setSelectedPermissions(new Set());
-    }
-  }, [role, isOpen]);
+  const [prevRole, setPrevRole] = useState<{ id?: string; open: boolean }>({ id: role?.id, open: isOpen });
+  if (prevRole.id !== role?.id || prevRole.open !== isOpen) {
+    setPrevRole({ id: role?.id, open: isOpen });
+    setName(role?.name || "");
+    setDescription(role?.description || "");
+    setSelectedPermissions(new Set(role?.permissions || []));
+  }
 
   // All permission codes in the entire catalog
   const allCatalogCodes = useMemo(() => {
@@ -352,7 +347,7 @@ export function RoleMatrixEditor({
         <div className="p-4 border-t border-[var(--neu-border)] flex items-center justify-between bg-[var(--neu-surface)] shrink-0">
           <div className="text-xs text-[var(--neu-text-secondary)] flex items-center gap-1.5">
             <Info size={14} className="text-[#666cff]" />
-            <span>Les modifications s'appliqueront instantanément aux salariés rattachés.</span>
+            <span>Les modifications s&apos;appliqueront instantanément aux salariés rattachés.</span>
           </div>
 
           <div className="flex items-center gap-3">

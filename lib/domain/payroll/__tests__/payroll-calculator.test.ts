@@ -14,8 +14,8 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-import { calculateITS, calculateCN, calculateCE, calculateIGR, calculateAllTaxDeductions, DEFAULT_IGR_SCHEDULE } from "../calculator/its-calculator";
-import { calculateCNPSRetirementEmployee, calculateCNPSRetirementEmployer, calculateCNPSFamilyAllowance, calculateCNPSAccidentAtWork, calculateCMU, calculateCappedBase, calculateAllEmployeeContributions, calculateAllEmployerContributions } from "../calculator/cnps-calculator";
+import { calculateITS, calculateCN, calculateCE, calculateIGR, DEFAULT_IGR_SCHEDULE } from "../calculator/its-calculator";
+import { calculateCNPSRetirementEmployee, calculateCNPSFamilyAllowance, calculateCMU, calculateCappedBase } from "../calculator/cnps-calculator";
 import { calculatePayslip, calculateSeniorityBonus, calculateOvertimePay, calculateSeniorityYears } from "../calculator/payslip-calculator";
 import type { TaxRatesConfig, PayslipCalculationInput, EmployeePayrollData, MonthlyVariableElements } from "../types/payroll-types";
 

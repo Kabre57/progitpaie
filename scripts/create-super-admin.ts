@@ -5,9 +5,17 @@ import bcrypt from "bcryptjs";
 import { seedCompany } from "../prisma/seed/factories/company.factory";
 
 async function main() {
-  const email = (process.env.SEED_SUPER_ADMIN_EMAIL || "superadmin@progitpaie.online").trim().toLowerCase();
-  const password = process.env.SEED_SUPER_ADMIN_PASSWORD || "SuperAdmin2026!";
-  const name = process.env.SEED_SUPER_ADMIN_NAME || "Super Administrateur PROGITPAIE";
+  const email = process.env.SEED_SUPER_ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.SEED_SUPER_ADMIN_PASSWORD;
+  const name = process.env.SEED_SUPER_ADMIN_NAME?.trim() || "Super Administrateur";
+
+  if (!email) {
+    throw new Error("La variable d'environnement SEED_SUPER_ADMIN_EMAIL est obligatoire.");
+  }
+
+  if (!password) {
+    throw new Error("La variable d'environnement SEED_SUPER_ADMIN_PASSWORD est obligatoire.");
+  }
 
   if (password.length < 12) {
     throw new Error("Le mot de passe doit contenir au moins 12 caractères.");

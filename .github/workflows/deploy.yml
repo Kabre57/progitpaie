@@ -11,20 +11,44 @@ jobs:
     name: Qualité et build
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: postgresql://progitpaie:ci-password@localhost:5432/progitpaie?schema=public
-      JWT_SECRET: ci-only-jwt-secret-at-least-32-characters
-      ENCRYPTION_KEY: ci-only-encryption-key
+      DATABASE_URL: postgresql://progitpaie:ci_password@localhost:5433/progitpaie_test?schema=public
+      JWT_SECRET: ci-only-jwt-secret-at-least-32-characters-long
+      ENCRYPTION_KEY: ci-only-encryption-key-at-least-32chars
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: progitpaie
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: progitpaie_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U progitpaie"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npx prisma generate
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma:generate
+      - run: pnpm prisma:validate
+      - run: pnpm exec tsc --noEmit
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
 
   deploy:
     name: Build & Deploy via SSH
@@ -38,19 +62,17 @@ jobs:
       - name: 🚀 Exécution du Déploiement sur le VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.THEO_PBL_VPS }}       # IP VPS: 180.149.199.203
-          username: ${{ secrets.VPS_USER }}   # Utilisateur: root ou ubuntu
-          key: ${{ secrets.VPS_SSH_KEY }}     # Clé privée SSH
+          host: ${{ secrets.THEO_PBL_VPS }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
           script: |
             echo "====================================================="
             echo "🚀 Début du Déploiement PROGITPAIE via GitHub Actions"
             echo "====================================================="
 
-            # 1. Aller dans le dossier de déploiement configuré sur le VPS
             cd /home/theo_pbl/apps/progitpaie
 
-            # 2. Si le dépôt n'est pas encore cloné sur le VPS
             if [ ! -d .git ]; then
               echo "📦 Premier clonage du dépôt GitHub..."
               git clone https://github.com/${{ github.repository }}.git .
@@ -62,7 +84,6 @@ jobs:
               if [ -f /tmp/progitpaie.env ]; then mv /tmp/progitpaie.env .env; fi
             fi
 
-            # 3. Lancement de la construction et des conteneurs Docker
             chmod +x deploy.sh
             ./deploy.sh
 

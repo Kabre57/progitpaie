@@ -7,8 +7,15 @@ import { IAttendance } from "@/types";
 export function useAttendance(employeeId?: string, month?: number | string, year?: number) {
   const queryParams = new URLSearchParams();
   if (employeeId) queryParams.set("employeeId", employeeId);
-  if (month) queryParams.set("month", String(month));
-  if (year) queryParams.set("year", String(year));
+  if (month !== undefined) {
+    if (typeof month === "number" && year) {
+      queryParams.set("month", `${year}-${String(month).padStart(2, "0")}`);
+    } else {
+      queryParams.set("month", String(month));
+    }
+  } else if (year) {
+    queryParams.set("year", String(year));
+  }
 
   return useQuery<IAttendance[]>({
     queryKey: ["attendance", employeeId, month, year],

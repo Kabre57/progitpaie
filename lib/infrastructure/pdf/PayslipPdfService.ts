@@ -213,6 +213,9 @@ export class PayslipPdfService {
   public async generateBulkPayslipsBuffer(params: GenerateBulkPayslipsParams): Promise<{ buffer: Buffer; filename: string; count: number }> {
     const { month, year, companyId } = params;
 
+    /** Plafond de bulletins générables en un seul appel — configurable via env. */
+    const MAX_BULK = Number(process.env.MAX_BULK_PAYSLIPS ?? 500);
+
     const payrolls = await prisma.payroll.findMany({
       where: { month, year, companyId },
       select: { userId: true },
@@ -221,6 +224,12 @@ export class PayslipPdfService {
 
     if (payrolls.length === 0) {
       throw new Error("NO_PAYROLLS_FOUND");
+    }
+
+    if (payrolls.length > MAX_BULK) {
+      throw new Error(
+        `BULK_LIMIT_EXCEEDED:${payrolls.length}:${MAX_BULK}`
+      );
     }
 
     const buffers: Buffer[] = [];

@@ -1,21 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Building2, Plus, Pencil, Trash2, Loader2, X, Check } from "lucide-react";
+import { Building2, Plus, Pencil, Trash2, Loader2, X } from "lucide-react";
 import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuInput } from "@/components/ui/neu-input";
 import { NeuBadge } from "@/components/ui/neu-badge";
-import {
-  NeuTable,
-  NeuTableHeader,
-  NeuTableBody,
-  NeuTableRow,
-  NeuTableHead,
-  NeuTableCell,
-} from "@/components/ui/neu-table";
-import { EmptyState } from "@/components/ui/empty-state";
-import { List2, ListItem } from "@/components/ui/list-2";
+import { List2 } from "@/components/ui/list-2";
 import { IDepartment } from "@/types";
 
 interface DepartmentFormData {
@@ -145,7 +136,7 @@ export default function DepartmentsPage() {
             Departments
           </h1>
           <p className="text-[var(--neu-text-secondary)] mt-1">
-            Gérer les départements de l'entreprise
+            Gérer les départements de l&apos;entreprise
           </p>
         </div>
         <NeuButton onClick={() => openModal()} variant="accent">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { tabSyncManager, TabSyncEventType, TabSyncMessage } from "@/lib/tab-sync-manager";
+import { tabSyncManager, TabSyncMessage } from "@/lib/tab-sync-manager";
 
 export function useTabSync() {
   const [lastSyncEvent, setLastSyncEvent] = useState<TabSyncMessage | null>(null);

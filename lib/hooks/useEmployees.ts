@@ -121,3 +121,36 @@ export function useDeleteEmployee() {
     },
   });
 }
+
+export interface CurrentUserProfile {
+  id: string;
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+  employeeId?: string;
+  department?: string;
+  departmentId?: string;
+  leaveBalance?: {
+    annual: number;
+    sick: number;
+    casual: number;
+  };
+}
+
+// 6. Hook pour récupérer le profil utilisateur connecté (/api/auth/me)
+export function useCurrentUser() {
+  return useQuery<CurrentUserProfile | null>({
+    queryKey: ["current-user"],
+    queryFn: async () => {
+      const res = await fetch("/api/auth/me");
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok || !contentType.includes("application/json")) {
+        return null;
+      }
+      const json = await res.json();
+      return json.data || null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}

@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { Eye, Trash2, Lock, Unlock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Eye, Trash2, Lock, Unlock, LogIn, Loader2 } from "lucide-react";
 import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuBadge } from "@/components/ui/neu-badge";
@@ -33,12 +34,39 @@ interface TenantTableProps {
   onOpenDeleteModal: (tenant: Tenant) => void;
 }
 
+
 export function TenantTable({
   tenants,
   loading,
   onToggleStatus,
   onOpenDeleteModal,
 }: TenantTableProps) {
+  const router = useRouter();
+  const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
+
+  const handleImpersonate = async (tenant: Tenant) => {
+    if (impersonatingId) return;
+    setImpersonatingId(tenant.id);
+    try {
+      const res = await fetch("/api/v2/admin/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyId: tenant.id }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        router.push("/admin");
+      } else {
+        alert(json.error || "Erreur lors de l'accès au compte client");
+        setImpersonatingId(null);
+      }
+    } catch (err) {
+      console.error("Erreur impersonation:", err);
+      alert("Échec de la connexion en mode support");
+      setImpersonatingId(null);
+    }
+  };
+
   return (
     <NeuCard className="overflow-hidden">
       <div className="overflow-x-auto">
@@ -119,9 +147,25 @@ export function TenantTable({
                   </td>
                   <td className="p-3 text-right">
                     <div className="flex items-center justify-end gap-1">
+                      {/* Bouton Impersonate / Support */}
+                      <NeuButton
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-[#666cff] hover:bg-[#666cff]/10"
+                        title="Se connecter en tant qu'administrateur (Support Client)"
+                        disabled={impersonatingId !== null}
+                        onClick={() => handleImpersonate(t)}
+                      >
+                        {impersonatingId === t.id ? (
+                          <Loader2 size={14} className="animate-spin text-[#666cff]" />
+                        ) : (
+                          <LogIn size={14} />
+                        )}
+                      </NeuButton>
+
                       <Link href={`/super-admin/tenants/${t.id}`}>
                         <NeuButton size="icon" variant="ghost" className="h-7 w-7" title="Consulter la fiche">
-                          <Eye size={14} className="text-[#666cff]" />
+                          <Eye size={14} className="text-[#26c6f9]" />
                         </NeuButton>
                       </Link>
 
@@ -169,3 +213,4 @@ export function TenantTable({
     </NeuCard>
   );
 }
+

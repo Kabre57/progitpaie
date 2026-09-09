@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -33,7 +34,8 @@ import {
   Archive,
   Key,
   Network,
-  Shield,
+  Activity,
+  UserCheck,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSidebar } from "@/lib/SidebarContext";
@@ -42,7 +44,10 @@ import { useSidebar } from "@/lib/SidebarContext";
 const superAdminNavItems = [
   { name: "Dashboard Groupe", href: "/super-admin/dashboard", icon: LayoutGrid },
   { name: "Gestion des Entreprises", href: "/super-admin/tenants", icon: Building2 },
+  { name: "Abonnements & Licences", href: "/super-admin/subscriptions", icon: CreditCard },
+  { name: "Santé & Monitoring", href: "/super-admin/system", icon: Activity },
   { name: "Journal d'Audit Global", href: "/super-admin/audit-logs", icon: ScrollText },
+  { name: "Équipe & Accès", href: "/super-admin/team", icon: UserCheck },
   { name: "Paramètres Globaux", href: "/super-admin/settings", icon: Settings },
   { name: "Sauvegardes & Exports", href: "/super-admin/backups", icon: Archive },
 ];
@@ -71,7 +76,6 @@ const tenantAdminNavItems = [
   { name: "Rapports & Statistiques", href: "/admin/reports", icon: BarChart2 },
   { name: "Journal d'Audit", href: "/admin/audit-logs", icon: ScrollText },
   { name: "Clés API & ERP", href: "/admin/api-keys", icon: Key },
-  { name: "Rôles & Permissions", href: "/admin/roles", icon: Shield },
   { name: "Paramètres", href: "/admin/settings", icon: Settings },
 ];
 
@@ -82,9 +86,11 @@ export function AdminSidebar() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const { isAdminCollapsed: isCollapsed, setIsAdminCollapsed: setIsCollapsed } = useSidebar();
 
-  useEffect(() => {
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
     setPendingHref(null);
-  }, [pathname]);
+  }
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -131,9 +137,12 @@ export function AdminSidebar() {
             href={userRole === "super_admin" ? "/super-admin/dashboard" : "/admin"}
             className="flex items-center gap-2 overflow-hidden"
           >
-            <img 
+            <Image 
               src="/logo.png" 
               alt="progitpaie Logo" 
+              width={160}
+              height={48}
+              priority
               className={cn(
                 "transition-all duration-300",
                 isCollapsed ? "w-10 h-10 object-contain mx-auto" : "h-12 w-auto object-contain"

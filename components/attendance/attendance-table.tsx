@@ -93,7 +93,7 @@ export function AttendanceTable({ records }: AttendanceTableProps) {
     return (
       <div className="text-center py-12 text-[var(--neu-text-secondary)]">
         <p className="text-lg font-medium">Aucun enregistrement de présence trouvé</p>
-        <p className="text-sm mt-1">Essayez d'ajuster vos critères de recherche ou le mois sélectionné.</p>
+        <p className="text-sm mt-1">Essayez d&apos;ajuster vos critères de recherche ou le mois sélectionné.</p>
       </div>
     );
   }

@@ -1,25 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { NeuCard, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FileText, Download } from "lucide-react";
-
-interface PayrollRecord {
-  _id: string;
-  month: number;
-  year: number;
-  basicSalary: number;
-  presentDays: number;
-  absentDeduction: number;
-  lateDeduction: number;
-  unpaidLeaveDeduction: number;
-  bonuses: number;
-  netSalary: number;
-  status: string;
-}
+import { useMyPayroll } from "@/lib/hooks/usePayroll";
+import { useCurrentUser } from "@/lib/hooks/useEmployees";
 
 const MONTH_NAMES_FR = [
   "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -31,38 +19,18 @@ function formatFCFA(amount: number): string {
 }
 
 export default function EmployeePayslipPage() {
-  const [payroll, setPayroll] = useState<PayrollRecord[]>([]);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<{ _id: string; name: string; employeeId?: string } | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, [month, year]);
+  const { data: payroll = [], isLoading: loadingPayroll } = useMyPayroll(month, year);
+  const { data: user, isLoading: loadingUser } = useCurrentUser();
 
-  const fetchData = async () => {
-    try {
-      const [payrollRes, userRes] = await Promise.all([
-        fetch(`/api/payroll/my?month=${month}&year=${year}`),
-        fetch("/api/auth/me"),
-      ]);
-
-      const payrollData = await payrollRes.json();
-      const userData = await userRes.json();
-
-      if (payrollData.success) setPayroll(payrollData.data);
-      if (userData.success) setUser(userData.data);
-    } catch (error) {
-      console.error("Erreur lors de la récupération du bulletin de paie :", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = loadingPayroll || loadingUser;
 
   const downloadPayslip = () => {
-    if (user?._id) {
-      window.open(`/api/export/payslip/${user._id}?month=${month}&year=${year}`, "_blank");
+    const userId = user?.id || user?._id;
+    if (userId) {
+      window.open(`/api/export/payslip/${userId}?month=${month}&year=${year}`, "_blank");
     }
   };
 

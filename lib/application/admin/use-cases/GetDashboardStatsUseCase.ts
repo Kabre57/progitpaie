@@ -1,5 +1,4 @@
 import { SuperAdminRepository } from "../ports/SuperAdminRepository";
-import { PrismaSuperAdminRepository } from "@/lib/infrastructure/repositories/prisma/PrismaSuperAdminRepository";
 import {
   DashboardStatsDTO,
   DashboardKPIs,
@@ -15,7 +14,7 @@ const MONTH_LABELS_FR = [
 ];
 
 export class GetDashboardStatsUseCase {
-  constructor(private readonly superAdminRepo: SuperAdminRepository = new PrismaSuperAdminRepository()) {}
+  constructor(private readonly superAdminRepo: SuperAdminRepository) {}
 
   public async execute(): Promise<DashboardStatsDTO> {
     const now = new Date();

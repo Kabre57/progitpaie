@@ -39,6 +39,17 @@ export async function GET(request: NextRequest): Promise<Response> {
         { status: 404 }
       );
     }
+    if (message.startsWith("BULK_LIMIT_EXCEEDED:")) {
+      const [, count, max] = message.split(":");
+      return NextResponse.json(
+        {
+          success: false,
+          error: `L'export est limité à ${max} bulletins par appel (${count} demandés). Utilisez un filtre de période ou exportez par lots.`,
+          code: "BULK_LIMIT_EXCEEDED",
+        },
+        { status: 422 }
+      );
+    }
     console.error("Bulk payslip export error:", error);
     return NextResponse.json(
       { success: false, error: "Erreur lors de la génération des bulletins", code: "SERVER_ERROR" },

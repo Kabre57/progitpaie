@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -14,35 +15,39 @@ interface Notification {
   createdAt: string;
 }
 
+interface NotificationsApiResponse {
+  notifications: Notification[];
+  unreadCount: number;
+}
+
 export function NotificationBell() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
-  const fetchNotifications = async () => {
-    try {
+  const { data } = useQuery<NotificationsApiResponse>({
+    queryKey: ["notifications"],
+    queryFn: async () => {
       const response = await fetch("/api/notifications?limit=20");
-      const data = await response.json();
-      if (data.success) {
-        setNotifications(data.data);
-        setUnreadCount(data.unreadCount);
+      const res = await response.json();
+      if (res.success) {
+        return {
+          notifications: res.data || [],
+          unreadCount: res.unreadCount || 0,
+        };
       }
-    } catch (error) {
-      console.error("Failed to fetch notifications", error);
-    }
-  };
+      return { notifications: [], unreadCount: 0 };
+    },
+    refetchInterval: 30000,
+  });
 
-  useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  const notifications = data?.notifications || [];
+  const unreadCount = data?.unreadCount || 0;
 
   const markAsRead = async (id: string) => {
     try {
       await fetch(`/api/notifications/${id}/read`, { method: "PUT" });
-      fetchNotifications();
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     } catch (error) {
       console.error("Failed to mark as read", error);
     }
@@ -56,7 +61,7 @@ export function NotificationBell() {
           fetch(`/api/notifications/${n._id}/read`, { method: "PUT" })
         )
       );
-      fetchNotifications();
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     } catch (error) {
       console.error("Failed to mark all as read", error);
     }

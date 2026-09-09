@@ -41,7 +41,7 @@ export const initSocketServer = (httpServer: NetServer): ServerIO => {
       const decoded = jwt.verify(token, JWT_SECRET) as SocketUser;
       socket.user = decoded;
       next();
-    } catch (err) {
+    } catch (_err) {
       return next(new Error("Invalid authentication token"));
     }
   });

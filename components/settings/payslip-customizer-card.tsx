@@ -114,7 +114,7 @@ export function PayslipCustomizerCard({
       } else {
         setUploadError(json.error || "Erreur lors de l'upload");
       }
-    } catch (err) {
+    } catch {
       setUploadError("Erreur réseau lors de l'upload du logo");
     } finally {
       setUploading(false);
@@ -247,6 +247,7 @@ export function PayslipCustomizerCard({
               {/* Aperçu du logo actuel */}
               {appearance.logoBase64 ? (
                 <div className="relative group">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={appearance.logoBase64}
                     alt="Logo entreprise"

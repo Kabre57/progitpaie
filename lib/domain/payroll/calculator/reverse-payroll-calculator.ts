@@ -146,9 +146,6 @@ export function calculateGrossFromNet(input: ReverseCalculationInput): ReverseCa
   const ricfAmount = calculateRICF2024(partsIGR, schedule);
 
   const rawTransport = input.transportAllowance ?? 30000;
-  const transportExemptMax = rates.cmuBase !== undefined
-    ? DEFAULT_PAYROLL_RATES.transportExemptAmount
-    : DEFAULT_PAYROLL_RATES.transportExemptAmount;
   // Montant d'exonération transport : toujours depuis DEFAULT_PAYROLL_RATES (source officielle)
   const transportExemptCap = DEFAULT_PAYROLL_RATES.transportExemptAmount;
   const transportExempt = Math.min(rawTransport, transportExemptCap);
@@ -180,7 +177,8 @@ export function calculateGrossFromNet(input: ReverseCalculationInput): ReverseCa
     const cmuEmployee = Math.round(cmuBaseVal * (cmuEmpRate / 100));
 
     // ITS 2024 Net
-    const R = Math.max(0, effectiveBrutTaxable - cnpsEmployee);
+    const _R = Math.max(0, effectiveBrutTaxable - cnpsEmployee);
+    void _R; // variable intermédiaire conservée pour lisibilité du calcul
     const itsNet = calculateITS2024(effectiveBrutTaxable, cnpsEmployee, partsIGR, schedule);
 
     // Total retenues
@@ -212,7 +210,8 @@ export function calculateGrossFromNet(input: ReverseCalculationInput): ReverseCa
   const cnpsEmployee = employeeContribs.cnpsRetirement;
   const cmuEmployee = employeeContribs.cmu;
 
-  const R = Math.max(0, effectiveBrutTaxable - cnpsEmployee);
+  const _R = Math.max(0, effectiveBrutTaxable - cnpsEmployee);
+  void _R; // variable intermédiaire conservée pour lisibilité du calcul
   const itsBrut = Math.round(calculateITS2024(effectiveBrutTaxable, cnpsEmployee, 1.0, schedule)); // Sans RICF
   const itsNet = calculateITS2024(effectiveBrutTaxable, cnpsEmployee, partsIGR, schedule);
   const ricfDeduction = Math.max(0, itsBrut - itsNet);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuSelect } from "@/components/ui/neu-select";
@@ -34,11 +34,7 @@ export default function DeclarationsPage() {
   const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
   const [previewDoc, setPreviewDoc] = useState<"declaration_its" | "declaration_fdfp" | "declaration_cnps" | null>(null);
 
-  useEffect(() => {
-    fetchDeclarations();
-  }, [month, year]);
-
-  const fetchDeclarations = async () => {
+  const fetchDeclarations = useCallback(async () => {
     setLoading(true);
     try {
       const [itsRes, cnpsRes] = await Promise.all([
@@ -54,7 +50,11 @@ export default function DeclarationsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [month, year]);
+
+  useEffect(() => {
+    fetchDeclarations();
+  }, [fetchDeclarations]);
 
   const handlePrintPdf = async (docType: string, filename: string) => {
     setDownloadingDoc(docType);
@@ -145,14 +145,14 @@ export default function DeclarationsPage() {
               </div>
               <div>
                 <h3 className="font-bold text-lg text-[var(--neu-text)]">DÉCLARATION ITS (DGI)</h3>
-                <p className="text-xs text-[var(--neu-text-secondary)]">Direction Générale des Impôts (DGI Côte d'Ivoire)</p>
+                <p className="text-xs text-[var(--neu-text-secondary)]">Direction Générale des Impôts (DGI Côte d&apos;Ivoire)</p>
               </div>
             </div>
             <NeuBadge variant="warning">DGI CI</NeuBadge>
           </div>
 
           {loading ? (
-            <div className="py-6 text-center text-sm text-[var(--neu-text-secondary)]">Chargement de l'état DGI...</div>
+            <div className="py-6 text-center text-sm text-[var(--neu-text-secondary)]">Chargement de l&apos;état DGI...</div>
           ) : (
             <div className="space-y-3 text-sm">
               <div className="flex justify-between py-1 border-b border-white/5">
@@ -215,7 +215,7 @@ export default function DeclarationsPage() {
               <span className="font-mono font-semibold">{Math.round((itsData?.totalGrossSalary || 0) * 0.012).toLocaleString()} FCFA</span>
             </div>
             <div className="flex justify-between py-1 border-b border-white/5">
-              <span className="text-[var(--neu-text-secondary)]">Taxe d'Apprentissage TAP (0.4%) :</span>
+              <span className="text-[var(--neu-text-secondary)]">Taxe d&apos;Apprentissage TAP (0.4%) :</span>
               <span className="font-mono font-semibold">{Math.round((itsData?.totalGrossSalary || 0) * 0.004).toLocaleString()} FCFA</span>
             </div>
             <div className="flex justify-between py-2 font-bold text-base bg-[var(--neu-surface)] p-3 rounded-lg border border-[var(--neu-border)]">
@@ -251,8 +251,8 @@ export default function DeclarationsPage() {
                 <ShieldCheck size={24} />
               </div>
               <div>
-                <h3 className="font-bold text-lg text-[var(--neu-text)]">DÉCLARATION CNPS & -DISA / DASC</h3>
-                <p className="text-xs text-[var(--neu-text-secondary)]">Caisse Nationale de Prévoyance Sociale (Côte d'Ivoire)</p>
+                <h3 className="font-bold text-lg text-[var(--neu-text)]">DÉCLARATION CNPS &amp; -DISA / DASC</h3>
+                <p className="text-xs text-[var(--neu-text-secondary)]">Caisse Nationale de Prévoyance Sociale (Côte d&apos;Ivoire)</p>
               </div>
             </div>
             <NeuBadge variant="info">CNPS CI</NeuBadge>

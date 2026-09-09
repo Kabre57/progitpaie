@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { NeuCard, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { Spinner } from "@/components/ui/spinner";
@@ -8,96 +8,44 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Calendar, XCircle, Clock } from "lucide-react";
 import { List2 } from "@/components/ui/list-2";
 import { NeuBadge } from "@/components/ui/neu-badge";
-
-interface LeaveRequest {
-  _id: string;
-  leaveType: string;
-  startDate: string;
-  endDate: string;
-  totalDays: number;
-  reason: string;
-  status: "pending" | "approved" | "rejected";
-}
-
-interface LeaveBalance {
-  annual: number;
-  sick: number;
-  casual: number;
-}
+import { useLeaves, useApplyLeave, useCancelLeave } from "@/lib/hooks/useLeaves";
+import { useCurrentUser } from "@/lib/hooks/useEmployees";
+import type { ApplyLeaveInput } from "@/lib/validators/leave.schema";
 
 export default function EmployeeLeavesPage() {
-  const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
-  const [balance, setBalance] = useState<LeaveBalance>({ annual: 0, sick: 0, casual: 0 });
-  const [loading, setLoading] = useState(true);
+  const { data: leaves = [], isLoading: loadingLeaves } = useLeaves();
+  const { data: currentUser, isLoading: loadingUser } = useCurrentUser();
+  const applyLeaveMutation = useApplyLeave();
+  const cancelLeaveMutation = useCancelLeave();
+
   const [showApplyModal, setShowApplyModal] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ApplyLeaveInput>({
     leaveType: "annual",
     startDate: "",
     endDate: "",
     reason: "",
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const [leavesRes, userRes] = await Promise.all([
-        fetch("/api/leaves/my"),
-        fetch("/api/auth/me"),
-      ]);
-
-      const leavesData = await leavesRes.json();
-      const userData = await userRes.json();
-
-      if (leavesData.success) setLeaves(leavesData.data);
-      if (userData.success) setBalance(userData.data.leaveBalance || { annual: 0, sick: 0, casual: 0 });
-    } catch (error) {
-      console.error("Échec de la récupération des congés", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const balance = currentUser?.leaveBalance || { annual: 0, sick: 0, casual: 0 };
+  const loading = loadingLeaves || loadingUser;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
     try {
-      const response = await fetch("/api/leaves/apply", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      const json = await response.json();
-
-      if (response.ok && json.success) {
-        setShowApplyModal(false);
-        setFormData({ leaveType: "annual", startDate: "", endDate: "", reason: "" });
-        fetchData();
-      } else {
-        alert(json.error || "Erreur lors de l'envoi de la demande");
-      }
+      await applyLeaveMutation.mutateAsync(formData);
+      setShowApplyModal(false);
+      setFormData({ leaveType: "annual", startDate: "", endDate: "", reason: "" });
     } catch (error) {
-      console.error("Échec de l'envoi de la demande", error);
-      alert("Erreur réseau lors de l'envoi de la demande");
-    } finally {
-      setSubmitting(false);
+      const message = error instanceof Error ? error.message : "Erreur lors de l'envoi de la demande";
+      alert(message);
     }
   };
 
   const handleCancel = async (id: string) => {
     try {
-      const response = await fetch(`/api/leaves/my?id=${id}`, {
-        method: "DELETE",
-      });
-      if (response.ok) {
-        fetchData();
-      }
+      await cancelLeaveMutation.mutateAsync(id);
     } catch (error) {
       console.error("Échec de l'annulation", error);
     }
@@ -144,7 +92,7 @@ export default function EmployeeLeavesPage() {
         <div>
           <h2 className="text-2xl font-bold text-[var(--neu-text)]">Gestion des Congés</h2>
           <p className="text-sm text-[var(--neu-text-secondary)] mt-1">
-            Effectuez vos demandes de congés et suivez l'état de vos soldes restants.
+            Effectuez vos demandes de congés et suivez l&apos;état de vos soldes restants.
           </p>
         </div>
         <NeuButton onClick={() => setShowApplyModal(true)} variant="accent" className="w-full sm:w-auto">
@@ -202,7 +150,7 @@ export default function EmployeeLeavesPage() {
                       <span className="font-bold text-[var(--neu-accent)]">({leave.totalDays} jours)</span>
                     </div>
                     <div className="text-sm italic opacity-60 line-clamp-1">
-                      "{leave.reason}"
+                      &ldquo;{leave.reason}&rdquo;
                     </div>
                   </div>
                 ),
@@ -215,7 +163,8 @@ export default function EmployeeLeavesPage() {
                       <NeuButton
                         size="icon"
                         variant="ghost"
-                        onClick={() => handleCancel(leave._id)}
+                        onClick={() => handleCancel(leave.id || leave._id || "")}
+                        disabled={cancelLeaveMutation.isPending}
                         className="h-8 w-8 text-[var(--neu-danger)] hover:bg-[var(--neu-danger)]/10"
                         title="Annuler la demande"
                       >
@@ -240,7 +189,7 @@ export default function EmployeeLeavesPage() {
                 <label className="block text-sm font-medium text-[var(--neu-text-secondary)] mb-1">Type de Congé *</label>
                 <select
                   value={formData.leaveType}
-                  onChange={(e) => setFormData({ ...formData, leaveType: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, leaveType: e.target.value as ApplyLeaveInput["leaveType"] })}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--neu-border)] bg-[var(--neu-bg)] text-sm text-[var(--neu-text)]"
                 >
                   <option value="annual">Congé Payé Annuel</option>
@@ -286,7 +235,7 @@ export default function EmployeeLeavesPage() {
                 <NeuButton type="button" variant="ghost" onClick={() => setShowApplyModal(false)} className="flex-1">
                   Annuler
                 </NeuButton>
-                <NeuButton type="submit" variant="accent" loading={submitting} className="flex-1">
+                <NeuButton type="submit" variant="accent" loading={applyLeaveMutation.isPending} className="flex-1">
                   Soumettre la demande
                 </NeuButton>
               </div>

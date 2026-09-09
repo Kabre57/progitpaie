@@ -5,9 +5,6 @@ import { PrismaTenantRepository } from "@/lib/infrastructure/repositories/prisma
 import { ToggleTenantStatusUseCase } from "@/lib/application/tenant/use-cases/ToggleTenantStatusUseCase";
 import { ToggleTenantStatusSchema } from "@/shared/validation/tenant-v2.schema";
 
-const tenantRepo = new PrismaTenantRepository();
-const toggleTenantStatusUC = new ToggleTenantStatusUseCase(tenantRepo);
-
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -25,6 +22,9 @@ export async function PATCH(
         { status: 400 }
       );
     }
+
+    const tenantRepo = new PrismaTenantRepository();
+    const toggleTenantStatusUC = new ToggleTenantStatusUseCase(tenantRepo);
 
     const updated = await toggleTenantStatusUC.execute(id, parsed.data.status);
 

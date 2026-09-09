@@ -1,5 +1,7 @@
-import "dotenv/config";
 import { defineConfig } from "prisma/config";
+
+process.env.DATABASE_URL ??=
+  "postgresql://progitpaie:progitpaie_pass_2026@localhost:5433/progitpaie?schema=public";
 
 // The application uses a multi-file Prisma schema in prisma/schema. Without an
 // explicit migrations path, Prisma resolves migrations relative to that folder

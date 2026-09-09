@@ -126,6 +126,15 @@ export default function ProjectRadarSection() {
         <div className="absolute bottom-0 z-[41] h-px w-full bg-gradient-to-r from-transparent via-slate-600 to-transparent" />
       </div>
 
+      {/* Stats Counter Bar */}
+      <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4 max-w-3xl mx-auto">
+        {stats.map((s) => (
+          <div key={s.label} className="text-center p-3 rounded-xl bg-slate-900/40 border border-slate-800 backdrop-blur-sm">
+            <div className="text-2xl font-bold text-white font-mono">{s.value}</div>
+            <div className="text-xs text-slate-400 mt-1">{s.label}</div>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

@@ -4,12 +4,13 @@ import { useState, useEffect } from "react";
 import { syncOfflineQueue } from "@/lib/offline-queue";
 
 export function useOnlineStatus() {
-  const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [isOnline, setIsOnline] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return navigator.onLine;
+  });
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    setIsOnline(navigator.onLine);
 
     const handleOnline = () => {
       console.log("🌐 [RÉSEAU] Connexion rétablie !");

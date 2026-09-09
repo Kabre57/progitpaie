@@ -3,11 +3,10 @@
 import { useEffect, useState } from "react";
 import { NeuCard, NeuCardContent, NeuCardHeader, NeuCardTitle } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
-import { NeuInput } from "@/components/ui/neu-input";
 import { NeuSelect } from "@/components/ui/neu-select";
 import { NeuBadge } from "@/components/ui/neu-badge";
 import { ChipLoader } from "@/components/ui/chip-loader";
-import { Network, Users, User, ChevronRight, ChevronDown, UserPlus, Search, Building2 } from "lucide-react";
+import { Network, User, ChevronRight, ChevronDown, UserPlus, Search, Building2 } from "lucide-react";
 import { OrgNodeDTO } from "@/app/api/v2/org-chart/route";
 
 export default function AdminOrgChartPage() {
@@ -204,7 +203,7 @@ export default function AdminOrgChartPage() {
             <Network className="text-[var(--neu-accent)]" /> Organigramme RH & Arborescence
           </h1>
           <p className="text-xs text-[var(--neu-text-secondary)]">
-            Visualisation hiérarchique de l'entreprise et gestion du Supérieur Direct N1 ({totalEmployees} salariés)
+            Visualisation hiérarchique de l&apos;entreprise et gestion du Supérieur Direct N1 ({totalEmployees} salariés)
           </p>
         </div>
 
@@ -340,7 +339,7 @@ export default function AdminOrgChartPage() {
                   Annuler
                 </NeuButton>
                 <NeuButton type="submit" variant="accent" loading={submitting} disabled={!selectedEmployeeId}>
-                  Enregistrer l'Attribution N1
+                  Enregistrer l&apos;Attribution N1
                 </NeuButton>
               </div>
             </form>

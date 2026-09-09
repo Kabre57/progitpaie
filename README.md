@@ -1,20 +1,61 @@
-# PROGITPAIE — Solution de Gestion de Paie & RH en Côte d'Ivoire (V2 Clean Architecture)
+# PROGITPAIE — Solution SaaS de Gestion de Paie & RH (V2 Clean Architecture)
 
-PROGITPAIE est une plateforme Saas moderne de gestion de la paie et des ressources humaines, conforme à la législation du Code du travail et du système fiscal/social ivoirien (CNPS & DGI - SYSCOHADA).
+PROGITPAIE est une plateforme SaaS moderne de gestion des ressources humaines et de la paie, conçue selon les principes de la **Clean Architecture V2** et conforme au Code du travail et à la fiscalité ivoirienne (CNPS & DGI - Barème ITS/IGR 2024, SYSCOHADA).
 
-## 🚀 Architecture V2 (Clean Architecture & DDD)
+---
 
-L'application repose sur une architecture hexagonale stricte :
-- **Domaine** (`lib/domain/`) : Règlements de paie, calculettes de cotisations, gestion des indemnités, congés, prêts et contrats.
-- **Application** (`lib/application/`) : Cas d'usage isolés, ports de repositories et DTOs.
-- **Infrastructure** (`lib/infrastructure/`) : Repositories Prisma isolés à 100% par `companyId`, génération PDF & exports.
-- **API V2** (`app/api/v2/`) : Endpoints HTTP REST sécurisés et validés par Zod.
+## 🏗️ Architecture & Technologies
 
-## 🧪 Tests & Qualité
-- **Tests unitaires & d'intégration** : `npm test` (60/60 test suites PASS, 269 tests)
-- **Vérification TypeScript** : `npx tsc --noEmit` (0 erreur)
-- **Qualification E2E** : Playwright (`tests/e2e/`)
+- **Runtime & UI** : Next.js 16 (App Router, React 19, Standalone Output)
+- **Langage** : TypeScript 5 (Mode strict)
+- **Base de données & ORM** : PostgreSQL 15, Prisma 6.19 (Schéma multi-fichiers modulaire)
+- **Gestionnaire de paquets obligatoire** : `pnpm` (pnpm 9+ / 11+)
+- **Cache & Sessions** : Redis 7
+- **Sécurité** : JWT HttpOnly, chiffrement AES-256-GCM, RBAC, isolation multi-tenant stricte (`companyId`)
 
-## 🛠️ Déploiement
-- **Stack** : Next.js App Router, Prisma ORM, PostgreSQL, Redis, Docker Compose.
-- **Documentation OpenAPI** : Retrouvez la spécification V2 dans [`docs/api/openapi-v2-complete.yaml`](file:///home/hp/Documents/Projet/progitpaie/docs/api/openapi-v2-complete.yaml).
+---
+
+## 📁 Structure du Projet
+
+```text
+app/                         # Next.js App Router (Pages & API REST V2)
+app/api/v2/                  # 16 domaines API REST sécurisés et validés par Zod
+components/                  # Composants UI React
+lib/domain/                  # Entités, Value Objects, règles métier pures (Money, Calculs)
+lib/application/             # Cas d'usage, DTOs, interfaces de ports
+lib/infrastructure/          # Repositories Prisma, sécurité, passerelles, mappers
+prisma/schema/               # Schéma Prisma modulaire (core + 5 modules métier)
+prisma/migrations/           # 16 migrations ordonnées
+scripts/                     # Scripts de diagnostic et de maintenance
+```
+
+---
+
+## ⚡ Commandes Principales
+
+```bash
+# 1. Vérification de l'environnement
+pnpm verify
+
+# 2. Génération et validation Prisma
+pnpm prisma:generate
+pnpm prisma:validate
+
+# 3. Qualité et Typecheck
+pnpm exec tsc --noEmit
+pnpm lint
+
+# 4. Exécution des tests (79 suites, 379 tests)
+pnpm test
+
+# 5. Build et Déploiement Local
+pnpm build
+bash deploy-local.sh
+```
+
+---
+
+## 🔒 Sécurité & Isolation Multi-Tenant
+
+Toutes les requêtes de données et d'API sont cloisonnées par `companyId`. Le projet applique une politique de headers de sécurité stricts (HSTS, CSP, X-Frame-Options, X-Content-Type-Options) et dispose d'une suite de tests dédiée à l'isolation inter-entreprises.
+

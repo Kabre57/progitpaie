@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Building2, Plus, Edit2, CheckCircle2, AlertCircle, RefreshCw, ShieldCheck } from "lucide-react";
+import { Building2, Plus, CheckCircle2, AlertCircle, RefreshCw, ShieldCheck } from "lucide-react";
 import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuInput } from "@/components/ui/neu-input";
@@ -97,7 +97,7 @@ export default function MulticompanyAdminPage() {
             Gestion Multicompany & Entités Juridiques
           </h1>
           <p className="text-sm text-[var(--neu-text-subtle)] mt-1">
-            Administration des filiales, succursales et sociétés du groupe (Côte d'Ivoire)
+            Administration des filiales, succursales et sociétés du groupe (Côte d&apos;Ivoire)
           </p>
         </div>
 

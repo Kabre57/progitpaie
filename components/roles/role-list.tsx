@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Users, Shield, Edit3, Trash2, Key, AlertCircle } from "lucide-react";
+import { Users, Shield, Edit3, Trash2 } from "lucide-react";
 import { NeuCard } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuBadge } from "@/components/ui/neu-badge";
@@ -24,7 +24,7 @@ export function RoleList({ roles, onEdit, onDelete, onCreateNew }: RoleListProps
         <div className="max-w-md">
           <h3 className="text-base font-bold text-[var(--neu-text)]">Aucun rôle personnalisé</h3>
           <p className="text-xs text-[var(--neu-text-secondary)] mt-1">
-            Vous n'avez pas encore créé de rôle avec matrice de permissions graduelles.
+            Vous n&apos;avez pas encore créé de rôle avec matrice de permissions graduelles.
             Créez des rôles pour vos gestionnaires, comptables ou superviseurs.
           </p>
         </div>

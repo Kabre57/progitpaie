@@ -113,7 +113,7 @@ export function CompanySettingsCard({
       <NeuCard>
         <NeuCardHeader>
           <NeuCardTitle className="flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-[var(--neu-accent)]" /> Identification de l'Entreprise
+            <Building2 className="w-5 h-5 text-[var(--neu-accent)]" /> Identification de l&apos;Entreprise
           </NeuCardTitle>
         </NeuCardHeader>
         <NeuCardContent className="space-y-4">

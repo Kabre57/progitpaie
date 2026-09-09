@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, ShieldCheck, KeyRound, ArrowRight } from "lucide-react";
+import { ShieldCheck, KeyRound, ArrowRight } from "lucide-react";
 import { NeuCard } from "@/components/ui/neu-card";
 import { NeuInput } from "@/components/ui/neu-input";
 import { NeuButton } from "@/components/ui/neu-button";

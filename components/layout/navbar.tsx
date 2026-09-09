@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, X, LogOut, Clock, LayoutDashboard, Users } from "lucide-react";
@@ -127,7 +128,14 @@ export default function Navbar() {
           href={user.role === "admin" ? "/dashboard" : "/employee"}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <img src="/logo.png" alt="progitpaie Logo" className="h-10 w-auto object-contain" />
+          <Image
+            src="/logo.png"
+            alt="progitpaie Logo"
+            width={120}
+            height={40}
+            priority
+            className="h-10 w-auto object-contain"
+          />
         </Link>
 
         {/* Desktop Navigation */}

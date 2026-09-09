@@ -1,6 +1,4 @@
 import { AttendanceStatus } from "../value-objects/AttendanceStatus";
-import { GeoPoint } from "../value-objects/GeoPoint";
-import { WorkDuration } from "../value-objects/WorkDuration";
 import { AttendanceCalculatorService } from "../services/AttendanceCalculatorService";
 
 describe("Domaine Attendance — Tests Unitaires Purs", () => {

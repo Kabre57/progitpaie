@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState } from "react";
 
 interface SidebarContextType {
   isAdminCollapsed: boolean;
@@ -12,16 +12,14 @@ interface SidebarContextType {
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
-  const [isAdminCollapsed, setIsAdminCollapsed] = useState(false);
-  const [isEmployeeCollapsed, setIsEmployeeCollapsed] = useState(false);
-
-  // Load from localStorage on mount
-  useEffect(() => {
-    const admin = localStorage.getItem("adminSidebarCollapsed") === "true";
-    const employee = localStorage.getItem("employeeSidebarCollapsed") === "true";
-    setIsAdminCollapsed(admin);
-    setIsEmployeeCollapsed(employee);
-  }, []);
+  const [isAdminCollapsed, setIsAdminCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("adminSidebarCollapsed") === "true";
+  });
+  const [isEmployeeCollapsed, setIsEmployeeCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("employeeSidebarCollapsed") === "true";
+  });
 
   const setAdmin = (val: boolean) => {
     setIsAdminCollapsed(val);

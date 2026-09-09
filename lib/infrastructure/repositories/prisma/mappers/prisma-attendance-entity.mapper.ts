@@ -1,4 +1,4 @@
-import { Attendance as PrismaAttendance, AttendanceStatus as PrismaStatus } from "@prisma/client";
+import { Attendance as PrismaAttendance } from "@prisma/client";
 import { Attendance } from "@/lib/domain/attendance/entities/Attendance";
 import { AttendanceStatus } from "@/lib/domain/attendance/value-objects/AttendanceStatus";
 import { GeoPoint } from "@/lib/domain/attendance/value-objects/GeoPoint";

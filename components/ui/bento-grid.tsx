@@ -2,7 +2,6 @@
 
 import { cn } from "@/lib/utils";
 import {
-    CheckCircle,
     Clock,
     MapPin,
     DollarSign,
@@ -12,7 +11,6 @@ import {
     LayoutDashboard,
     LogIn,
     FileText,
-    Bell,
     Activity,
 } from "lucide-react";
 import React from "react";

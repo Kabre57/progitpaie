@@ -4,11 +4,9 @@ import { GetPermissionCatalogUseCase } from "../use-cases/GetPermissionCatalogUs
 import { CreatePermissionModuleUseCase } from "../use-cases/CreatePermissionModuleUseCase";
 import { CreatePermissionDefinitionUseCase } from "../use-cases/CreatePermissionDefinitionUseCase";
 import { CreateRoleUseCase } from "../use-cases/CreateRoleUseCase";
-import { UpdateRoleUseCase } from "../use-cases/UpdateRoleUseCase";
 import { DeleteRoleUseCase } from "../use-cases/DeleteRoleUseCase";
 import { AssignRoleToUserUseCase } from "../use-cases/AssignRoleToUserUseCase";
 import { PermissionModuleEntity } from "@/lib/domain/auth/entities/PermissionCatalog";
-import { RoleEntity } from "@/lib/domain/auth/entities/Role";
 
 describe("Application — Use Cases Rôles & Permissions", () => {
   const companyId = "company-tenant-123";

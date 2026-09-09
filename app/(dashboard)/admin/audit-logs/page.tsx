@@ -1,23 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ScrollText, Loader2, ChevronLeft, ChevronRight, Filter, ChevronDown, ChevronUp } from "lucide-react";
+import { ScrollText, Loader2, Filter } from "lucide-react";
 import { NeuCard, NeuCardHeader, NeuCardTitle, NeuCardContent } from "@/components/ui/neu-card";
 import { NeuButton } from "@/components/ui/neu-button";
 import { NeuBadge } from "@/components/ui/neu-badge";
 import { NeuSelect } from "@/components/ui/neu-select";
 import { NeuInput } from "@/components/ui/neu-input";
-import {
-  NeuTable,
-  NeuTableHeader,
-  NeuTableBody,
-  NeuTableRow,
-  NeuTableHead,
-  NeuTableCell,
-} from "@/components/ui/neu-table";
 import { EmptyState } from "@/components/ui/empty-state";
-import { List2, ListItem } from "@/components/ui/list-2";
-import { User as UserIcon, Calendar as CalendarIcon, Activity, Eye } from "lucide-react";
+import { List2 } from "@/components/ui/list-2";
+import { Calendar as CalendarIcon, Activity } from "lucide-react";
 import { NeuPagination } from "@/components/ui/neu-pagination";
 
 interface AuditLog {
@@ -103,7 +95,7 @@ export default function AdminAuditLogsPage() {
       } else {
         setError(data.error || "Failed to fetch audit logs");
       }
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to fetch audit logs");
     } finally {
       setIsLoading(false);
@@ -183,7 +175,7 @@ export default function AdminAuditLogsPage() {
     <div className="space-y-6">
       {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-[var(--neu-text)]">Journal d'Audit</h1>
+          <h1 className="text-2xl font-bold text-[var(--neu-text)]">Journal d&apos;Audit</h1>
           <p className="text-sm text-[var(--neu-text-secondary)]">Suivez toutes les actions administratives et modifications système</p>
         </div>
 
@@ -193,7 +185,7 @@ export default function AdminAuditLogsPage() {
           <div className="flex flex-wrap gap-4 items-end">
             <div className="flex-1 min-w-[200px]">
               <label className="block text-sm font-medium text-[var(--neu-text)] mb-2">
-                Type d'Action
+                Type d&apos;Action
               </label>
               <NeuSelect
                 value={filters.action}

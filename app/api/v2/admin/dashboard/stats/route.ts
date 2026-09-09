@@ -2,14 +2,14 @@ import { getErrorMessage } from "@/lib/error-message";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/security/requireSuperAdmin";
 import { GetDashboardStatsUseCase } from "@/lib/application/admin/use-cases/GetDashboardStatsUseCase";
-
-const getDashboardStatsUC = new GetDashboardStatsUseCase();
+import { PrismaSuperAdminRepository } from "@/lib/infrastructure/repositories/prisma/PrismaSuperAdminRepository";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const authResult = await requireSuperAdmin(request);
     if (authResult instanceof NextResponse) return authResult;
 
+    const getDashboardStatsUC = new GetDashboardStatsUseCase(new PrismaSuperAdminRepository());
     const stats = await getDashboardStatsUC.execute();
 
     return NextResponse.json({

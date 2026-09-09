@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { NotificationBell } from "./notification-bell";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { CommandPalette } from "./command-palette";
 
 interface UserData {
   name: string;
@@ -92,6 +93,24 @@ export function Header() {
 
       {/* Profil & Actions de droite */}
       <div className="flex items-center gap-4">
+        {/* Recherche Rapide / Palette de Commande */}
+        <button
+          onClick={() => {
+            const event = new KeyboardEvent("keydown", {
+              key: "k",
+              ctrlKey: true,
+              bubbles: true,
+            });
+            window.dispatchEvent(event);
+          }}
+          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[var(--neu-bg)] border border-[var(--neu-border)] text-xs text-[var(--neu-text-secondary)] hover:border-[#666cff]/50 hover:text-[var(--neu-text)] transition-all shadow-inner"
+        >
+          <span>Recherche rapide...</span>
+          <kbd className="px-1.5 py-0.5 rounded bg-[var(--neu-surface-secondary)] border border-[var(--neu-border)] font-mono text-[10px]">
+            Ctrl+K
+          </kbd>
+        </button>
+
         {/* Toggle Thème */}
         <ThemeToggle />
 
@@ -108,7 +127,13 @@ export function Header() {
               {user?.name || "Chargement..."}
             </p>
             <p className="text-xs text-[var(--neu-text-secondary)] capitalize">
-              {user?.role === "admin" ? "Administrateur" : user?.role === "employee" ? "Employé" : user?.role || ""}
+              {user?.role === "super_admin"
+                ? "Super Administrateur"
+                : user?.role === "admin"
+                ? "Administrateur"
+                : user?.role === "employee"
+                ? "Employé"
+                : user?.role || ""}
             </p>
           </div>
 
@@ -122,6 +147,8 @@ export function Header() {
           </button>
         </div>
       </div>
+      <CommandPalette />
     </header>
   );
 }
+

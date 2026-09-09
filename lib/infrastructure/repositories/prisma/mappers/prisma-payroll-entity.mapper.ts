@@ -1,4 +1,4 @@
-import { Payroll as PrismaPayroll, Prisma } from "@prisma/client";
+import { Payroll as PrismaPayroll } from "@prisma/client";
 import { Payroll } from "@/lib/domain/payroll/entities/Payroll";
 import { PayrollEarning } from "@/lib/domain/payroll/entities/PayrollEarning";
 import { PayrollPeriod } from "@/lib/domain/payroll/value-objects/PayrollPeriod";
